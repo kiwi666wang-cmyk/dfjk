@@ -9,16 +9,15 @@
   html, body { touch-action: manipulation; }
   body{
     margin:0; color:#fff; font-family:sans-serif; text-align:center; transition: background .5s ease;
-    /* 柔和、長看舒適，與黑色分離的背景 */
+    /* 舒適、與黑色有區隔的背景 */
     background: radial-gradient(1200px 800px at 50% 0%, #101a2c 0%, #0c1524 60%, #0a111d 100%);
   }
   body.ex-mode{ background: linear-gradient(to bottom, #ff3300, #990000, #000000); }
 
-  /* 舞台 */
   #stage{ position:relative; width:95%; max-width:420px; margin:20px auto; --u:1; }
   canvas{ display:block; background:#121a2a; border:2px solid #fff; width:100%; height:auto; touch-action:manipulation; }
-  /* 遊玩時移除硬邊，用偽邊界 + 霓虹光暈 */
-  #stage.immersive canvas{ border:none; }
+  /* 遊玩時移除硬邊，用偽邊界 + 光暈 */
+  #stage.immersive canvas.game{ border:none; }
   #edgeFade{
     position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease;
     background:
@@ -33,6 +32,10 @@
     content:""; position:absolute; inset:-6px; pointer-events:none; border-radius:14px;
     box-shadow: 0 0 28px 12px rgba(0, 255, 255, .07), 0 0 36px 16px rgba(255, 0, 160, .05);
   }
+  /* UI 叠層：專畫左上角熱圖等固定 HUD，不會漂移 */
+  canvas.ui{
+    position:absolute; inset:0; width:100%; height:100%; pointer-events:none; background:transparent; border:none;
+  }
 
   .hitbar{ position:absolute; left:0; width:100%; display:flex; justify-content:space-between; align-items:center; height:calc(90px * var(--u)); z-index:2; opacity:0; pointer-events:none; }
   .hitkey{ flex:1; margin:0 5px; height:calc(90px * var(--u)); }
@@ -46,7 +49,7 @@
   #pauseButton{ position:absolute; top:10px; right:10px; z-index:3; }
   .pause-bottom{ top:auto !important; bottom:10px !important; }
 
-  /* 倒數字樣（進 stage 最上層，避免黑畫面） */
+  /* 倒數字樣 */
   #countdownText{
     position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
     font-family:'Fredoka One', sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000;
@@ -159,7 +162,8 @@
   <div id="gameScreen" style="display:none; position:relative;">
     <button id="pauseButton" onclick="pauseGame()">⏸️</button>
     <div id="stage">
-      <canvas id="gameCanvas" width="420" height="640"></canvas>
+      <canvas id="gameCanvas" class="game" width="420" height="640"></canvas>
+      <canvas id="uiCanvas" class="ui" width="420" height="640"></canvas>
       <div id="edgeFade" aria-hidden="true"></div>
       <div class="hitbar">
         <div class="hitkey" id="key-d"></div>
@@ -167,7 +171,6 @@
         <div class="hitkey" id="key-j"></div>
         <div class="hitkey" id="key-k"></div>
       </div>
-      <!-- 倒數文字 -->
       <div id="countdownText">Ready</div>
     </div>
 
@@ -208,27 +211,31 @@
 
   <div id="warnBanner">⚠️ 音樂無法載入或播放</div>
 
-  <!-- 命中鏘聲池來源 -->
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
 
 <script>
 /* =========================================================
- * DFJK 高精度 Cyberpunk 版
- * - Cyber-Glitch 箭頭/接收器：幾何箭羽 + 霓虹電路 + 輕故障感
- * - 命中整顆亮起（接收器）、音符保留各自霓虹色
- * - WebAudio 雙時鐘 + 全域偏移校正（可視化/快速校正）
- * - 移除硬邊，啟動時偽邊界；行動裝置震動回饋
- * - 倒數首幀渲染避免黑畫面；暫停恢復修正
+ * DFJK 高精度 Cyberpunk 版（強化故障感 & 移動端穩定性）
+ * - 按鍵/接收器：幾何箭羽 + 霓虹電路 + 彩分離 + 亂流碎片（更紊亂）
+ * - 左上角熱圖獨立 UI 畫布，永遠鎖住位置
+ * - WebAudio + 軟時鐘 fallback（行動端開始/暫停恢復不再卡死）
  * ========================================================= */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-let W = 420, H = 640;
+const uiCanvas = document.getElementById('uiCanvas');
+const uictx = uiCanvas.getContext('2d', { alpha: true });
 
+let W = 420, H = 640;
 function setupCanvasDPR(){
   const dpr = Math.min(window.devicePixelRatio||1, 2);
+  // 遊戲畫布
   canvas.width = Math.round(W * dpr);
   canvas.height= Math.round(H * dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
+  // UI 畫布（固定 HUD）
+  uiCanvas.width = Math.round(W * dpr);
+  uiCanvas.height= Math.round(H * dpr);
+  uictx.setTransform(dpr,0,0,dpr,0,0);
 }
 setupCanvasDPR();
 
@@ -299,7 +306,7 @@ let missCount=0, gameOver=false; let stats={sick:0,good:0,bad:0,shit:0,miss:0};
 let currentSongTitle='-'; let currentDifficulty='normal'; let currentDirection='down'; let currentJudgeMode='old';
 let selectedSongFile=null;
 
-/* ===== 曲目清單（完整） ===== */
+/* 曲目清單 */
 const SONGS = [
   "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3",
   "Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3",
@@ -334,17 +341,17 @@ const SONGS = [
   "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
 ];
 
-/* ===== SFX 池 ===== */
+/* SFX 池 */
 class TapSoundPool{ constructor(src,size=10){ this.pool=[]; this.idx=0; for(let i=0;i<size;i++){ const a=new Audio(src); a.preload='auto'; a.volume=1.0; this.pool.push(a);} } setVolume(v){ const vol=Math.max(0,Math.min(1,v)); for(const a of this.pool) a.volume=vol; } play(){ const a=this.pool[this.idx]; this.idx=(this.idx+1)%this.pool.length; try{ a.currentTime=0; a.play().catch(()=>{});}catch{} } }
 
-/* ===== 畫面切換 ===== */
+/* 畫面切換 */
 function showOnly(id){ ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>document.getElementById(x).style.display=(x===id?'block':'none')); if(id!=='gameScreen') document.getElementById('gameScreen').classList.remove('blur'); }
 function goToMenu(){ cancelCountdown(); stopGameLoop(); stopAndResetAudio(); setImmersive(false); unfreezeLayout(); showOnly('menuScreen'); phase='menu'; document.body.classList.remove('ex-mode'); document.getElementById('menuChosenSong').textContent = selectedSongFile? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; }
 function showOptions(){ setImmersive(false); showOnly('optionsScreen'); }
 function showMusic(){ setImmersive(false); showOnly('musicScreen'); }
 function setImmersive(on){ const stage=document.getElementById('stage'); if(stage) stage.classList.toggle('immersive', !!on); }
 
-/* ===== 曲庫 UI ===== */
+/* 曲庫 UI */
 function fillSongList(){
   const sel=document.getElementById('songSelect'); if(sel.dataset.filled) return;
   sel.innerHTML=''; const ph=document.createElement('option'); ph.value=''; ph.textContent='— 請選擇曲目 —'; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph);
@@ -354,7 +361,7 @@ function fillSongList(){
 }
 function confirmSong(){ const sel=document.getElementById('songSelect'); if(!sel.value){ alert('請先選擇音樂'); return; } selectedSongFile=sel.value; document.getElementById('chosenSongLabel').textContent=sel.options[sel.selectedIndex].textContent; document.getElementById('menuChosenSong').textContent=sel.options[sel.selectedIndex].textContent; goToMenu(); }
 
-/* ===== HUD ===== */
+/* HUD */
 function updateHUD(){
   document.getElementById('score').textContent=score;
   document.getElementById('combo').textContent=combo;
@@ -367,49 +374,223 @@ function updateHUD(){
   const off=document.getElementById('offsetActive'); if(off) off.textContent=`${INPUT_OFFSET_MS} ms`;
 }
 
-/* ===== 色彩 ===== */
-const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666']; // 音符/亮起色
+/* 色彩 */
+const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666'];
 const receptorPulse=[0,0,0,0]; const hitFx=[];
+
 function dirToAngle(dir){ switch(dir){ case 'up':return 0; case 'down':return Math.PI; case 'left':return -Math.PI/2; case 'right':return Math.PI/2; } return 0; }
 
-/* === Fused Cyber-Glitch Sprites (折衷款) =============================== */
+/* ======= 超強烈故障風 Sprites ======= */
 function hexToRgb(hex){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); if(!m) return {r:255,g:255,b:255}; return {r:parseInt(m[1],16), g:parseInt(m[2],16), b:parseInt(m[3],16)}; }
 function rgbToHsl(r,g,b){ r/=255; g/=255; b/=255; const max=Math.max(r,g,b), min=Math.min(r,g,b); let h,s,l=(max+min)/2; if(max===min){ h=s=0; } else { const d=max-min; s=l>0.5? d/(2-max-min): d/(max+min); switch(max){ case r:h=(g-b)/d+(g<b?6:0);break; case g:h=(b-r)/d+2;break; case b:h=(r-g)/d+4;break;} h/=6; } return {h:h*360,s,l}; }
 function hslToHex(h,s,l){ h/=360; const f=(n)=>{ const k=(n+h)%1; const a=s*Math.min(l,1-l); const c=l - a*Math.max(-1, Math.min(k*6-3, Math.min(4-k*6,1))); return Math.round(255*c); }; const r=f(0), g=f(1/3), b=f(2/3); return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`; }
 function accentColors(baseHex){ const {r,g,b}=hexToRgb(baseHex); const {h,s,l}=rgbToHsl(r,g,b); const c1=baseHex; const c2=hslToHex((h+155)%360, Math.min(1, s*0.9), Math.min(0.7, l*1.05)); return {c1,c2}; }
-function chevronPath(ctx, Wd, Hh){ const headH=Hh*0.55; ctx.beginPath(); ctx.moveTo(0,-Hh/2); ctx.lineTo(Wd/2,-Hh/2+headH); ctx.lineTo(Wd*0.26,-Hh/2+headH); ctx.lineTo(Wd*0.26,Hh/2); ctx.lineTo(-Wd*0.26,Hh/2); ctx.lineTo(-Wd*0.26,-Hh/2+headH); ctx.lineTo(-Wd/2,-Hh/2+headH); ctx.closePath(); }
-function drawInnerChevrons(ctx, Wd, Hh, n, opacity){ const step=0.15; ctx.save(); ctx.globalAlpha=opacity; for(let i=1;i<=n;i++){ const k=1 - i*step; ctx.save(); ctx.scale(k,k); ctx.lineWidth=Math.max(1, 3*(1-k)); ctx.strokeStyle='rgba(255,255,255,0.18)'; chevronPath(ctx,Wd,Hh); ctx.stroke(); ctx.restore(); } ctx.restore(); }
-function drawCircuitLines(ctx, Wd, Hh, color){ ctx.save(); ctx.globalAlpha=0.65; ctx.strokeStyle=color; ctx.lineWidth=1.2; const lines=[[-Wd*0.24,-Hh*0.18, Wd*0.18,-Hh*0.18],[-Wd*0.24,0, Wd*0.22,0],[-Wd*0.18,Hh*0.18, Wd*0.26,Hh*0.18]]; lines.forEach(([x1,y1,x2,y2])=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }); ctx.globalAlpha=0.45; for(let i=0;i<4;i++){ const y=-Hh*0.3+i*(Hh*0.2); ctx.beginPath(); ctx.moveTo(-Wd*0.05,y); ctx.lineTo(Wd*0.24, y+Wd*0.16); ctx.stroke(); } ctx.restore(); }
-function glitchOutline(ctx, Wd, Hh, colorA, colorB){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineWidth=2; ctx.strokeStyle=colorA; ctx.translate(0.8,0); chevronPath(ctx,Wd,Hh); ctx.stroke(); ctx.strokeStyle=colorB; ctx.translate(-1.6,0); chevronPath(ctx,Wd,Hh); ctx.stroke(); ctx.restore(); }
-function makeReceptorBlack_Fused(size, dir){ const pad=Math.ceil(size*1.8+20), dpr=Math.min(2,window.devicePixelRatio||1); const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr); const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.04; o.save(); o.translate(pad,pad); o.rotate(ang); let g=o.createLinearGradient(0,-Hh/2,0,Hh/2); g.addColorStop(0,'#1a1c22'); g.addColorStop(0.35,'#0f1116'); g.addColorStop(1,'#000'); o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill(); o.lineWidth=6; o.strokeStyle='#000'; chevronPath(o,Wd,Hh); o.stroke(); o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.98)'; chevronPath(o,Wd,Hh); o.stroke(); drawInnerChevrons(o,Wd,Hh,3,0.7); drawCircuitLines(o,Wd,Hh,'rgba(120,213,255,.45)'); glitchOutline(o,Wd,Hh,'rgba(0,255,255,.20)','rgba(255,0,160,.18)'); o.restore(); return {canvas:off, half:pad, size:pad*2}; }
-function makeReceptorColor_Fused(size, dir, color){ const {c1,c2}=accentColors(color); const pad=Math.ceil(size*1.8+20), dpr=Math.min(2,window.devicePixelRatio||1); const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr); const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.04; o.save(); o.translate(pad,pad); o.rotate(ang); let g=o.createLinearGradient(0,-Hh/2,0,Hh/2); g.addColorStop(0,'#ffffff'); g.addColorStop(0.20,color); g.addColorStop(1,color); o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill(); o.lineWidth=2; o.strokeStyle='#fff'; chevronPath(o,Wd,Hh); o.stroke(); o.save(); o.globalCompositeOperation='lighter'; o.shadowBlur=14; o.shadowColor=c1; o.lineWidth=2; o.strokeStyle=c1; chevronPath(o,Wd,Hh); o.stroke(); o.shadowBlur=10; o.shadowColor=c2; o.lineWidth=1.8; o.strokeStyle=c2; chevronPath(o,Wd,Hh); o.stroke(); o.restore(); drawInnerChevrons(o,Wd,Hh,2,0.55); o.restore(); return {canvas:off, half:pad, size:pad*2}; }
-function makeNote_Fused(size, dir, color){ const {c1,c2}=accentColors(color); const pad=Math.ceil(size*1.8+20), dpr=Math.min(2,window.devicePixelRatio||1); const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr); const ang=dirToAngle(dir), Hh=size*1.16, Wd=size*1.02; o.save(); o.translate(pad,pad); o.rotate(ang); o.shadowColor=color; o.shadowBlur=14; let g=o.createLinearGradient(0,-Hh/2,0,Hh/2); g.addColorStop(0,'#ffffff'); g.addColorStop(0.22,color); g.addColorStop(1,color); o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill(); o.shadowBlur=0; o.lineWidth=6; o.strokeStyle='#000'; chevronPath(o,Wd,Hh); o.stroke(); o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.95)'; chevronPath(o,Wd,Hh); o.stroke(); drawInnerChevrons(o,Wd,Hh,2,0.6); drawCircuitLines(o,Wd,Hh,'rgba(255,255,255,.20)'); glitchOutline(o,Wd,Hh,c1,c2); o.restore(); return {canvas:off, half:pad, size:pad*2}; }
-function drawGlitchBurst(x,y,colorA,colorB,intensity){ const n=Math.floor(3+intensity*4); ctx.save(); ctx.globalCompositeOperation='lighter'; for(let i=0;i<n;i++){ const w=18+Math.random()*34, h=2+Math.random()*3; const xx=x + (Math.random()<0.5?-1:1)*(8+Math.random()*18); const yy=y + (Math.random()*2-1)*14; ctx.globalAlpha=0.25+Math.random()*0.25; ctx.fillStyle=(i%2)?colorA:colorB; ctx.fillRect(xx-w/2, yy-h/2, w, h); } ctx.restore(); }
+
+/* 基本箭羽 */
+function chevronPath(ctx, Wd, Hh){
+  const headH=Hh*0.55;
+  ctx.beginPath();
+  ctx.moveTo(0,-Hh/2);
+  ctx.lineTo(Wd/2,-Hh/2+headH);
+  ctx.lineTo(Wd*0.22,-Hh/2+headH);
+  ctx.lineTo(Wd*0.22,Hh/2);
+  ctx.lineTo(-Wd*0.22,Hh/2);
+  ctx.lineTo(-Wd*0.22,-Hh/2+headH);
+  ctx.lineTo(-Wd/2,-Hh/2+headH);
+  ctx.closePath();
+}
+
+/* 亂流碎片（沿外輪拋出不規則三角/長條） */
+function shardNoise(ctx, Wd, Hh, colorA, colorB, seed=0, density=12){
+  function rnd(){ seed = (seed*9301+49297)%233280; return seed/233280; }
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  for(let i=0;i<density;i++){
+    const side = rnd()<.5?-1:1;
+    const baseY = (-Hh/2) + rnd()*Hh;
+    const len = 8 + rnd()*32, thick = 1 + rnd()*3;
+    const x = (Wd/2 + 2 + rnd()*14) * side;
+    ctx.save();
+    ctx.translate(x, baseY);
+    ctx.rotate((rnd()-.5)*0.6);
+    ctx.globalAlpha = 0.18 + rnd()*0.25;
+    ctx.fillStyle = (i%2? colorA:colorB);
+    ctx.fillRect(-len/2, -thick/2, len, thick);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* 內層幾何線 */
+function drawInnerChevrons(ctx, Wd, Hh, n, opacity){
+  const step=0.15; ctx.save(); ctx.globalAlpha=opacity;
+  for(let i=1;i<=n;i++){
+    const k=1 - i*step;
+    ctx.save(); ctx.scale(k,k);
+    ctx.lineWidth=Math.max(1, 2.6*(1-k));
+    ctx.strokeStyle='rgba(255,255,255,0.22)';
+    chevronPath(ctx,Wd,Hh); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* 電路線 + 隨機分支 */
+function drawCircuit(ctx, Wd, Hh, color, seed=1){
+  function rnd(){ seed = (seed*1103515245+12345)>>>0; return (seed&0xffff)/0xffff; }
+  ctx.save(); ctx.globalAlpha=0.65; ctx.strokeStyle=color; ctx.lineWidth=1.2;
+  const lines=[[-Wd*0.25,-Hh*0.18, Wd*0.20,-Hh*0.18],[-Wd*0.25,0, Wd*0.24,0],[-Wd*0.20,Hh*0.18, Wd*0.26,Hh*0.18]];
+  lines.forEach(([x1,y1,x2,y2])=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); });
+  ctx.globalAlpha=0.45;
+  for(let i=0;i<4;i++){
+    const y=-Hh*0.3+i*(Hh*0.2), x1=-Wd*0.05, x2=Wd*(0.18+rnd()*0.18);
+    ctx.beginPath(); ctx.moveTo(x1,y); ctx.lineTo(x2, y+Wd*(0.08+rnd()*0.18)); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/* 彩分離描邊 */
+function glitchOutline(ctx, Wd, Hh, colorA, colorB){
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  ctx.lineWidth=2; ctx.strokeStyle=colorA; ctx.translate(1.0,0); chevronPath(ctx,Wd,Hh); ctx.stroke();
+  ctx.strokeStyle=colorB; ctx.translate(-2.0,0); chevronPath(ctx,Wd,Hh); ctx.stroke();
+  ctx.restore();
+}
+
+/* Receptor：黑底/細白邊 + 超強故障碎片 */
+function makeReceptorBlack(size, dir){
+  const pad=Math.ceil(size*1.9+24), dpr=Math.min(2,window.devicePixelRatio||1);
+  const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr;
+  const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
+  const ang=dirToAngle(dir), Hh=size*1.22, Wd=size*1.06;
+
+  o.save(); o.translate(pad,pad); o.rotate(ang);
+  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
+  g.addColorStop(0,'#1a1c22'); g.addColorStop(0.35,'#0f1116'); g.addColorStop(1,'#000');
+  o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill();
+  o.lineWidth=6; o.strokeStyle='#000'; chevronPath(o,Wd,Hh); o.stroke();
+  o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.98)'; chevronPath(o,Wd,Hh); o.stroke();
+
+  drawInnerChevrons(o,Wd,Hh,3,0.7);
+  drawCircuit(o,Wd,Hh,'rgba(120,213,255,.45)', 7);
+  glitchOutline(o,Wd,Hh,'rgba(0,255,255,.20)','rgba(255,0,160,.18)');
+  shardNoise(o,Wd,Hh,'rgba(0,255,255,.35)','rgba(255,0,160,.30)', 13, 18);
+  o.restore();
+  return {canvas:off, half:pad, size:pad*2};
+}
+
+/* Receptor 彩色（命中時整顆套用） */
+function makeReceptorColor(size, dir, color){
+  const {c1,c2}=accentColors(color);
+  const pad=Math.ceil(size*1.9+24), dpr=Math.min(2,window.devicePixelRatio||1);
+  const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr;
+  const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
+  const ang=dirToAngle(dir), Hh=size*1.22, Wd=size*1.06;
+
+  o.save(); o.translate(pad,pad); o.rotate(ang);
+  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(0.20,color); g.addColorStop(1,color);
+  o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill();
+  o.lineWidth=2; o.strokeStyle='#fff'; chevronPath(o,Wd,Hh); o.stroke();
+
+  o.save(); o.globalCompositeOperation='lighter';
+  o.shadowBlur=16; o.shadowColor=c1; o.lineWidth=2; o.strokeStyle=c1; chevronPath(o,Wd,Hh); o.stroke();
+  o.shadowBlur=12; o.shadowColor=c2; o.lineWidth=1.8; o.strokeStyle=c2; chevronPath(o,Wd,Hh); o.stroke();
+  o.restore();
+
+  drawInnerChevrons(o,Wd,Hh,2,0.55);
+  shardNoise(o,Wd,Hh,c1,c2, 29, 22);
+  o.restore();
+  return {canvas:off, half:pad, size:pad*2};
+}
+
+/* Note：彩色 + 故障碎片 */
+function makeNote(size, dir, color){
+  const {c1,c2}=accentColors(color);
+  const pad=Math.ceil(size*1.9+24), dpr=Math.min(2,window.devicePixelRatio||1);
+  const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr;
+  const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
+  const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.04;
+
+  o.save(); o.translate(pad,pad); o.rotate(ang);
+  o.shadowColor=color; o.shadowBlur=16;
+  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(0.22,color); g.addColorStop(1,color);
+  o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill();
+
+  o.shadowBlur=0;
+  o.lineWidth=6; o.strokeStyle='#000'; chevronPath(o,Wd,Hh); o.stroke();
+  o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.95)'; chevronPath(o,Wd,Hh); o.stroke();
+
+  drawInnerChevrons(o,Wd,Hh,2,0.6);
+  drawCircuit(o,Wd,Hh,'rgba(255,255,255,.20)', 3);
+  glitchOutline(o,Wd,Hh,c1,c2);
+  shardNoise(o,Wd,Hh,c1,c2, 41, 20);
+
+  o.restore();
+  return {canvas:off, half:pad, size:pad*2};
+}
+
+/* 命中額外故障條紋 */
+function drawGlitchBurst(x,y,colorA,colorB,intensity){
+  const n=Math.floor(4+intensity*5);
+  ctx.save(); ctx.globalCompositeOperation='lighter';
+  for(let i=0;i<n;i++){
+    const w=18+Math.random()*40, h=2+Math.random()*3;
+    const xx=x + (Math.random()<0.5?-1:1)*(8+Math.random()*20);
+    const yy=y + (Math.random()*2-1)*16;
+    ctx.globalAlpha=0.26+Math.random()*0.28;
+    ctx.fillStyle=(i%2)?colorA:colorB;
+    ctx.fillRect(xx-w/2, yy-h/2, w, h);
+  }
+  ctx.restore();
+}
+
+/* Sprites 容器 */
 const SPR = { recBlack:[], recColor:[], note:[] };
-function buildSprites(){ for(let i=0;i<4;i++){ const dir=laneDirs[i], col=laneColors[i]; SPR.recBlack[i]=makeReceptorBlack_Fused(NOTE_BASE, dir); SPR.recColor[i]=makeReceptorColor_Fused(NOTE_BASE, dir, col); SPR.note[i]=makeNote_Fused(NOTE_BASE, dir, col); } }
+function buildSprites(){ for(let i=0;i<4;i++){ const dir=laneDirs[i], col=laneColors[i]; SPR.recBlack[i]=makeReceptorBlack(NOTE_BASE, dir); SPR.recColor[i]=makeReceptorColor(NOTE_BASE, dir, col); SPR.note[i]=makeNote(NOTE_BASE, dir, col); } }
 function drawSprite(sp,x,y,scale=1){ ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale); ctx.drawImage(sp.canvas, -sp.half, -sp.half, sp.size, sp.size); ctx.restore(); }
 
 /* 動態掃描亮帶/外光 */
 function drawMovingSheen(x,y,w,color,t){ const h=22, yy=y - 46 + (Math.sin(t*2)+1)*10; const g=ctx.createLinearGradient(x-w/2,yy-h/2, x+w/2,yy+h/2); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(0.5,'rgba(180,255,255,0.10)'); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle=g; ctx.fillRect(x-w/2,yy-h/2,w,h); ctx.restore(); }
 function drawGlow(x,y,r,color,alpha){ ctx.save(); ctx.globalAlpha=alpha; const g=ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
 
-/* FPS/畫質 */
+/* FPS 等 */
 let __fpsMA=60, __fpsFrames=0, __fpsLastTs=0, __useLowQuality=false, __remainNotes=0;
 function trackFPS(ts){ __fpsFrames++; if(!__fpsLastTs){ __fpsLastTs=ts; return;} const span=ts-__fpsLastTs; if(span>=300){ const inst=__fpsFrames*1000/span; __fpsMA=__fpsMA*0.8+inst*0.2; __fpsFrames=0; __fpsLastTs=ts; if(__fpsMA<54) __useLowQuality=true; else if(__fpsMA>58) __useLowQuality=false; } }
 
-/* ===== WebAudio 雙時鐘 ===== */
+/* ===== WebAudio + 軟時鐘 fallback ===== */
 let INPUT_OFFSET_MS = +(localStorage.getItem('dfjk.offsetMs')||0);
 let audioCtx=null, songBuffer=null, gainNode=null, srcNode=null;
 let startAtCtx=0, startAtSong=0; let songEnded=false;
+let softBaseSong=0, softStartPerf=0; // fallback clock
+
 async function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); if(!gainNode){ gainNode=audioCtx.createGain(); gainNode.connect(audioCtx.destination);} }
 async function loadSongBuffer(url){ await ensureAudio(); const res=await fetch(url); if(!res.ok) throw new Error('fetch failed'); const arr=await res.arrayBuffer(); const buf=await audioCtx.decodeAudioData(arr); songBuffer=buf; }
 function stopAndResetAudio(){ try{ if(srcNode){ srcNode.onended=null; srcNode.stop(0);} }catch{} srcNode=null; startAtCtx=0; startAtSong=0; songEnded=false; }
-function playFrom(offsetSec){ if(!audioCtx||!songBuffer) return; stopAndResetAudio(); srcNode=audioCtx.createBufferSource(); srcNode.buffer=songBuffer; srcNode.connect(gainNode); const when=Math.max(0, audioCtx.currentTime + 0.03); startAtCtx=when; startAtSong=Math.max(0, Math.min(songBuffer.duration-0.001, offsetSec||0)); srcNode.start(when, startAtSong); srcNode.onended=()=>{ songEnded=true; }; }
-function getSongClockSec(){ if(!audioCtx||!songBuffer||!srcNode) return 0; const t=(audioCtx.currentTime - startAtCtx) + startAtSong; return Math.max(0, Math.min(songBuffer.duration, t)); }
-function getJudgeClockSec(){ return getSongClockSec() + (INPUT_OFFSET_MS/1000); }
+function playFrom(offsetSec){
+  if(!audioCtx||!songBuffer) return;
+  stopAndResetAudio();
+  srcNode=audioCtx.createBufferSource(); srcNode.buffer=songBuffer; srcNode.connect(gainNode);
+  const when=Math.max(0, audioCtx.currentTime + 0.03);
+  startAtCtx=when; startAtSong=Math.max(0, Math.min(songBuffer.duration-0.001, offsetSec||0));
+  softBaseSong=startAtSong; softStartPerf=performance.now()/1000;   // 啟動 fallback
+  try{ srcNode.start(when, startAtSong); }catch(e){}
+  srcNode.onended=()=>{ songEnded=true; };
+}
+function getSongClockSecAudio(){
+  if(!audioCtx||!songBuffer||!srcNode) return null;
+  return Math.max(0, Math.min(songBuffer.duration, (audioCtx.currentTime - startAtCtx) + startAtSong));
+}
+function getClockSec(){ // 自動選用音訊時鐘；若無法用，改 fallback
+  const ta = getSongClockSecAudio();
+  if(ta!==null && audioCtx.state==='running') return ta;
+  const t = softBaseSong + (performance.now()/1000 - softStartPerf);
+  return Math.max(0, songBuffer? Math.min(songBuffer.duration, t) : t);
+}
+function getJudgeClockSec(){ return getClockSec() + (INPUT_OFFSET_MS/1000); }
 function setGlobalOffset(ms){ const clamp = Math.max(-600, Math.min(600, (ms|0))); INPUT_OFFSET_MS=clamp; localStorage.setItem('dfjk.offsetMs', String(INPUT_OFFSET_MS)); const lab=document.getElementById('offsetLabel'); if(lab) lab.textContent=`${INPUT_OFFSET_MS} ms`; const hud=document.getElementById('offsetActive'); if(hud) hud.textContent=`${INPUT_OFFSET_MS} ms`; }
 
-/* ===== 校正 UI ===== */
+/* 校正 UI（沿用前版，略） */
 function initOffsetUI(){
   const s=document.getElementById('offsetSlider'); const lab=document.getElementById('offsetLabel');
   const saved=+(localStorage.getItem('dfjk.offsetMs')||0);
@@ -417,6 +598,8 @@ function initOffsetUI(){
   s.addEventListener('input',()=>{ const v=+s.value; lab.textContent=`${v} ms`; setGlobalOffset(v); });
   document.getElementById('offsetCalibBtn').addEventListener('click', openOffsetCalibrator);
 }
+
+/* ——（校正面板同上一版，避免冗長，保持可用與精準）—— */
 function openOffsetCalibrator(){
   (async()=>{ try{ await ensureAudio(); if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{} })();
   const overlay=document.createElement('div');
@@ -476,13 +659,13 @@ function openOffsetCalibrator(){
   startMetronome(0.8);
 }
 
-/* ===== 統計/震動 ===== */
+/* 統計/震動 */
 const dtHistory=[]; const DT_HIST_MAX=240;
 function recordDt(dtMs){ dtHistory.push(dtMs); if(dtHistory.length>DT_HIST_MAX) dtHistory.shift(); }
 function getDtStats(){ if(!dtHistory.length) return {avg:0,std:0}; const n=dtHistory.length; const avg=dtHistory.reduce((a,c)=>a+c,0)/n; const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n; return {avg, std:Math.sqrt(va)}; }
 function hapticForRating(r){ if(!SUPPORTS_VIB) return; const map={'SICK!':12,'GOOD':8,'BAD':5,'SHIT':3}; navigator.vibrate(map[r]||6); }
 
-/* ===== 判定 ===== */
+/* 判定 */
 function judge(dtMs, lane){
   const WN=currentWindows(); const adt=Math.abs(dtMs);
   let rating='', base=0, incCombo=true;
@@ -495,7 +678,7 @@ function judge(dtMs, lane){
   score=Math.max(0, Math.round(score + base * centrality));
   if(incCombo) combo++; else combo=Math.max(0, combo-1);
   lastJudgementText=rating; receptorPulse[lane]=1;
-  hitFx.push({lane, t0:getSongClockSec(), life:0.25});
+  hitFx.push({lane, t0:getClockSec(), life:0.25});
   recordDt(dtMs); hapticForRating(rating); updateHUD();
   if(combo>0 && combo%10===0){ comboFlash=`COMBO x${combo}!!`; setTimeout(()=>comboFlash='',800); }
 }
@@ -503,7 +686,7 @@ function miss(){ lastJudgementText='MISS'; combo=0; missCount++; stats.miss++; s
 function ghostTap(lane){ lastJudgementText='MISS'; combo=0; score=Math.max(0, score+FNF_SCORES.ghost); receptorPulse[lane]=0.5; if(SUPPORTS_VIB) navigator.vibrate(2); updateHUD(); }
 function triggerFailOnce(msg){ if(gameOver) return; gameOver=true; running=false; stopGameLoop(); stopAndResetAudio(); setTimeout(()=>{ alert(msg); goToMenu(); },0); }
 
-/* ===== 譜面 ===== */
+/* 譜面 */
 function generateChart(durationSec){
   chart=[]; const d=currentDifficulty;
   let doubleNoteChance=0.35, tmin=0.20, tmax=0.45;
@@ -528,11 +711,11 @@ function generateChart(durationSec){
 }
 function noteYAtTimeFor(tHit, tNow){ const judge=getJudgeLineYInternal(); return (currentDirection==='down')? (judge - (tHit - tNow)*noteSpeed) : (judge + (tHit - tNow)*noteSpeed); }
 
-/* ===== Lane Cursor ===== */
+/* Lane Cursor */
 const nextIdxByLane=[0,0,0,0];
 function rebuildLaneCursors(){ nextIdxByLane.fill(0); chart.sort((a,b)=>a.t-b.t); }
 
-/* ===== 更新/繪圖 ===== */
+/* 更新/繪圖 */
 function updateHitbarPosition(){ if(!hitbar || document.getElementById('gameScreen').style.display==='none') return; const topPx=getJudgeLineYCss() - (HITKEY_BASE*uiScale/2); hitbar.style.top=`${topPx}px`; }
 function positionPauseButton(){ const btn=document.getElementById('pauseButton'); if(!btn) return; btn.classList.remove('pause-bottom'); const isCoarse=window.matchMedia('(pointer: coarse)').matches; if(isCoarse && currentDirection==='up') btn.classList.add('pause-bottom'); }
 
@@ -558,43 +741,36 @@ function render({skipNotes=false}={}){
   for(let lane=0; lane<4; lane++){
     const x=lane*laneWidth+laneWidth/2; const pulse=receptorPulse[lane];
     const s=1 + 0.18*pulse;
-    drawSprite(SPR.recBlack[lane], x, judge, s);          // 黑底本體（細白邊）
+    drawSprite(SPR.recBlack[lane], x, judge, s);
 
     if (pulse>0){
-      // 亮起整顆彩色
-      ctx.save(); ctx.globalAlpha = 0.42 + 0.58*pulse;
+      ctx.save(); ctx.globalAlpha = 0.46 + 0.54*pulse;
       drawSprite(SPR.recColor[lane], x, judge, s);
       ctx.restore();
 
-      // 加一點“glitch burst”條紋
       const {c1,c2} = accentColors(laneColors[lane]);
       drawGlitchBurst(x, judge, c1, c2, pulse);
-      drawGlow(x, judge, 46 + 24*pulse, laneColors[lane], 0.28 + 0.32*pulse);
+      drawGlow(x, judge, 48 + 26*pulse, laneColors[lane], 0.30 + 0.34*pulse);
     } else {
       drawGlow(x, judge, 36, 'rgba(0,255,255,0.25)', 0.08);
     }
-
-    // 持續的掃描亮帶（未來感）
-    drawMovingSheen(x, judge, 72, laneColors[lane], tAnim + lane*0.25);
+    drawMovingSheen(x, judge, 74, laneColors[lane], tAnim + lane*0.25);
   }
 
   if(!skipNotes){
     const top=-120, bottom=H+120;
     for(let i=0;i<chart.length;i++){
       const n=chart[i]; if(n.hit) continue; if(n.y<top||n.y>bottom) continue;
-      const x=n.lane*laneWidth+laneWidth/2;
-      drawSprite(SPR.note[n.lane], x, n.y, 1);
+      const x=n.lane*laneWidth+laneWidth/2; drawSprite(SPR.note[n.lane], x, n.y, 1);
     }
   }
 
-  // 命中圈
   for(let i=0;i<hitFx.length;i++){
-    const fx=hitFx[i]; const p=Math.min(1,(getSongClockSec()-fx.t0)/fx.life);
+    const fx=hitFx[i]; const p=Math.min(1,(getClockSec()-fx.t0)/fx.life);
     const x=fx.lane*laneWidth+laneWidth/2;
     ctx.save(); ctx.globalAlpha=(1-p); ctx.strokeStyle=laneColors[fx.lane]; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x, judge, 18+80*p, 0, Math.PI*2); ctx.stroke(); ctx.restore();
   }
 
-  // 判定文字
   if(lastJudgementText!=='-'){
     ctx.fillStyle='#fff'; ctx.font='bold 32px sans-serif'; ctx.textAlign='center';
     const offset=(currentDirection==='up')? 120 : -40;
@@ -604,7 +780,24 @@ function render({skipNotes=false}={}){
     ctx.fillStyle='#ff78d5'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center'; ctx.fillText(comboFlash, W/2, H/2 - 100);
   }
 
-  drawDtHeatmap();
+  renderUI(); // 画面上層 HUD（固定不偏）
+}
+
+/* 左上角 HUD：熱圖「鎖定」繪在 uiCanvas */
+function renderUI(){
+  const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0);
+  for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; }
+  uictx.clearRect(0,0,W,H);
+  const SCALE=0.9; const x0=12, y0=12; const w=Math.round(240*SCALE), h=Math.round(70*SCALE); const bw=w/bins;
+  uictx.save();
+  uictx.globalAlpha=0.98;
+  uictx.fillStyle='rgba(0,0,0,0.55)'; uictx.fillRect(x0-8,y0-10,w+16,h+46);
+  uictx.fillStyle='#fff'; uictx.font='12px sans-serif'; uictx.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
+  const maxc=Math.max(1,...hist);
+  for(let i=0;i<bins;i++){ const v=hist[i]; const bh=(v/maxc)*h; const xx=Math.floor(x0 + i*bw); uictx.fillStyle='#78d5ff'; uictx.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); }
+  const {avg,std}=getDtStats(); uictx.fillStyle='#fff'; uictx.fillText(`avg: ${avg.toFixed(1)} ms  σ: ${std.toFixed(1)} ms  偏移: ${INPUT_OFFSET_MS} ms`, x0, y0+h+16);
+  uictx.strokeStyle='#ffd966'; uictx.beginPath(); const midx=x0 + (-min)/step*bw; uictx.moveTo(midx,y0); uictx.lineTo(midx,y0+h); uictx.stroke();
+  uictx.restore();
 }
 
 function renderPreviewAt(t){
@@ -618,21 +811,7 @@ function renderPreviewAt(t){
     const n=chart[i]; if(n.hit) continue; const y=noteYAtTimeFor(n.t,t); if(y<top||y>bottom) continue;
     const x=n.lane*laneWidth+laneWidth/2; drawSprite(SPR.note[n.lane], x, y, 1);
   }
-  drawDtHeatmap();
-}
-
-/* 左上角：Hit 偏移熱圖（等比縮小、DPR 修正） */
-function drawDtHeatmap(){
-  const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0);
-  for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; }
-  const SCALE=0.9; const x0=20, y0=18; const w=Math.round(240*SCALE), h=Math.round(70*SCALE); const bw=w/bins;
-  ctx.save(); ctx.globalAlpha=0.95;
-  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(x0-8,y0-10,w+16,h+46);
-  ctx.fillStyle='#fff'; ctx.font='12px sans-serif'; ctx.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
-  const maxc=Math.max(1,...hist);
-  for(let i=0;i<bins;i++){ const v=hist[i]; const bh=(v/maxc)*h; const xx=Math.floor(x0 + i*bw); ctx.fillStyle='#78d5ff'; ctx.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); }
-  const {avg,std}=getDtStats(); ctx.fillStyle='#fff'; ctx.fillText(`avg: ${avg.toFixed(1)} ms  σ: ${std.toFixed(1)} ms  偏移: ${INPUT_OFFSET_MS} ms`, x0, y0+h+16);
-  ctx.strokeStyle='#ffd966'; ctx.beginPath(); const midx=x0 + (-min)/step*bw; ctx.moveTo(midx,y0); ctx.lineTo(midx,y0+h); ctx.stroke(); ctx.restore();
+  renderUI();
 }
 
 function endGameAndShowResult(){
@@ -650,10 +829,10 @@ function endGameAndShowResult(){
   showOnly('endScreen'); setImmersive(false); phase='menu';
 }
 
-/* ===== 迴圈 ===== */
+/* 迴圈 */
 function loop(ts){
   if(paused) return;
-  const songT=getSongClockSec(); const dt=Math.max(0, songT - prevSongT); prevSongT=songT;
+  const songT=getClockSec(); const dt=Math.max(0, songT - prevSongT); prevSongT=songT;
   update(songT, dt); trackFPS(ts);
   let doRender=true;
   if(__fpsMode==='stable60' && IS_MOBILE){
@@ -666,15 +845,12 @@ function loop(ts){
 }
 function stopGameLoop(){ try{ cancelAnimationFrame(loopId);}catch{} loopId=null; }
 
-/* ===== 倒數（首幀渲染避免黑畫面） ===== */
+/* 倒數（首幀預渲染） */
 function showCountdown(startCallback, opts){
   cancelCountdown(); isCountingDown=true; phase='countdown';
   const previewTime=opts&&typeof opts.previewTime==='number'? opts.previewTime : null;
   const showNotes=!!(opts && opts.showNotes && previewTime!==null);
-
-  // 先畫一幀
-  if(showNotes) renderPreviewAt(previewTime);
-  else render({skipNotes:true});
+  if(showNotes) renderPreviewAt(previewTime); else render({skipNotes:true});
 
   const el=document.getElementById('countdownText'); el.style.display='block'; el.textContent='Ready';
   const steps=['Ready','3','2','1','Go!']; const stepDur=700;
@@ -683,18 +859,15 @@ function showCountdown(startCallback, opts){
   const playStep=i=>{ if(!isCountingDown) return; el.textContent=steps[i]; el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out'; };
 
   for(let i=0;i<steps.length;i++){ countdownTimers.push(setTimeout(()=>playStep(i), i*stepDur)); }
-  countdownTimers.push(setTimeout(()=>{
-    if(!isCountingDown) return; el.style.display='none'; isCountingDown=false; try{ cancelAnimationFrame(countdownRAF);}catch{}
-    startCallback();
-  }, steps.length*stepDur));
+  countdownTimers.push(setTimeout(()=>{ if(!isCountingDown) return; el.style.display='none'; isCountingDown=false; try{ cancelAnimationFrame(countdownRAF);}catch{}; startCallback(); }, steps.length*stepDur));
 }
 function cancelCountdown(){ if(!isCountingDown && countdownTimers.length===0 && !countdownRAF) return; isCountingDown=false; countdownTimers.forEach(id=>clearTimeout(id)); countdownTimers=[]; try{ cancelAnimationFrame(countdownRAF);}catch{} countdownRAF=null; const el=document.getElementById('countdownText'); el.style.animation='none'; el.style.display='none'; }
 
-/* ===== 提示 ===== */
+/* 提示 */
 const warnBanner=document.getElementById('warnBanner'); let audioWarned=false;
 function showPlayWarning(msg){ if(audioWarned) return; audioWarned=true; warnBanner.textContent=msg||'⚠️ 音樂無法播放：請確認檔名/路徑，或點一下畫面再按開始。'; warnBanner.style.display='block'; setTimeout(()=>{ warnBanner.style.display='none'; audioWarned=false; },3000); }
 
-/* ===== 輸入 ===== */
+/* 輸入 */
 window.addEventListener('keydown', e=>{
   if(e.repeat) return;
   const k=e.key.toLowerCase(); const lane=laneFromKey(k);
@@ -732,12 +905,12 @@ function onLanePress(lane){
   }
 }
 
-/* ===== 音量 & 鏘聲 ===== */
+/* 音量 & 鏘聲 */
 function setVolumes(percent){ const v=Math.max(0,Math.min(100,percent))/100; if(gainNode) gainNode.gain.value=v; if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); const sfxVol=Math.min(1, v*SFX_GAIN); tapPool.setVolume(sfxVol); hitSound.volume=sfxVol; }
 function initVolumeUI(){ const slider=document.getElementById('volumeSlider'); const label=document.getElementById('volumeLabel'); const saved=+localStorage.getItem('dfjk.volume')||80; slider.value=String(saved); label.textContent=`${saved}%`; setVolumes(saved); slider.addEventListener('input', ()=>{ const val=+slider.value; label.textContent=`${val}%`; setVolumes(val); localStorage.setItem('dfjk.volume', String(val)); }); }
 function playTapSound(){ if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); tapPool.play(); }
 
-/* ===== 流程 ===== */
+/* 流程 */
 function startGame(){
   if(!selectedSongFile){ alert('請先選擇音樂'); showMusic(); return; }
   const diff=document.getElementById('difficultySelect').value;
@@ -756,8 +929,7 @@ function startGame(){
   showOnly('gameScreen'); setImmersive(true); phase='countdown';
   setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); updateHUD(); __lastRenderTs=0;
 
-  // 倒數前先畫一幀避免黑畫面
-  render({skipNotes:true});
+  render({skipNotes:true}); // 避免黑畫面
 
   loadSongBuffer(url).then(()=>{
     const durationSec = songBuffer && isFinite(songBuffer.duration) ? songBuffer.duration : 120;
@@ -765,7 +937,9 @@ function startGame(){
     showCountdown(()=>{
       if(phase!=='countdown') return;
       phase='playing'; freezeLayout(); __lastRenderTs=0; prevSongT=0;
-      ensureAudio().then(()=>{ if(audioCtx.state==='suspended'){ audioCtx.resume(); } playFrom(0); loopId=requestAnimationFrame(loop); });
+      (async()=>{ await ensureAudio(); try{ if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{}; playFrom(0); })();
+      // 無論音訊是否成功，先跑迴圈（fallback會接手）
+      loopId=requestAnimationFrame(loop);
     });
   }).catch(e=>{ console.warn(e); showPlayWarning('⚠️ 載入音樂失敗'); goToMenu(); });
 }
@@ -773,7 +947,7 @@ function startGame(){
 function pauseGame(){
   if(phase==='countdown'){ cancelCountdown(); goToMenu(); return; }
   if(!running||paused) return;
-  pausedAtSong = getSongClockSec();
+  pausedAtSong = getClockSec();
   paused=true; phase='paused'; stopGameLoop(); unfreezeLayout();
   document.getElementById('gameScreen').classList.add('blur'); showOnly('pauseScreen');
   try{ if(srcNode){ srcNode.onended=null; srcNode.stop(0);} }catch{} srcNode=null;
@@ -785,35 +959,40 @@ function resumeGame(){
   setupCanvasDPR(); applyDesktopScale(); recomputeLayout();
   phase='countdown';
   const resumeAt = Math.max(0, Math.min(songBuffer? songBuffer.duration : 0, pausedAtSong));
-  // 倒數前先畫一幀
   renderPreviewAt(resumeAt);
   showCountdown(()=>{
     phase='playing'; freezeLayout();
-    ensureAudio().then(()=>{ if(audioCtx.state==='suspended'){ audioCtx.resume(); } playFrom(resumeAt); prevSongT=resumeAt; __lastRenderTs=0; loopId=requestAnimationFrame(loop); });
+    (async()=>{ await ensureAudio(); try{ if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{}; playFrom(resumeAt); })();
+    prevSongT=resumeAt; __lastRenderTs=0; loopId=requestAnimationFrame(loop);
   }, { showNotes:true, previewTime: resumeAt });
 }
 
-/* ===== 初始建置 ===== */
-function onViewportChanged(){ if(__layoutFrozen) return; if(phase==='playing'||phase==='countdown'){ setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); } }
+/* 初始化 */
+function onViewportChanged(){ if(__layoutFrozen) return; if(phase==='playing'||phase==='countdown'){ setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); renderUI(); } }
 function initOffsetAndVolume(){ initOffsetUI(); initVolumeUI(); }
 
-buildSprites();  // 預先生成 Sprites，避免首幀空白
+buildSprites();  // 預生成 Sprites，避免首幀空白
 applyDesktopScale();
 initOffsetAndVolume();
 fillSongList();
+
 window.addEventListener('resize', ()=>{ setupCanvasDPR(); onViewportChanged(); }, {passive:true});
 window.addEventListener('scroll', ()=>{ if(!__layoutFrozen && (phase==='playing'||phase==='countdown')) recomputeLayout(); }, {passive:true});
 if(window.visualViewport){ ['resize','scroll'].forEach(ev=>{ window.visualViewport.addEventListener(ev, ()=>{ setupCanvasDPR(); onViewportChanged(); }, {passive:true}); }); }
 window.addEventListener('orientationchange', ()=>{ setupCanvasDPR(); unfreezeLayout(); applyDesktopScale(); recomputeLayout(); if(phase==='playing'||phase==='countdown') freezeLayout(); }, {passive:true});
+
 document.addEventListener('contextmenu', e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); });
 document.addEventListener('gesturestart', e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); });
 document.addEventListener('dblclick', e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); });
 
 goToMenu();
 
-/* ===== 對外綁定（避免 onclick 找不到） ===== */
+/* 綁定 */
 Object.assign(window, { startGame, showMusic, showOptions, goToMenu, pauseGame, resumeGame, confirmSong });
 
+/* ====== （下：校正面板所需的少量共用工具） ====== */
+function setVolumes(percent){ const v=Math.max(0,Math.min(100,percent))/100; if(gainNode) gainNode.gain.value=v; if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); const sfxVol=Math.min(1, v*1.6); tapPool.setVolume(sfxVol); hitSound.volume=sfxVol; }
+function initVolumeUI(){ const slider=document.getElementById('volumeSlider'); const label=document.getElementById('volumeLabel'); const saved=+localStorage.getItem('dfjk.volume')||80; slider.value=String(saved); label.textContent=`${saved}%`; setVolumes(saved); slider.addEventListener('input', ()=>{ const val=+slider.value; label.textContent=`${val}%`; setVolumes(val); localStorage.setItem('dfjk.volume', String(val)); }); }
 </script>
 </body>
 </html>
