@@ -3,18 +3,42 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>DFJK 高精度 Cyberpunk 版（動態箭頭）</title>
+<title>DFJK 高精度 Cyberpunk 版（動態箭頭 + 背景特效）</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
 <style>
   html, body { touch-action: manipulation; }
   body{
     margin:0; color:#fff; font-family:sans-serif; text-align:center; transition: background .5s ease;
-    /* 舒適、與黑色清楚區隔的背景（夜藍系，不刺眼） */
     background: radial-gradient(1200px 800px at 50% 0%, #101a2c 0%, #0c1524 60%, #0a111d 100%);
+    overflow-x:hidden;
   }
+  /* 全頁 Cyberpunk 效果層（掃描線 + 色彩雜訊，極輕量） */
+  body::before, body::after{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  }
+  /* 掃描線 */
+  body::before{
+    background:
+      repeating-linear-gradient(to bottom, rgba(255,255,255,.035) 0px, rgba(255,255,255,.035) 1px, rgba(0,0,0,0) 2px),
+      linear-gradient(120deg, rgba(0,255,255,.06), rgba(255,0,160,.05) 60%, rgba(255,255,0,.03));
+    mix-blend-mode: screen;
+    animation: scanY 6s linear infinite;
+    opacity:.22;
+  }
+  /* 細微雜訊 */
+  body::after{
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="120" height="120" filter="url(%23n)" opacity="0.05"/></svg>');
+    background-size: 220px 220px;
+    animation: noiseShift 9s steps(30) infinite;
+    opacity:.18;
+    mix-blend-mode: overlay;
+  }
+  @keyframes scanY{ from { background-position: 0 0, 0 0; } to { background-position: 0 300px, 0 0; } }
+  @keyframes noiseShift{ 0%{ transform:translate3d(0,0,0);} 100%{ transform:translate3d(0,-60px,0);} }
+
   body.ex-mode{ background: linear-gradient(to bottom, #ff3300, #990000, #000000); }
 
-  #stage{ position:relative; width:95%; max-width:420px; margin:20px auto; --u:1; }
+  #stage{ position:relative; width:95%; max-width:420px; margin:20px auto; --u:1; z-index:1; }
   canvas{ display:block; background:#121a2a; border:2px solid #fff; width:100%; height:auto; touch-action:manipulation; }
   /* 遊玩時移除硬邊，用偽邊界 + 光暈 */
   #stage.immersive canvas.game{ border:none; }
@@ -71,7 +95,7 @@
 <body>
   <!-- 主選單 -->
   <div id="menuScreen">
-    <h1>🎵 DFJK 高精度 Cyberpunk 版（動態箭頭）</h1>
+    <h1>🎵 DFJK 高精度 Cyberpunk 版（動態箭頭 + 背景特效）</h1>
     <div class="row">
       <button onclick="startGame()">開始遊戲</button>
       <button onclick="showMusic()">音樂</button>
@@ -215,7 +239,7 @@
 
 <script>
 /* =========================================================
- * DFJK 高精度 Cyberpunk 版（動態箭頭 + HUD固定 + 行動端穩定）
+ * DFJK 高精度 Cyberpunk 版（動態箭頭 + 背景特效 + 熱圖下移）
  * ========================================================= */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
@@ -225,16 +249,16 @@ const uictx = uiCanvas.getContext('2d', { alpha: true });
 let W = 420, H = 640;
 function setupCanvasDPR(){
   const dpr = Math.min(window.devicePixelRatio||1, 2);
-  // 遊戲畫布
   canvas.width = Math.round(W * dpr);
   canvas.height= Math.round(H * dpr);
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  // UI 畫布（固定 HUD）
   uiCanvas.width = Math.round(W * dpr);
   uiCanvas.height= Math.round(H * dpr);
   uictx.setTransform(dpr,0,0,dpr,0,0);
 }
 setupCanvasDPR();
+
+const FLICKER_SCALE = 0.9; // <<< 100 面積 → 81 面積（半徑/位移*0.9）
 
 const laneWidth = W/4;
 const hitbar = document.querySelector('.hitbar');
@@ -401,7 +425,7 @@ function drawDynamicChevron({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   const ang=dirToAngle(dir);
   ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
 
-  // 1) 基底：黑色本體 + 粗黑邊 + 細白邊（Receptor） / 彩色本體（Note）
+  // 1) 基底：黑底 + 粗黑邊 + 細白邊（Receptor） / 彩色本體（Note）
   if(isReceptor){
     let g=ctx.createLinearGradient(0,-Hh/2,0,Hh/2);
     g.addColorStop(0,'#1a1c22'); g.addColorStop(0.35,'#0f1116'); g.addColorStop(1,'#000');
@@ -410,15 +434,14 @@ function drawDynamicChevron({x,y,size,dir,baseColor,isReceptor,pulse,t}){
     ctx.lineWidth=6; ctx.strokeStyle='#000'; chevronPath(ctx,Wd,Hh); ctx.stroke(); // 粗黑邊
     ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.98)'; chevronPath(ctx,Wd,Hh); ctx.stroke(); // 細白邊
   }else{
-    // Note 動態色：亮度輕微脈動
-    const pulseC = 0.1 + 0.1*Math.sin(t*4 + x*0.01);
+    const pulseC = 0.1*FLICKER_SCALE + 0.1*FLICKER_SCALE*Math.sin(t*4 + x*0.01);
     let g=ctx.createLinearGradient(0,-Hh/2,0,Hh/2);
     g.addColorStop(0, '#ffffff');
     g.addColorStop(0.22, baseColor);
     g.addColorStop(1, baseColor);
-    ctx.globalAlpha = 0.95 + 0.05*Math.sin(t*5);
+    ctx.globalAlpha = 0.95 + 0.05*FLICKER_SCALE*Math.sin(t*5);
     ctx.shadowColor = baseColor;
-    ctx.shadowBlur  = 10 + 14*pulseC;
+    ctx.shadowBlur  = (10 + 14*pulseC)*FLICKER_SCALE;
     ctx.fillStyle=g; chevronPath(ctx,Wd,Hh); ctx.fill();
     ctx.shadowBlur=0; ctx.globalAlpha = 1;
 
@@ -429,10 +452,10 @@ function drawDynamicChevron({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   // 2) 內層幾何線（虛線流動）
   const layerCount = __useLowQuality ? 1 : 3;
   for(let i=1;i<=layerCount;i++){
-    const k = 1 - i*0.15;
+    const k = 1 - i*0.15*FLICKER_SCALE;
     ctx.save(); ctx.scale(k,k);
     ctx.lineWidth = Math.max(1, 2.4*(1-k));
-    ctx.setLineDash([6, 6]); ctx.lineDashOffset = - (t*60) * (0.4 + i*0.15);
+    ctx.setLineDash([6, 6]); ctx.lineDashOffset = - (t*60*FLICKER_SCALE) * (0.4 + i*0.15);
     ctx.strokeStyle = 'rgba(255,255,255,0.22)';
     chevronPath(ctx,Wd,Hh); ctx.stroke();
     ctx.restore();
@@ -444,8 +467,8 @@ function drawDynamicChevron({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   ctx.globalAlpha= isReceptor ? 0.55 : 0.35;
   ctx.lineWidth = 1.3;
   ctx.strokeStyle = isReceptor ? 'rgba(120,213,255,.55)' : 'rgba(255,255,255,.28)';
-  const scroll = (t*40)%20;
-  const lanes=[-Hh*0.18, 0, Hh*0.18];
+  const scroll = (t*40*FLICKER_SCALE)%20;
+  const lanes=[-Hh*0.18*FLICKER_SCALE, 0, Hh*0.18*FLICKER_SCALE];
   lanes.forEach(y0=>{
     ctx.beginPath();
     ctx.moveTo(-Wd*0.26 + ((scroll)%10), y0);
@@ -455,38 +478,38 @@ function drawDynamicChevron({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   ctx.restore();
 
   // 4) 彩分離描邊（左右輕微振盪）
-  const wob = (Math.sin(t*8)+Math.sin(t*3+1.2))*0.8 + (isReceptor?0:0.4);
+  const wob = ((Math.sin(t*8)+Math.sin(t*3+1.2))*0.8 + (isReceptor?0:0.4)) * FLICKER_SCALE;
   ctx.save(); ctx.globalCompositeOperation='lighter';
   ctx.lineWidth=2; ctx.strokeStyle=c1; ctx.translate(1.0+wob,0); chevronPath(ctx,Wd,Hh); ctx.stroke();
   ctx.strokeStyle=c2; ctx.translate(-2.0-wob*1.1,0); chevronPath(ctx,Wd,Hh); ctx.stroke();
   ctx.restore();
 
   // 5) 掃描亮帶（上下往返）
-  const bandY = -Hh*0.35 + ( (Math.sin(t*2)+1)/2 ) * (Hh*0.7);
+  const bandY = -Hh*0.35*FLICKER_SCALE + ( (Math.sin(t*2)+1)/2 ) * (Hh*0.7*FLICKER_SCALE);
   ctx.save(); ctx.globalCompositeOperation='lighter';
-  const sh = ctx.createLinearGradient(-Wd/2, bandY-12, Wd/2, bandY+12);
+  const sh = ctx.createLinearGradient(-Wd/2, bandY-12*FLICKER_SCALE, Wd/2, bandY+12*FLICKER_SCALE);
   sh.addColorStop(0,'rgba(255,255,255,0)');
   sh.addColorStop(0.5, isReceptor ? 'rgba(180,255,255,0.12)' : 'rgba(255,255,255,0.10)');
   sh.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=sh; ctx.fillRect(-Wd/2, bandY-12, Wd, 24);
+  ctx.fillStyle=sh; ctx.fillRect(-Wd/2, bandY-12*FLICKER_SCALE, Wd, 24*FLICKER_SCALE);
   ctx.restore();
 
-  // 6) 碎片 glitch（以時間片段刷新）
+  // 6) 碎片 glitch（位移/長度縮小）
   if(!__useLowQuality){
     const frameSeed = Math.floor(t*30 + x*0.07 + y*0.03);
     function rand(s){ const x=Math.sin(s*9999.13)*43758.5453; return x - Math.floor(x); }
     ctx.save(); ctx.globalCompositeOperation='lighter';
-    const density = isReceptor? (12 + Math.floor(pulse*16)) : 10;
+    const density = isReceptor? (10 + Math.floor(pulse*12)) : 9;
     for(let i=0;i<density;i++){
       const side = rand(frameSeed+i) < .5 ? -1 : 1;
-      const yy = -Hh/2 + rand(frameSeed+i*3.1)*Hh;
-      const len = 8 + rand(frameSeed+i*5.7)*32;
-      const thick = 1 + rand(frameSeed+i*2.3)*3;
-      const xx = (Wd/2 + 2 + rand(frameSeed+i*7.7)*14) * side;
+      const yy = -Hh/2 + rand(frameSeed+i*3.1)*Hh*FLICKER_SCALE;
+      const len = (8 + rand(frameSeed+i*5.7)*32) * FLICKER_SCALE;
+      const thick = (1 + rand(frameSeed+i*2.3)*3) * FLICKER_SCALE;
+      const xx = (Wd/2 + 2 + rand(frameSeed+i*7.7)*14*FLICKER_SCALE) * side;
       ctx.save();
       ctx.translate(xx, yy);
-      ctx.rotate((rand(frameSeed+i*1.9)-.5)*0.6);
-      ctx.globalAlpha = 0.18 + rand(frameSeed+i*11.11)*0.25;
+      ctx.rotate((rand(frameSeed+i*1.9)-.5)*0.6*FLICKER_SCALE);
+      ctx.globalAlpha = (0.18 + rand(frameSeed+i*11.11)*0.25) * FLICKER_SCALE;
       ctx.fillStyle = (i%2? c1 : c2);
       ctx.fillRect(-len/2, -thick/2, len, thick);
       ctx.restore();
@@ -497,7 +520,7 @@ function drawDynamicChevron({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   // 7) 命中時，整顆以 lane 色亮起（Receptor）
   if(isReceptor && pulse>0){
     ctx.save();
-    ctx.globalAlpha = 0.45 + 0.5*pulse;
+    ctx.globalAlpha = (0.45 + 0.5*pulse) * FLICKER_SCALE;
     let g=ctx.createLinearGradient(0,-Hh/2,0,Hh/2);
     g.addColorStop(0,'#ffffff'); g.addColorStop(0.22, baseColor); g.addColorStop(1, baseColor);
     ctx.fillStyle=g; chevronPath(ctx,Wd,Hh); ctx.fill();
@@ -512,16 +535,21 @@ function drawGlitchBurst(x,y,colorA,colorB,intensity){
   const n=Math.floor(4+intensity*5);
   ctx.save(); ctx.globalCompositeOperation='lighter';
   for(let i=0;i<n;i++){
-    const w=18+Math.random()*40, h=2+Math.random()*3;
-    const xx=x + (Math.random()<0.5?-1:1)*(8+Math.random()*20);
-    const yy=y + (Math.random()*2-1)*16;
-    ctx.globalAlpha=0.26+Math.random()*0.28;
+    const w=(18+Math.random()*40)*FLICKER_SCALE, h=(2+Math.random()*3)*FLICKER_SCALE;
+    const xx=x + (Math.random()<0.5?-1:1)*(8+Math.random()*20)*FLICKER_SCALE;
+    const yy=y + (Math.random()*2-1)*16*FLICKER_SCALE;
+    ctx.globalAlpha=(0.26+Math.random()*0.28)*FLICKER_SCALE;
     ctx.fillStyle=(i%2)?colorA:colorB;
     ctx.fillRect(xx-w/2, yy-h/2, w, h);
   }
   ctx.restore();
 }
-function drawGlow(x,y,r,color,alpha){ ctx.save(); ctx.globalAlpha=alpha; const g=ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
+function drawGlow(x,y,r,color,alpha){
+  r*=FLICKER_SCALE;
+  ctx.save(); ctx.globalAlpha=alpha; const g=ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
+}
 
 /* FPS 等 */
 let __fpsMA=60, __fpsFrames=0, __fpsLastTs=0, __useLowQuality=false, __remainNotes=0;
@@ -531,7 +559,7 @@ function trackFPS(ts){ __fpsFrames++; if(!__fpsLastTs){ __fpsLastTs=ts; return;}
 let INPUT_OFFSET_MS = +(localStorage.getItem('dfjk.offsetMs')||0);
 let audioCtx=null, songBuffer=null, gainNode=null, srcNode=null;
 let startAtCtx=0, startAtSong=0; let songEnded=false;
-let softBaseSong=0, softStartPerf=0; // fallback clock
+let softBaseSong=0, softStartPerf=0;
 
 async function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); if(!gainNode){ gainNode=audioCtx.createGain(); gainNode.connect(audioCtx.destination);} }
 async function loadSongBuffer(url){ await ensureAudio(); const res=await fetch(url); if(!res.ok) throw new Error('fetch failed'); const arr=await res.arrayBuffer(); const buf=await audioCtx.decodeAudioData(arr); songBuffer=buf; }
@@ -542,7 +570,7 @@ function playFrom(offsetSec){
   srcNode=audioCtx.createBufferSource(); srcNode.buffer=songBuffer; srcNode.connect(gainNode);
   const when=Math.max(0, audioCtx.currentTime + 0.03);
   startAtCtx=when; startAtSong=Math.max(0, Math.min(songBuffer.duration-0.001, offsetSec||0));
-  softBaseSong=startAtSong; softStartPerf=performance.now()/1000;   // 啟動 fallback
+  softBaseSong=startAtSong; softStartPerf=performance.now()/1000;
   try{ srcNode.start(when, startAtSong); }catch(e){}
   srcNode.onended=()=>{ songEnded=true; };
 }
@@ -550,16 +578,11 @@ function getSongClockSecAudio(){
   if(!audioCtx||!songBuffer||!srcNode) return null;
   return Math.max(0, Math.min(songBuffer.duration, (audioCtx.currentTime - startAtCtx) + startAtSong));
 }
-function getClockSec(){ // 自動選用音訊時鐘；若無法用，改 fallback
-  const ta = getSongClockSecAudio();
-  if(ta!==null && audioCtx.state==='running') return ta;
-  const t = softBaseSong + (performance.now()/1000 - softStartPerf);
-  return Math.max(0, songBuffer? Math.min(songBuffer.duration, t) : t);
-}
+function getClockSec(){ const ta = getSongClockSecAudio(); if(ta!==null && audioCtx.state==='running') return ta; const t = softBaseSong + (performance.now()/1000 - softStartPerf); return Math.max(0, songBuffer? Math.min(songBuffer.duration, t) : t); }
 function getJudgeClockSec(){ return getClockSec() + (INPUT_OFFSET_MS/1000); }
 function setGlobalOffset(ms){ const clamp = Math.max(-600, Math.min(600, (ms|0))); INPUT_OFFSET_MS=clamp; localStorage.setItem('dfjk.offsetMs', String(INPUT_OFFSET_MS)); const lab=document.getElementById('offsetLabel'); if(lab) lab.textContent=`${INPUT_OFFSET_MS} ms`; const hud=document.getElementById('offsetActive'); if(hud) hud.textContent=`${INPUT_OFFSET_MS} ms`; }
 
-/* 校正 UI（同前版，保留準確） */
+/* 校正 UI（略同前版） */
 function initOffsetUI(){
   const s=document.getElementById('offsetSlider'); const lab=document.getElementById('offsetLabel');
   const saved=+(localStorage.getItem('dfjk.offsetMs')||0);
@@ -568,7 +591,7 @@ function initOffsetUI(){
   document.getElementById('offsetCalibBtn').addEventListener('click', openOffsetCalibrator);
 }
 
-/* ——（校正面板完整實作沿用，為節省篇幅已省略註解）—— */
+/* ——（校正面板完整實作，為節省篇幅保留原樣）—— */
 function openOffsetCalibrator(){
   (async()=>{ try{ await ensureAudio(); if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{} })();
   const overlay=document.createElement('div');
@@ -603,7 +626,7 @@ function openOffsetCalibrator(){
 
   let BPM=90, T=60/BPM; const rangeHint=overlay.querySelector('#rangeHint'); const setRangeText=()=>rangeHint.textContent=`測量範圍：±${Math.round((T/2)*1000)} ms`; setRangeText();
   const ring=overlay.querySelector('#pulseRing'); const dot=overlay.querySelector('#pulseDot');
-  function flash(){ dot.style.transform='translate(-50%,-50%) scale(1.18)'; ring.style.transition='none'; ring.style.transform='translate(-50%,-50%) scale(0.88)'; requestAnimationFrame(()=>{ ring.style.transition='transform .32s ease-out, opacity .32s ease-out'; dot.style.transform='translate(-50%,-50%) scale(1)'; ring.style.transform='translate(-50%,-50%) scale(1.10)'; ring.style.opacity='.78'; setTimeout(()=>{ ring.style.opacity='.35'; }, 280); }); }
+  function flash(){ dot.style.transform='translate(-50%,-50%) scale(1.12)'; ring.style.transition='none'; ring.style.transform='translate(-50%,-50%) scale(0.90)'; requestAnimationFrame(()=>{ ring.style.transition='transform .32s ease-out, opacity .32s ease-out'; dot.style.transform='translate(-50%,-50%) scale(1)'; ring.style.transform='translate(-50%,-50%) scale(1.06)'; ring.style.opacity='.78'; setTimeout(()=>{ ring.style.opacity='.35'; }, 280); }); }
 
   let schedTimer=null, t0=null, nextBeat=null;
   function scheduleTick(t){ try{ const osc=audioCtx.createOscillator(); const env=audioCtx.createGain(); osc.frequency.value=1200; env.gain.value=0; osc.connect(env); env.connect(gainNode||audioCtx.destination); env.gain.setValueAtTime(0,t); env.gain.linearRampToValueAtTime(0.8,t+0.005); env.gain.exponentialRampToValueAtTime(0.0001,t+0.06); osc.start(t); osc.stop(t+0.08);}catch{} }
@@ -688,6 +711,40 @@ function rebuildLaneCursors(){ nextIdxByLane.fill(0); chart.sort((a,b)=>a.t-b.t)
 function updateHitbarPosition(){ if(!hitbar || document.getElementById('gameScreen').style.display==='none') return; const topPx=getJudgeLineYCss() - (HITKEY_BASE*uiScale/2); hitbar.style.top=`${topPx}px`; }
 function positionPauseButton(){ const btn=document.getElementById('pauseButton'); if(!btn) return; btn.classList.remove('pause-bottom'); const isCoarse=window.matchMedia('(pointer: coarse)').matches; if(isCoarse && currentDirection==='up') btn.classList.add('pause-bottom'); }
 
+/* === Playfield 背景：電子線路 + 故障掃描 === */
+function drawPlayfieldBackground(t){
+  // 深色基底格線
+  ctx.save();
+  ctx.globalAlpha=0.18;
+  ctx.fillStyle='#0e1522';
+  ctx.fillRect(0,0,W,H);
+  // 細線格
+  ctx.globalAlpha=0.10;
+  ctx.strokeStyle='rgba(120,213,255,0.25)';
+  ctx.lineWidth=1;
+  const step=28;
+  const ox=(t*20)%step;
+  for(let x=-ox; x<=W; x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=-ox; y<=H; y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  // 滾動電路條紋
+  ctx.globalAlpha=0.16;
+  const bandH=18;
+  const by=((t*40)% (bandH*4));
+  const grd=ctx.createLinearGradient(0,0, W,0);
+  grd.addColorStop(0,'rgba(0,255,255,0.12)');
+  grd.addColorStop(0.5,'rgba(255,0,160,0.10)');
+  grd.addColorStop(1,'rgba(255,255,0,0.06)');
+  ctx.fillStyle=grd;
+  for(let y=-bandH*2+by; y<H; y+=bandH*4){ ctx.fillRect(0,y,W,bandH); }
+  // 偽邊界光暈（更柔和）
+  ctx.globalAlpha=0.22;
+  const g=ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.2, W/2,H/2, Math.max(W,H)*0.8);
+  g.addColorStop(0,'rgba(0,0,0,0)');
+  g.addColorStop(1,'rgba(0,0,0,0.45)');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.restore();
+}
+
 function update(songT, dt){
   for(let i=0;i<chart.length;i++){ const n=chart[i]; n.y=noteYAtTimeFor(n.t, songT); }
   for(let i=0;i<chart.length;i++){
@@ -705,18 +762,20 @@ function render({skipNotes=false}={}){
   ctx.clearRect(0,0,W,H);
   const tAnim = performance.now()/1000;
 
+  // Playfield 背景（先畫）
+  drawPlayfieldBackground(tAnim);
+
   // Receptor（黑底 + 動態效果；命中整顆彩色）
   for(let lane=0; lane<4; lane++){
     const x=lane*laneWidth+laneWidth/2; const pulse=receptorPulse[lane];
-    const s=1 + 0.18*pulse;
-
+    const s=1 + 0.18*FLICKER_SCALE*pulse;
     drawDynamicChevron({x, y:judge, size:NOTE_BASE*s, dir:laneDirs[lane], baseColor:laneColors[lane], isReceptor:true,  pulse, t:tAnim});
     if (pulse>0){
       const {c1,c2}=accentColors(laneColors[lane]);
       drawGlitchBurst(x, judge, c1, c2, pulse);
-      drawGlow(x, judge, 48 + 26*pulse, laneColors[lane], 0.30 + 0.34*pulse);
+      drawGlow(x, judge, 48 + 26*pulse, laneColors[lane], (0.30 + 0.34*pulse)*FLICKER_SCALE);
     } else {
-      drawGlow(x, judge, 36, 'rgba(0,255,255,0.20)', 0.08);
+      drawGlow(x, judge, 32, 'rgba(0,255,255,0.20)', 0.06*FLICKER_SCALE);
     }
   }
 
@@ -734,7 +793,7 @@ function render({skipNotes=false}={}){
   for(let i=0;i<hitFx.length;i++){
     const fx=hitFx[i]; const p=Math.min(1,(getClockSec()-fx.t0)/fx.life);
     const x=fx.lane*laneWidth+laneWidth/2;
-    ctx.save(); ctx.globalAlpha=(1-p); ctx.strokeStyle=laneColors[fx.lane]; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x, judge, 18+80*p, 0, Math.PI*2); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.globalAlpha=(1-p)*FLICKER_SCALE; ctx.strokeStyle=laneColors[fx.lane]; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x, judge, (18+80*p)*FLICKER_SCALE, 0, Math.PI*2); ctx.stroke(); ctx.restore();
   }
 
   if(lastJudgementText!=='-'){
@@ -746,19 +805,27 @@ function render({skipNotes=false}={}){
     ctx.fillStyle='#ff78d5'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center'; ctx.fillText(comboFlash, W/2, H/2 - 100);
   }
 
-  renderUI(); // 固定 HUD
+  renderUI(); // 固定 HUD（含熱圖）
 }
 
-/* 左上角 HUD：熱圖「鎖定」繪在 uiCanvas（加安全邊距，避免看起來太上） */
+/* 左上角 HUD：熱圖在「上升打擊」時自動下移到判定線下方 */
 function renderUI(){
   const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0);
   for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; }
   uictx.clearRect(0,0,W,H);
 
-  // 以裝置特性給舒服的安全邊距
-  const safeTop = 24 + (IS_MOBILE ? 6 : 0);    // <-- 調低位置，修正你說的「偏上」
+  // 安全邊距
   const safeLeft= 14;
-  const SCALE=0.96; const x0=safeLeft, y0=safeTop; const w=Math.round(240*SCALE), h=Math.round(74*SCALE); const bw=w/bins;
+  const SCALE=0.96; const w=Math.round(240*SCALE), h=Math.round(74*SCALE); const bw=w/bins;
+
+  // y 位置：down 模式放上方；up 模式 → 判定線下移 40px（且不超出底部）
+  const judgeY = getJudgeLineYInternal();
+  const topDefault = 24 + (IS_MOBILE ? 6 : 0);
+  const y0 = (currentDirection==='up')
+    ? Math.min(H - h - 24, judgeY + 40)   // <<< 這裡平移到下方
+    : topDefault;
+
+  const x0=safeLeft;
 
   uictx.save();
   uictx.globalAlpha=0.98;
@@ -775,6 +842,9 @@ function renderPreviewAt(t){
   const judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H);
   const tt = performance.now()/1000;
+
+  drawPlayfieldBackground(tt);
+
   for(let lane=0; lane<4; lane++){
     const x=lane*laneWidth+laneWidth/2;
     drawDynamicChevron({x, y:judge, size:NOTE_BASE, dir:laneDirs[lane], baseColor:laneColors[lane], isReceptor:true, pulse:0, t:tt});
@@ -912,7 +982,6 @@ function startGame(){
       if(phase!=='countdown') return;
       phase='playing'; freezeLayout(); __lastRenderTs=0; prevSongT=0;
       (async()=>{ await ensureAudio(); try{ if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{}; playFrom(0); })();
-      // 無論音訊是否成功，先跑迴圈（fallback會接手）
       loopId=requestAnimationFrame(loop);
     });
   }).catch(e=>{ console.warn(e); showPlayWarning('⚠️ 載入音樂失敗'); goToMenu(); });
