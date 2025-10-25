@@ -199,10 +199,11 @@ const IS_MOBILE=window.matchMedia('(pointer: coarse)').matches;
 const SUPPORTS_VIB=IS_MOBILE&&'vibrate' in navigator;
 
 const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666'];
-const laneDirs = ['left','down','up','right']; // ← 左、下、上、右（D/F/J/K）
+/* 視覺順序：左、下、上、右（D/F/J/K） */
+const laneDirs=['left','down','up','right'];
 const laneWidth=W/4;
 const HITKEY_BASE=90;
-/* 再小一點點：從 48 → 44 */
+/* 再小一點點 */
 const NOTE_BASE=44;
 let uiScale=1;
 
@@ -217,7 +218,7 @@ let cachedRectH=canvas.getBoundingClientRect().height;
 let cachedScaleY=cachedRectH/H;
 let cachedJudgeCss=(HITKEY_BASE*uiScale/2);
 let cachedJudgeInternal=cachedJudgeCss/cachedScaleY;
-function recomputeLayout(){const rect=canvas.getBoundingClientRect();cachedRectH=rect.height;cachedScaleY=cachedRectH/H;cachedJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(cachedRectH-HITKEY_BASE*uiScale/2);cachedJudgeInternal=cachedJudgeCss/cachedScaleY;}
+function recomputeLayout(){const rect=canvas.getBoundingClientRect();cachedRectH=rect.height;cachedScaleY=rect.height/H;cachedJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(rect.height-HITKEY_BASE*uiScale/2);cachedJudgeInternal=cachedJudgeCss/cachedScaleY;}
 function applyDesktopScale(){const coarse=window.matchMedia('(pointer: coarse)').matches;const wide=window.matchMedia('(min-width:1024px)').matches;const wider=window.matchMedia('(min-width:1440px)').matches;let u=1;if(!coarse&&(wide||wider))u=wider?1.8:1.5;uiScale=u;document.getElementById('stage').style.setProperty('--u',String(u));document.getElementById('stage').style.maxWidth=`${Math.round(420*u)}px`;recomputeLayout();}
 function getJudgeLineYInternal(){return cachedJudgeInternal;}
 
@@ -226,7 +227,16 @@ const dtHistory=[];const DT_HIST_MAX=240;
 function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
 function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory.length;const avg=dtHistory.reduce((a,c)=>a+c,0)/n;const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;return{avg,std:Math.sqrt(va)};}
 
-function dirToAngle(dir){switch(dir){case'up':return 0;case'down':return Math.PI;case'left':return -Math.PI/2;case'right':return Math.PI/2}return 0;}
+/* 修正旋轉角度：基礎圖形朝「右」 */
+function dirToAngle(dir){
+  switch(dir){
+    case 'up':    return -Math.PI/2;
+    case 'down':  return  Math.PI/2;
+    case 'left':  return  Math.PI;
+    case 'right': return  0;
+  }
+  return 0;
+}
 function laneFromKey(k){switch(k){case'd':case'arrowleft':return 0;case'f':case'arrowdown':return 1;case'j':case'arrowup':return 2;case'k':case'arrowright':return 3;default:return null}}
 
 const SONGS=[ "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3","Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3","Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3","Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collaboration Music Video #BBBBダンス - Creepy Nuts.mp3","KANA-BOON - Silhouette - KANABOONVEVO.mp3","Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3","Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3","ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3","Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3","Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3","OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3","YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3","yung kai - blue (official music video) - yung kai.mp3","【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3","【MV】隙_ゆーり【オリジナル】 - ゆーり🍎🐥〔24〕・yuri (1).mp3","【imase】NIGHT DANCER（MV） - imase.mp3","なとり - Overdose - なとり _ natori.mp3","好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3","廻廻奇譚 - Eve MV - Eve.mp3","青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3","Toge Toge Sadistic - Enormita (youtube).mp3","My dream girls - NACHERRY (youtube).mp3","PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3","YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3","YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3","YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3","【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3","Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3","ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"];
@@ -361,6 +371,7 @@ function judge(dtMs,lane){
 }
 
 /* —— 譜生成 & 更新 —— */
+const FIRST_NOTE_LEAD=1.6; // 開局把第一顆音符放到螢幕外
 function generateChart(dur){
   chart=[]; const d=currentDifficulty;
   let doubleChance=0.35, tmin=0.20, tmax=0.45;
@@ -368,9 +379,15 @@ function generateChart(dur){
   else if(d==='easy'){doubleChance=0.20;tmin=0.25;tmax=0.50;}
   else if(d==='hard'){doubleChance=0.55;tmin=0.15;tmax=0.35;}
   if(!(d==='ex'||d==='hell')){
-    let t=1;while(t<dur){const used=new Set();const arr=[];const cnt=Math.random()<doubleChance?2:1;while(arr.length<cnt){const ln=Math.floor(Math.random()*4);if(!used.has(ln)){used.add(ln);arr.push({t, lane:ln, hit:false, y:-50});}}chart.push(...arr);t+=Math.random()*(tmax-tmin)+tmin;}
+    let t=FIRST_NOTE_LEAD;
+    while(t<dur){
+      const used=new Set();const arr=[];const cnt=Math.random()<doubleChance?2:1;
+      while(arr.length<cnt){const ln=Math.floor(Math.random()*4);if(!used.has(ln)){used.add(ln);arr.push({t, lane:ln, hit:false, y:-50});}}
+      chart.push(...arr);
+      t+=Math.random()*(tmax-tmin)+tmin;
+    }
   }else{
-    const beat=0.5;let t=1,cur=0;const n=()=>{cur=(cur+1)%4;return cur;},push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50}),rnd=()=>Math.floor(Math.random()*4);
+    const beat=0.5;let t=FIRST_NOTE_LEAD,cur=0;const n=()=>{cur=(cur+1)%4;return cur;},push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50}),rnd=()=>Math.floor(Math.random()*4);
     while(t<dur){ if(d==='ex'){push(t,n());if(Math.random()<0.60)push(t,(cur+2)%4);if(Math.random()<0.35)push(t+beat/2,(cur+1)%4);if(Math.random()<0.18){push(t+beat/3,rnd());push(t+2*beat/3,rnd());}t+=Math.random()<0.5?beat/2:beat;} else {push(t,n());if(Math.random()<0.85)push(t,(cur+2)%4);push(t+beat/2,(cur+1)%4);if(Math.random()<0.4){push(t+beat/4,rnd());push(t+3*beat/4,rnd());}t+=beat/2;} }
   }
   __remainNotes=chart.length;
@@ -382,7 +399,7 @@ function update(songT,dt){
     const n=chart[i]; if(n.hit)continue;
     const lateMs=(songT-n.t)*1000;
     if(lateMs>WINDOWS.shit+160){
-      n.hit=true; __remainNotes--; /* ← 修正：應該遞減 */
+      n.hit=true; __remainNotes--;
       lastJudgementText='MISS'; combo=0; missCount++; stats.miss++; score=Math.max(0,score+SCORES.miss); updateHUD();
     }
   }
@@ -394,14 +411,14 @@ function render(){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
 
-  // Receptors（順序固定：左、下、上、右）
+  // Receptors（左、下、上、右）
   for(let i=0;i<4;i++){
     const x=i*laneWidth+laneWidth/2;
     drawBlueStreakArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:laneColors[i],isReceptor:true,pulse:receptorPulse[i],t});
   }
 
-  // Notes
-  const top=-100,bottom=H+100;
+  // Notes（加大裁切，避免開局小箭頭）
+  const top=-140,bottom=H+140;
   for(let i=0;i<chart.length;i++){
     const n=chart[i]; if(n.hit)continue; if(n.y<top||n.y>bottom)continue;
     const x=n.lane*laneWidth+laneWidth/2;
@@ -411,7 +428,7 @@ function render(){
   if(lastJudgementText!=='-'){ctx.fillStyle='#fff';ctx.font='bold 32px sans-serif';ctx.textAlign='center';const off=(currentDirection==='up')?120:-40;ctx.fillText(lastJudgementText,W/2,judge+off);}
 }
 
-/* —— 左上熱圖（上升模式直接置底） —— */
+/* —— 左上熱圖（上升模式置底） —— */
 function renderUI(){
   const bins=36,min=-300,max=300,step=(max-min)/bins,hist=new Array(bins).fill(0);
   for(const v of dtHistory){const i=Math.floor((v-min)/step);if(i>=0&&i<bins)hist[i]++}
@@ -431,7 +448,6 @@ function onLanePress(lane){
   if(!running)return;
   playTapSound();
   const tNow=getJudgeClockSec();
-  // 挑最近且在窗內的音符
   let bestIdx=-1, bestAbs=Infinity;
   for(let i=0;i<chart.length;i++){
     const n=chart[i]; if(n.hit||n.lane!==lane)continue;
@@ -465,7 +481,7 @@ function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
 /* —— 音量/校正/曲庫 UI —— */
-function initVolumeUI(){const s=document.getElementById('volumeSlider'),l=document.getElementById('volumeLabel');const saved=+localStorage.getItem('dfjk.volume')||80;s.value=String(saved);l.textContent=`${saved}%`;setVolumes(saved);s.addEventListener('input',()=>{const v=+s.value;l.textContent=`${v}%`;setVolumes(v);localStorage.setItem('dfjk.volume',String(v));});}
+function initVolumeUI(){const s=document.getElementById('volumeSlider'),l=document.getElementById('volumeLabel');const saved=+localStorage.getItem('dfjk.volume')||80;s.value=String(saved);l.textContent=`${saved}%`;setVolumes(saved);s.addEventListener('input',()=>{const v=+s.value;l.text內容=`${v}%`;setVolumes(v);localStorage.setItem('dfjk.volume',String(v));});}
 function initOffsetUI(){const s=document.getElementById('offsetSlider'),lab=document.getElementById('offsetLabel');const saved=+(localStorage.getItem('dfjk.offsetMs')||0);s.value=String(saved);lab.textContent=`${saved} ms`;setGlobalOffset(saved);document.getElementById('offsetCalibBtn').addEventListener('click',()=>alert('快速校正已保留；要更兇的自動校正我再幫你升級。'));}
 
 function fillSongList(){const sel=document.getElementById('songSelect');if(sel.dataset.filled)return;sel.innerHTML='';const ph=document.createElement('option');ph.value='';ph.textContent='— 請選擇曲目 —';ph.disabled=true;ph.selected=!selectedSongFile;sel.appendChild(ph);SONGS.forEach(f=>{const opt=document.createElement('option');opt.value=f;opt.textContent=f.replace(/\.mp3$/i,'');if(selectedSongFile===f)opt.selected=true;sel.appendChild(opt);});sel.addEventListener('change',()=>{document.getElementById('chosenSongLabel').textContent=sel.value?sel.options[sel.selectedIndex].textContent:'尚未選擇';});sel.dataset.filled='1';}
