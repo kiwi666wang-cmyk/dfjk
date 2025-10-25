@@ -1,68 +1,69 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>DFJK 高精度 Cyberpunk 版</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
-  <style>
-    html, body { touch-action: manipulation; }
-    body{
-      margin:0; color:#fff; font-family:sans-serif; text-align:center; transition: background .5s ease;
-      /* 柔和、長看舒適，與黑色分離的背景 */
-      background: radial-gradient(1200px 800px at 50% 0%, #101a2c 0%, #0c1524 60%, #0a111d 100%);
-    }
-    body.ex-mode{ background: linear-gradient(to bottom, #ff3300, #990000, #000000); }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DFJK 高精度 Cyberpunk 版</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+<style>
+  html, body { touch-action: manipulation; }
+  body{
+    margin:0; color:#fff; font-family:sans-serif; text-align:center; transition: background .5s ease;
+    /* 柔和、長看舒適，與黑色分離的背景 */
+    background: radial-gradient(1200px 800px at 50% 0%, #101a2c 0%, #0c1524 60%, #0a111d 100%);
+  }
+  body.ex-mode{ background: linear-gradient(to bottom, #ff3300, #990000, #000000); }
 
-    #stage{ position:relative; width:95%; max-width:420px; margin:20px auto; --u:1; }
-    canvas{ display:block; background:#121a2a; border:2px solid #fff; width:100%; height:auto; touch-action:manipulation; }
-    /* 遊玩時移除硬邊，用偽邊界 + 霓虹光暈 */
-    #stage.immersive canvas{ border:none; }
-    #edgeFade{
-      position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease;
-      background:
-        linear-gradient(to right, rgba(255,255,255,.10), rgba(255,255,255,0) 40%) left/14px 100% no-repeat,
-        linear-gradient(to left,  rgba(255,255,255,.10), rgba(255,255,255,0) 40%) right/14px 100% no-repeat,
-        linear-gradient(to bottom,rgba(255,255,255,.10), rgba(255,255,255,0) 40%) top/100% 14px no-repeat,
-        linear-gradient(to top,   rgba(255,255,255,.10), rgba(255,255,255,0) 40%) bottom/100% 14px no-repeat;
-      border-radius:10px;
-    }
-    #stage.immersive #edgeFade{ opacity:1; }
-    #stage.immersive::after{
-      content:""; position:absolute; inset:-6px; pointer-events:none; border-radius:14px;
-      box-shadow: 0 0 28px 12px rgba(0, 255, 255, .07), 0 0 36px 16px rgba(255, 0, 160, .05);
-    }
+  /* 舞台 */
+  #stage{ position:relative; width:95%; max-width:420px; margin:20px auto; --u:1; }
+  canvas{ display:block; background:#121a2a; border:2px solid #fff; width:100%; height:auto; touch-action:manipulation; }
+  /* 遊玩時移除硬邊，用偽邊界 + 霓虹光暈 */
+  #stage.immersive canvas{ border:none; }
+  #edgeFade{
+    position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease;
+    background:
+      linear-gradient(to right, rgba(255,255,255,.10), rgba(255,255,255,0) 40%) left/14px 100% no-repeat,
+      linear-gradient(to left,  rgba(255,255,255,.10), rgba(255,255,255,0) 40%) right/14px 100% no-repeat,
+      linear-gradient(to bottom,rgba(255,255,255,.10), rgba(255,255,255,0) 40%) top/100% 14px no-repeat,
+      linear-gradient(to top,   rgba(255,255,255,.10), rgba(255,255,255,0) 40%) bottom/100% 14px no-repeat;
+    border-radius:10px;
+  }
+  #stage.immersive #edgeFade{ opacity:1; }
+  #stage.immersive::after{
+    content:""; position:absolute; inset:-6px; pointer-events:none; border-radius:14px;
+    box-shadow: 0 0 28px 12px rgba(0, 255, 255, .07), 0 0 36px 16px rgba(255, 0, 160, .05);
+  }
 
-    .hitbar{ position:absolute; left:0; width:100%; display:flex; justify-content:space-between; align-items:center; height:calc(90px * var(--u)); z-index:2; opacity:0; pointer-events:none; }
-    .hitkey{ flex:1; margin:0 5px; height:calc(90px * var(--u)); }
+  .hitbar{ position:absolute; left:0; width:100%; display:flex; justify-content:space-between; align-items:center; height:calc(90px * var(--u)); z-index:2; opacity:0; pointer-events:none; }
+  .hitkey{ flex:1; margin:0 5px; height:calc(90px * var(--u)); }
 
-    .hud{ font-size:18px; margin-top:10px; line-height:1.6; }
-    .songline{ font-size:14px; opacity:.9; }
-    button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; border:none; border-radius:8px; cursor:pointer; }
+  .hud{ font-size:18px; margin-top:10px; line-height:1.6; }
+  .songline{ font-size:14px; opacity:.9; }
+  button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; border:none; border-radius:8px; cursor:pointer; }
 
-    #menuScreen, #musicScreen, #endScreen, #optionsScreen, #pauseScreen{ padding-top:120px; }
-    .blur{ filter:blur(6px); pointer-events:none; user-select:none; }
-    #pauseButton{ position:absolute; top:10px; right:10px; z-index:3; }
-    .pause-bottom{ top:auto !important; bottom:10px !important; }
+  #menuScreen, #musicScreen, #endScreen, #optionsScreen, #pauseScreen{ padding-top:120px; }
+  .blur{ filter:blur(6px); pointer-events:none; user-select:none; }
+  #pauseButton{ position:absolute; top:10px; right:10px; z-index:3; }
+  .pause-bottom{ top:auto !important; bottom:10px !important; }
 
-    /* 倒數字樣：提到最上層，避免被覆蓋 */
-    #countdownText{
-      position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
-      font-family:'Fredoka One', sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000;
-      z-index:9999; pointer-events:none; opacity:1; will-change:transform; display:none;
-    }
-    @keyframes popScale{ 0%{ transform:translate(-50%,-50%) scale(.85);} 50%{ transform:translate(-50%,-50%) scale(1.12);} 100%{ transform:translate(-50%,-50%) scale(1);} }
+  /* 倒數字樣（進 stage 最上層，避免黑畫面） */
+  #countdownText{
+    position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
+    font-family:'Fredoka One', sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000;
+    z-index:9999; pointer-events:none; opacity:1; will-change:transform; display:none;
+  }
+  @keyframes popScale{ 0%{ transform:translate(-50%,-50%) scale(.85);} 50%{ transform:translate(-50%,-50%) scale(1.12);} 100%{ transform:translate(-50%,-50%) scale(1);} }
 
-    .row{ margin:10px 0; } label{ margin-right:6px; }
-    select{ padding:6px 10px; border-radius:6px; border:1px solid #445; background:#12152a; color:#fff; }
+  .row{ margin:10px 0; } label{ margin-right:6px; }
+  select{ padding:6px 10px; border-radius:6px; border:1px solid #445; background:#12152a; color:#fff; }
 
-    #songSelect{ width:90%; max-width:420px; height:280px; }
-    #musicScreen .hint{ opacity:.8; font-size:14px; margin-top:6px; }
+  #songSelect{ width:90%; max-width:420px; height:280px; }
+  #musicScreen .hint{ opacity:.8; font-size:14px; margin-top:6px; }
 
-    #warnBanner{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:rgba(255,80,80,.95); padding:10px 14px; border-radius:8px; font-size:14px; display:none; z-index:20; }
+  #warnBanner{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:rgba(255,80,80,.95); padding:10px 14px; border-radius:8px; font-size:14px; display:none; z-index:20; }
 
-    .options-footer{ position:sticky; bottom:0; z-index:5; padding:10px 0 16px; background:linear-gradient(to top, rgba(15,18,32,.95), rgba(15,18,32,0)); }
-  </style>
+  .options-footer{ position:sticky; bottom:0; z-index:5; padding:10px 0 16px; background:linear-gradient(to top, rgba(15,18,32,.95), rgba(15,18,32,0)); }
+</style>
 </head>
 <body>
   <!-- 主選單 -->
@@ -166,7 +167,7 @@
         <div class="hitkey" id="key-j"></div>
         <div class="hitkey" id="key-k"></div>
       </div>
-      <!-- 倒數文字移進 stage，上層顯示 -->
+      <!-- 倒數文字 -->
       <div id="countdownText">Ready</div>
     </div>
 
@@ -207,14 +208,17 @@
 
   <div id="warnBanner">⚠️ 音樂無法載入或播放</div>
 
+  <!-- 命中鏘聲池來源 -->
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
 
 <script>
 /* =========================================================
  * DFJK 高精度 Cyberpunk 版
- * - 修復：進場黑畫面與倒數消失（倒數前即渲染舞台）
- * - 美術：未來科技感（黑底+細白邊、雙霓虹、刻線、動態掃描、命中整顆亮）
- * - 音頻：WebAudio 雙時鐘、偏移校正
+ * - Cyber-Glitch 箭頭/接收器：幾何箭羽 + 霓虹電路 + 輕故障感
+ * - 命中整顆亮起（接收器）、音符保留各自霓虹色
+ * - WebAudio 雙時鐘 + 全域偏移校正（可視化/快速校正）
+ * - 移除硬邊，啟動時偽邊界；行動裝置震動回饋
+ * - 倒數首幀渲染避免黑畫面；暫停恢復修正
  * ========================================================= */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
@@ -363,175 +367,30 @@ function updateHUD(){
   const off=document.getElementById('offsetActive'); if(off) off.textContent=`${INPUT_OFFSET_MS} ms`;
 }
 
-/* ===== 色彩 & 特效 ===== */
+/* ===== 色彩 ===== */
 const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666']; // 音符/亮起色
 const receptorPulse=[0,0,0,0]; const hitFx=[];
 function dirToAngle(dir){ switch(dir){ case 'up':return 0; case 'down':return Math.PI; case 'left':return -Math.PI/2; case 'right':return Math.PI/2; } return 0; }
 
-/* --- Cyberpunk Sprites（更科幻） --- */
-
-/* 黑色 Receptor（細白邊 + 雙色霓虹 + 刻線 + 邊緣色差） */
-function makeReceptorBlack(size, dir){
-  const pad=Math.ceil(size*1.7 + 16); const dpr=Math.min(2,window.devicePixelRatio||1);
-  const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
-  const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.02, headH=Hh*0.55;
-
-  const path = (ctx)=>{
-    ctx.beginPath();
-    ctx.moveTo(0,-Hh/2);
-    ctx.lineTo(Wd/2,-Hh/2+headH);
-    ctx.lineTo(Wd*0.23,-Hh/2+headH);
-    ctx.lineTo(Wd*0.23,Hh/2);
-    ctx.lineTo(-Wd*0.23,Hh/2);
-    ctx.lineTo(-Wd*0.23,-Hh/2+headH);
-    ctx.lineTo(-Wd/2,-Hh/2+headH);
-    ctx.closePath();
-  };
-
-  o.save(); o.translate(pad,pad); o.rotate(ang);
-
-  // 本體多層金屬黒
-  path(o);
-  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
-  g.addColorStop(0,'#181a1f'); g.addColorStop(0.35,'#0d0f14'); g.addColorStop(1,'#000');
-  o.fillStyle=g; o.fill();
-
-  // 內折線亮面（面板切角）
-  o.save(); o.clip(); o.globalAlpha=0.18;
-  o.fillStyle='rgba(255,255,255,.08)';
-  for(let i=-3;i<=3;i++){
-    o.beginPath();
-    o.moveTo(-Wd*0.23 + i*6, -Hh*0.1);
-    o.lineTo(0 + i*6, -Hh*0.35);
-    o.lineTo(Wd*0.23 + i*6, -Hh*0.1);
-    o.closePath(); o.fill();
-  }
-  o.restore();
-
-  // 厚黑邊 + 細白邊
-  o.lineWidth=6; o.strokeStyle='#000'; path(o); o.stroke();
-  o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.95)'; path(o); o.stroke();
-
-  // 邊緣色差（紅／青）
-  o.save();
-  o.globalCompositeOperation='screen';
-  o.lineWidth=2;
-  o.strokeStyle='rgba(255,40,40,.18)'; o.translate(0.6,0); path(o); o.stroke();
-  o.strokeStyle='rgba(40,255,255,.18)'; o.translate(-1.2,0); path(o); o.stroke();
-  o.restore();
-
-  // 雙色霓虹外緣（青／洋紅）
-  o.save();
-  o.globalCompositeOperation='lighter';
-  o.shadowBlur=10; o.shadowColor='rgba(0,255,255,.22)';
-  o.lineWidth=2; o.strokeStyle='rgba(0,255,255,.25)'; path(o); o.stroke();
-  o.shadowBlur=9; o.shadowColor='rgba(255,0,160,.20)';
-  o.lineWidth=1.6; o.strokeStyle='rgba(255,0,160,.22)'; path(o); o.stroke();
-  o.restore();
-
-  // 內部掃描線（細）
-  o.save(); o.clip(); o.globalAlpha=0.22; o.strokeStyle='rgba(175,230,255,.20)'; o.lineWidth=1;
-  for(let y=-Hh; y<Hh; y+=7){ o.beginPath(); o.moveTo(-Wd, y); o.lineTo(Wd, y+Wd*0.6); o.stroke(); }
-  o.restore();
-
-  o.restore();
-  return {canvas:off, half:pad, size:pad*2};
-}
-
-/* 彩色 Receptor（命中整顆亮起） */
-function makeReceptorColor(size, dir, color){
-  const pad=Math.ceil(size*1.7 + 16); const dpr=Math.min(2,window.devicePixelRatio||1);
-  const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
-  const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.02, headH=Hh*0.55;
-
-  const path = (ctx)=>{
-    ctx.beginPath();
-    ctx.moveTo(0,-Hh/2);
-    ctx.lineTo(Wd/2,-Hh/2+headH);
-    ctx.lineTo(Wd*0.23,-Hh/2+headH);
-    ctx.lineTo(Wd*0.23,Hh/2);
-    ctx.lineTo(-Wd*0.23,Hh/2);
-    ctx.lineTo(-Wd*0.23,-Hh/2+headH);
-    ctx.lineTo(-Wd/2,-Hh/2+headH);
-    ctx.closePath();
-  };
-
-  o.save(); o.translate(pad,pad); o.rotate(ang);
-
-  // 彩色填充（帶金屬高光）
-  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
-  g.addColorStop(0,'#ffffff'); g.addColorStop(0.22,color); g.addColorStop(1,color);
-  o.fillStyle=g; path(o); o.fill();
-
-  // 白邊
-  o.lineWidth=2; o.strokeStyle='#fff'; path(o); o.stroke();
-
-  // 外圍同色柔光
-  o.globalCompositeOperation='lighter';
-  o.shadowColor=color; o.shadowBlur=14; o.lineWidth=2.2; o.strokeStyle=color; path(o); o.stroke();
-
-  o.restore();
-  return {canvas:off, half:pad, size:pad*2};
-}
-
-/* 彩色 Note（霓虹 + 細白邊） */
-function makeColorNote(size, dir, color){
-  const pad=Math.ceil(size*1.7 + 18); const dpr=Math.min(2,window.devicePixelRatio||1);
-  const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
-  const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.02, headH=Hh*0.55;
-
-  const path = (ctx)=>{
-    ctx.beginPath();
-    ctx.moveTo(0,-Hh/2);
-    ctx.lineTo(Wd/2,-Hh/2+headH);
-    ctx.lineTo(Wd*0.23,-Hh/2+headH);
-    ctx.lineTo(Wd*0.23,Hh/2);
-    ctx.lineTo(-Wd*0.23,Hh/2);
-    ctx.lineTo(-Wd*0.23,-Hh/2+headH);
-    ctx.lineTo(-Wd/2,-Hh/2+headH);
-    ctx.closePath();
-  };
-
-  o.save(); o.translate(pad,pad); o.rotate(ang);
-
-  // 霓虹陰影
-  o.shadowColor=color; o.shadowBlur=14;
-
-  // 彩色填充
-  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
-  g.addColorStop(0,'#ffffff'); g.addColorStop(0.22,color); g.addColorStop(1,color);
-  path(o); o.fillStyle=g; o.fill();
-
-  // 黑粗邊 + 細白邊
-  o.lineWidth=6; o.strokeStyle='#000'; path(o); o.stroke();
-  o.lineWidth=1.8; o.strokeStyle='rgba(255,255,255,.92)'; path(o); o.stroke();
-
-  o.restore();
-  return {canvas:off, half:pad, size:pad*2};
-}
-
+/* === Fused Cyber-Glitch Sprites (折衷款) =============================== */
+function hexToRgb(hex){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); if(!m) return {r:255,g:255,b:255}; return {r:parseInt(m[1],16), g:parseInt(m[2],16), b:parseInt(m[3],16)}; }
+function rgbToHsl(r,g,b){ r/=255; g/=255; b/=255; const max=Math.max(r,g,b), min=Math.min(r,g,b); let h,s,l=(max+min)/2; if(max===min){ h=s=0; } else { const d=max-min; s=l>0.5? d/(2-max-min): d/(max+min); switch(max){ case r:h=(g-b)/d+(g<b?6:0);break; case g:h=(b-r)/d+2;break; case b:h=(r-g)/d+4;break;} h/=6; } return {h:h*360,s,l}; }
+function hslToHex(h,s,l){ h/=360; const f=(n)=>{ const k=(n+h)%1; const a=s*Math.min(l,1-l); const c=l - a*Math.max(-1, Math.min(k*6-3, Math.min(4-k*6,1))); return Math.round(255*c); }; const r=f(0), g=f(1/3), b=f(2/3); return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`; }
+function accentColors(baseHex){ const {r,g,b}=hexToRgb(baseHex); const {h,s,l}=rgbToHsl(r,g,b); const c1=baseHex; const c2=hslToHex((h+155)%360, Math.min(1, s*0.9), Math.min(0.7, l*1.05)); return {c1,c2}; }
+function chevronPath(ctx, Wd, Hh){ const headH=Hh*0.55; ctx.beginPath(); ctx.moveTo(0,-Hh/2); ctx.lineTo(Wd/2,-Hh/2+headH); ctx.lineTo(Wd*0.26,-Hh/2+headH); ctx.lineTo(Wd*0.26,Hh/2); ctx.lineTo(-Wd*0.26,Hh/2); ctx.lineTo(-Wd*0.26,-Hh/2+headH); ctx.lineTo(-Wd/2,-Hh/2+headH); ctx.closePath(); }
+function drawInnerChevrons(ctx, Wd, Hh, n, opacity){ const step=0.15; ctx.save(); ctx.globalAlpha=opacity; for(let i=1;i<=n;i++){ const k=1 - i*step; ctx.save(); ctx.scale(k,k); ctx.lineWidth=Math.max(1, 3*(1-k)); ctx.strokeStyle='rgba(255,255,255,0.18)'; chevronPath(ctx,Wd,Hh); ctx.stroke(); ctx.restore(); } ctx.restore(); }
+function drawCircuitLines(ctx, Wd, Hh, color){ ctx.save(); ctx.globalAlpha=0.65; ctx.strokeStyle=color; ctx.lineWidth=1.2; const lines=[[-Wd*0.24,-Hh*0.18, Wd*0.18,-Hh*0.18],[-Wd*0.24,0, Wd*0.22,0],[-Wd*0.18,Hh*0.18, Wd*0.26,Hh*0.18]]; lines.forEach(([x1,y1,x2,y2])=>{ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }); ctx.globalAlpha=0.45; for(let i=0;i<4;i++){ const y=-Hh*0.3+i*(Hh*0.2); ctx.beginPath(); ctx.moveTo(-Wd*0.05,y); ctx.lineTo(Wd*0.24, y+Wd*0.16); ctx.stroke(); } ctx.restore(); }
+function glitchOutline(ctx, Wd, Hh, colorA, colorB){ ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.lineWidth=2; ctx.strokeStyle=colorA; ctx.translate(0.8,0); chevronPath(ctx,Wd,Hh); ctx.stroke(); ctx.strokeStyle=colorB; ctx.translate(-1.6,0); chevronPath(ctx,Wd,Hh); ctx.stroke(); ctx.restore(); }
+function makeReceptorBlack_Fused(size, dir){ const pad=Math.ceil(size*1.8+20), dpr=Math.min(2,window.devicePixelRatio||1); const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr); const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.04; o.save(); o.translate(pad,pad); o.rotate(ang); let g=o.createLinearGradient(0,-Hh/2,0,Hh/2); g.addColorStop(0,'#1a1c22'); g.addColorStop(0.35,'#0f1116'); g.addColorStop(1,'#000'); o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill(); o.lineWidth=6; o.strokeStyle='#000'; chevronPath(o,Wd,Hh); o.stroke(); o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.98)'; chevronPath(o,Wd,Hh); o.stroke(); drawInnerChevrons(o,Wd,Hh,3,0.7); drawCircuitLines(o,Wd,Hh,'rgba(120,213,255,.45)'); glitchOutline(o,Wd,Hh,'rgba(0,255,255,.20)','rgba(255,0,160,.18)'); o.restore(); return {canvas:off, half:pad, size:pad*2}; }
+function makeReceptorColor_Fused(size, dir, color){ const {c1,c2}=accentColors(color); const pad=Math.ceil(size*1.8+20), dpr=Math.min(2,window.devicePixelRatio||1); const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr); const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.04; o.save(); o.translate(pad,pad); o.rotate(ang); let g=o.createLinearGradient(0,-Hh/2,0,Hh/2); g.addColorStop(0,'#ffffff'); g.addColorStop(0.20,color); g.addColorStop(1,color); o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill(); o.lineWidth=2; o.strokeStyle='#fff'; chevronPath(o,Wd,Hh); o.stroke(); o.save(); o.globalCompositeOperation='lighter'; o.shadowBlur=14; o.shadowColor=c1; o.lineWidth=2; o.strokeStyle=c1; chevronPath(o,Wd,Hh); o.stroke(); o.shadowBlur=10; o.shadowColor=c2; o.lineWidth=1.8; o.strokeStyle=c2; chevronPath(o,Wd,Hh); o.stroke(); o.restore(); drawInnerChevrons(o,Wd,Hh,2,0.55); o.restore(); return {canvas:off, half:pad, size:pad*2}; }
+function makeNote_Fused(size, dir, color){ const {c1,c2}=accentColors(color); const pad=Math.ceil(size*1.8+20), dpr=Math.min(2,window.devicePixelRatio||1); const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr); const ang=dirToAngle(dir), Hh=size*1.16, Wd=size*1.02; o.save(); o.translate(pad,pad); o.rotate(ang); o.shadowColor=color; o.shadowBlur=14; let g=o.createLinearGradient(0,-Hh/2,0,Hh/2); g.addColorStop(0,'#ffffff'); g.addColorStop(0.22,color); g.addColorStop(1,color); o.fillStyle=g; chevronPath(o,Wd,Hh); o.fill(); o.shadowBlur=0; o.lineWidth=6; o.strokeStyle='#000'; chevronPath(o,Wd,Hh); o.stroke(); o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.95)'; chevronPath(o,Wd,Hh); o.stroke(); drawInnerChevrons(o,Wd,Hh,2,0.6); drawCircuitLines(o,Wd,Hh,'rgba(255,255,255,.20)'); glitchOutline(o,Wd,Hh,c1,c2); o.restore(); return {canvas:off, half:pad, size:pad*2}; }
+function drawGlitchBurst(x,y,colorA,colorB,intensity){ const n=Math.floor(3+intensity*4); ctx.save(); ctx.globalCompositeOperation='lighter'; for(let i=0;i<n;i++){ const w=18+Math.random()*34, h=2+Math.random()*3; const xx=x + (Math.random()<0.5?-1:1)*(8+Math.random()*18); const yy=y + (Math.random()*2-1)*14; ctx.globalAlpha=0.25+Math.random()*0.25; ctx.fillStyle=(i%2)?colorA:colorB; ctx.fillRect(xx-w/2, yy-h/2, w, h); } ctx.restore(); }
 const SPR = { recBlack:[], recColor:[], note:[] };
-function buildSprites(){
-  for(let i=0;i<4;i++){
-    const dir=laneDirs[i], col=laneColors[i];
-    SPR.recBlack[i]=makeReceptorBlack(NOTE_BASE, dir);
-    SPR.recColor[i]=makeReceptorColor(NOTE_BASE, dir, col);
-    SPR.note[i]=makeColorNote(NOTE_BASE, dir, col);
-  }
-}
+function buildSprites(){ for(let i=0;i<4;i++){ const dir=laneDirs[i], col=laneColors[i]; SPR.recBlack[i]=makeReceptorBlack_Fused(NOTE_BASE, dir); SPR.recColor[i]=makeReceptorColor_Fused(NOTE_BASE, dir, col); SPR.note[i]=makeNote_Fused(NOTE_BASE, dir, col); } }
 function drawSprite(sp,x,y,scale=1){ ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale); ctx.drawImage(sp.canvas, -sp.half, -sp.half, sp.size, sp.size); ctx.restore(); }
 
-/* 動態掃描亮帶（讓接收器有活感） */
-function drawMovingSheen(x,y,w,color,t){
-  const h=22, yy=y - 46 + (Math.sin(t*2)+1)*10;
-  const g=ctx.createLinearGradient(x-w/2,yy-h/2, x+w/2,yy+h/2);
-  g.addColorStop(0,'rgba(255,255,255,0)');
-  g.addColorStop(0.5,'rgba(180,255,255,0.10)');
-  g.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle=g; ctx.fillRect(x-w/2,yy-h/2,w,h); ctx.restore();
-}
-
-/* 霓虹光暈 */
+/* 動態掃描亮帶/外光 */
+function drawMovingSheen(x,y,w,color,t){ const h=22, yy=y - 46 + (Math.sin(t*2)+1)*10; const g=ctx.createLinearGradient(x-w/2,yy-h/2, x+w/2,yy+h/2); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(0.5,'rgba(180,255,255,0.10)'); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle=g; ctx.fillRect(x-w/2,yy-h/2,w,h); ctx.restore(); }
 function drawGlow(x,y,r,color,alpha){ ctx.save(); ctx.globalAlpha=alpha; const g=ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
 
 /* FPS/畫質 */
@@ -541,27 +400,14 @@ function trackFPS(ts){ __fpsFrames++; if(!__fpsLastTs){ __fpsLastTs=ts; return;}
 /* ===== WebAudio 雙時鐘 ===== */
 let INPUT_OFFSET_MS = +(localStorage.getItem('dfjk.offsetMs')||0);
 let audioCtx=null, songBuffer=null, gainNode=null, srcNode=null;
-let startAtCtx=0, startAtSong=0; let songEnded=false; const bufferCache=new Map();
-
+let startAtCtx=0, startAtSong=0; let songEnded=false;
 async function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); if(!gainNode){ gainNode=audioCtx.createGain(); gainNode.connect(audioCtx.destination);} }
 async function loadSongBuffer(url){ await ensureAudio(); const res=await fetch(url); if(!res.ok) throw new Error('fetch failed'); const arr=await res.arrayBuffer(); const buf=await audioCtx.decodeAudioData(arr); songBuffer=buf; }
 function stopAndResetAudio(){ try{ if(srcNode){ srcNode.onended=null; srcNode.stop(0);} }catch{} srcNode=null; startAtCtx=0; startAtSong=0; songEnded=false; }
-function playFrom(offsetSec){
-  if(!audioCtx||!songBuffer) return;
-  stopAndResetAudio();
-  srcNode=audioCtx.createBufferSource(); srcNode.buffer=songBuffer; srcNode.connect(gainNode);
-  const when=Math.max(0, audioCtx.currentTime + 0.03);
-  startAtCtx=when; startAtSong=Math.max(0, Math.min(songBuffer.duration-0.001, offsetSec||0));
-  srcNode.start(when, startAtSong); srcNode.onended=()=>{ songEnded=true; };
-}
+function playFrom(offsetSec){ if(!audioCtx||!songBuffer) return; stopAndResetAudio(); srcNode=audioCtx.createBufferSource(); srcNode.buffer=songBuffer; srcNode.connect(gainNode); const when=Math.max(0, audioCtx.currentTime + 0.03); startAtCtx=when; startAtSong=Math.max(0, Math.min(songBuffer.duration-0.001, offsetSec||0)); srcNode.start(when, startAtSong); srcNode.onended=()=>{ songEnded=true; }; }
 function getSongClockSec(){ if(!audioCtx||!songBuffer||!srcNode) return 0; const t=(audioCtx.currentTime - startAtCtx) + startAtSong; return Math.max(0, Math.min(songBuffer.duration, t)); }
 function getJudgeClockSec(){ return getSongClockSec() + (INPUT_OFFSET_MS/1000); }
-function setGlobalOffset(ms){
-  const clamp = Math.max(-600, Math.min(600, (ms|0)));
-  INPUT_OFFSET_MS=clamp; localStorage.setItem('dfjk.offsetMs', String(INPUT_OFFSET_MS));
-  const lab=document.getElementById('offsetLabel'); if(lab) lab.textContent=`${INPUT_OFFSET_MS} ms`;
-  const hud=document.getElementById('offsetActive'); if(hud) hud.textContent=`${INPUT_OFFSET_MS} ms`;
-}
+function setGlobalOffset(ms){ const clamp = Math.max(-600, Math.min(600, (ms|0))); INPUT_OFFSET_MS=clamp; localStorage.setItem('dfjk.offsetMs', String(INPUT_OFFSET_MS)); const lab=document.getElementById('offsetLabel'); if(lab) lab.textContent=`${INPUT_OFFSET_MS} ms`; const hud=document.getElementById('offsetActive'); if(hud) hud.textContent=`${INPUT_OFFSET_MS} ms`; }
 
 /* ===== 校正 UI ===== */
 function initOffsetUI(){
@@ -708,19 +554,27 @@ function render({skipNotes=false}={}){
 
   const tAnim = performance.now()/1000;
 
-  // Receptor（黑底 + 霓虹雙色；命中時整顆彩色亮起；加上動態掃描亮帶）
+  // Receptor（黑底；命中整顆彩色 + glitch burst）
   for(let lane=0; lane<4; lane++){
-    const x=lane*laneWidth+laneWidth/2; const pulse=receptorPulse[lane]; const s=1 + 0.18*pulse;
-    drawSprite(SPR.recBlack[lane], x, judge, s);              // 黑底本體
+    const x=lane*laneWidth+laneWidth/2; const pulse=receptorPulse[lane];
+    const s=1 + 0.18*pulse;
+    drawSprite(SPR.recBlack[lane], x, judge, s);          // 黑底本體（細白邊）
+
     if (pulse>0){
-      ctx.save(); ctx.globalAlpha = 0.42 + 0.58*pulse;        // 整顆亮起
+      // 亮起整顆彩色
+      ctx.save(); ctx.globalAlpha = 0.42 + 0.58*pulse;
       drawSprite(SPR.recColor[lane], x, judge, s);
       ctx.restore();
+
+      // 加一點“glitch burst”條紋
+      const {c1,c2} = accentColors(laneColors[lane]);
+      drawGlitchBurst(x, judge, c1, c2, pulse);
       drawGlow(x, judge, 46 + 24*pulse, laneColors[lane], 0.28 + 0.32*pulse);
     } else {
-      drawGlow(x, judge, 36, 'rgba(0,255,255,0.25)', 0.08);   // Idle 柔光
+      drawGlow(x, judge, 36, 'rgba(0,255,255,0.25)', 0.08);
     }
-    // 動態掃描亮帶（即使不按也有未來感）
+
+    // 持續的掃描亮帶（未來感）
     drawMovingSheen(x, judge, 72, laneColors[lane], tAnim + lane*0.25);
   }
 
@@ -812,13 +666,13 @@ function loop(ts){
 }
 function stopGameLoop(){ try{ cancelAnimationFrame(loopId);}catch{} loopId=null; }
 
-/* ===== 倒數（修：倒數前即畫舞台，避免黑畫面；Ready/3/2/1 顯示） ===== */
+/* ===== 倒數（首幀渲染避免黑畫面） ===== */
 function showCountdown(startCallback, opts){
   cancelCountdown(); isCountingDown=true; phase='countdown';
   const previewTime=opts&&typeof opts.previewTime==='number'? opts.previewTime : null;
   const showNotes=!!(opts && opts.showNotes && previewTime!==null);
 
-  // 先畫一幀讓畫面不是黑的
+  // 先畫一幀
   if(showNotes) renderPreviewAt(previewTime);
   else render({skipNotes:true});
 
@@ -826,7 +680,6 @@ function showCountdown(startCallback, opts){
   const steps=['Ready','3','2','1','Go!']; const stepDur=700;
 
   const countdownLoop=()=>{ if(!isCountingDown) return; if(showNotes) renderPreviewAt(previewTime); else render({skipNotes:true}); countdownRAF=requestAnimationFrame(countdownLoop); }; countdownLoop();
-
   const playStep=i=>{ if(!isCountingDown) return; el.textContent=steps[i]; el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out'; };
 
   for(let i=0;i<steps.length;i++){ countdownTimers.push(setTimeout(()=>playStep(i), i*stepDur)); }
@@ -944,7 +797,7 @@ function resumeGame(){
 function onViewportChanged(){ if(__layoutFrozen) return; if(phase==='playing'||phase==='countdown'){ setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); } }
 function initOffsetAndVolume(){ initOffsetUI(); initVolumeUI(); }
 
-buildSprites();  // 先建 Sprites，倒數前就可畫
+buildSprites();  // 預先生成 Sprites，避免首幀空白
 applyDesktopScale();
 initOffsetAndVolume();
 fillSongList();
