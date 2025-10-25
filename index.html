@@ -7,13 +7,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
   <style>
     html, body { touch-action: manipulation; }
-    body { margin: 0; background: #0f1220; color: #fff; font-family: sans-serif; text-align: center; transition: background 0.5s ease; }
+    body { margin: 0; background: linear-gradient(180deg, #0d1522, #0a1017); color: #fff; font-family: sans-serif; text-align: center; transition: background 0.5s ease; }
     body.ex-mode { background: linear-gradient(to bottom, #ff3300, #990000, #000000); }
 
     /* 舞台容器 */
     #stage { position: relative; width: 95%; max-width: 420px; margin: 20px auto; --u: 1; }
 
-    canvas { display: block; background: #1f2340; border: 2px solid #fff; width: 100%; height: auto; touch-action: manipulation; }
+    canvas { display: block; background: #121a2a; border: 2px solid #fff; width: 100%; height: auto; touch-action: manipulation; }
 
     /* 遊玩時移除硬邊框，使用偽邊界 */
     #stage.immersive canvas{ border: none; }
@@ -327,9 +327,61 @@ const receptorPulse=[0,0,0,0]; const hitFx=[];
 function dirToAngle(dir){ switch(dir){ case 'up':return 0; case 'down':return Math.PI; case 'left':return -Math.PI/2; case 'right':return Math.PI/2; } return 0; }
 function __makeArrowSprite(size, dir, opts={}){ const glow=opts.glow??0.8, innerScale=opts.innerScale??0.72; const pad=Math.ceil(size*1.6 + 18*glow); const dpr=Math.min(2,window.devicePixelRatio||1); const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const octx=off.getContext('2d',{alpha:true}); octx.scale(dpr,dpr); const angle=dirToAngle(dir); const Hh=size*1.15, Wd=size, headH=Hh*0.55; const drawShape=(scale=1,strokeStyle='#000',shadow=0)=>{ octx.save(); octx.translate(pad,pad); octx.rotate(angle); octx.scale(scale,scale); if (shadow>0){ octx.shadowColor='#000'; octx.shadowBlur=shadow; } octx.beginPath(); octx.moveTo(0,-Hh/2); octx.lineTo(Wd/2,-Hh/2+headH); octx.lineTo(Wd*0.22,-Hh/2+headH); octx.lineTo(Wd*0.22,Hh/2); octx.lineTo(-Wd*0.22,Hh/2); octx.lineTo(-Wd*0.22,-Hh/2+headH); octx.lineTo(-Wd/2,-Hh/2+headH); octx.closePath(); const grad=octx.createLinearGradient(0,-Hh/2,0,Hh/2); grad.addColorStop(0,'#4a4a4a'); grad.addColorStop(0.25,'#2b2b2b'); grad.addColorStop(1,'#000000'); octx.fillStyle=grad; octx.fill(); octx.lineWidth=6; octx.strokeStyle=strokeStyle; octx.stroke(); octx.restore(); }; drawShape(1.0,'#000',12*glow); drawShape(innerScale,'#111',4*glow); return { canvas:off, half:pad, size:pad*2 } }
 const __SPR={ noteHQ:[], recHQ:[], noteLQ:[], recLQ:[] };
-function __buildSprites(){ for(let i=0;i<4;i++){ const dir=laneDirs[i]; __SPR.noteHQ[i]=__makeArrowSprite(NOTE_BASE,dir,{glow:.7,innerScale:.72}); __SPR.recHQ[i]=__makeArrowSprite(NOTE_BASE,dir,{glow:.9,innerScale:.72}); __SPR.noteLQ[i]=__makeArrowSprite(NOTE_BASE,dir,{glow:.4,innerScale:.72}); __SPR.recLQ[i]=__makeArrowSprite(NOTE_BASE,dir,{glow:.6,innerScale:.72}); } }
+function __buildSprites(){
+  for(let i=0;i<4;i++){
+    const dir=laneDirs[i];
+    // 音符：彩色；接收器：黑色
+    __SPR.noteHQ[i] = __makeColorArrowSprite(NOTE_BASE, dir, laneColors[i], { glow: .8, innerScale: .7 });
+    __SPR.recHQ[i]  = __makeArrowSprite(NOTE_BASE, dir, { glow: .9, innerScale: .72 });
+    __SPR.noteLQ[i] = __makeColorArrowSprite(NOTE_BASE, dir, laneColors[i], { low: true });
+    __SPR.recLQ[i]  = __makeArrowSprite(NOTE_BASE, dir, { low: true });
+  }
+}); __SPR.recHQ[i]=__makeArrowSprite(NOTE_BASE,dir,{glow:.9,innerScale:.72}); __SPR.noteLQ[i]=__makeArrowSprite(NOTE_BASE,dir,{glow:.4,innerScale:.72}); __SPR.recLQ[i]=__makeArrowSprite(NOTE_BASE,dir,{glow:.6,innerScale:.72}); } }
 function __drawSprite(sp,x,y,scale=1){ ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale); ctx.drawImage(sp.canvas,-sp.half,-sp.half,sp.size,sp.size); ctx.restore(); }
-function drawRing(x,y,r,alpha,color='#ffffff'){ if (__useLowQuality) return; ctx.save(); ctx.globalAlpha=alpha; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.strokeStyle=color; ctx.lineWidth=3; ctx.stroke(); ctx.restore(); }
+// 彩色箭頭（音符用）
+function __makeColorArrowSprite(size, dir, baseColor, opts={}){
+  const glow = opts.glow ?? 0.8; const innerScale = opts.innerScale ?? 0.7; const low = !!opts.low;
+  const pad = Math.ceil(size*1.6 + 18*glow); const dpr = Math.min(2, window.devicePixelRatio||1);
+  const off = document.createElement('canvas'); off.width = off.height = pad*2*dpr; const octx = off.getContext('2d', { alpha:true }); octx.scale(dpr,dpr);
+  const angle = (function(dir){ switch(dir){ case 'up':return 0; case 'down':return Math.PI; case 'left':return -Math.PI/2; case 'right':return Math.PI/2; default:return 0; } })(dir);
+  const Hh = size*1.15, Wd=size, headH=Hh*0.55;
+  const drawShape=(scale=1, strokeStyle='#000', shadow=0)=>{
+    octx.save(); octx.translate(pad,pad); octx.rotate(angle); octx.scale(scale,scale);
+    if (shadow>0){ octx.shadowColor = baseColor; octx.shadowBlur = shadow; }
+    octx.beginPath();
+    octx.moveTo(0, -Hh/2);
+    octx.lineTo(Wd/2, -Hh/2 + headH);
+    octx.lineTo(Wd*0.22, -Hh/2 + headH);
+    octx.lineTo(Wd*0.22,  Hh/2);
+    octx.lineTo(-Wd*0.22, Hh/2);
+    octx.lineTo(-Wd*0.22, -Hh/2 + headH);
+    octx.lineTo(-Wd/2, -Hh/2 + headH);
+    octx.closePath();
+    const grad = octx.createLinearGradient(0, -Hh/2, 0, Hh/2);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.25, baseColor);
+    grad.addColorStop(1, baseColor);
+    octx.fillStyle = low ? baseColor : grad; octx.fill();
+    octx.lineWidth = low ? 3 : 6; octx.strokeStyle = strokeStyle; octx.stroke();
+    octx.restore();
+  };
+  drawShape(1.0, '#000', low ? 0 : 12*glow);
+  if (!low) drawShape(innerScale, '#111', 4*glow);
+  return { canvas: off, half: pad, size: pad*2 };
+}
+function drawRing(x,y,r,alpha,color='#ffffff'){
+  if (__useLowQuality) return;
+  ctx.save(); ctx.globalAlpha=alpha; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.strokeStyle=color; ctx.lineWidth=3; ctx.stroke(); ctx.restore();
+}
+function drawGlow(x,y,r,color,alpha){
+  ctx.save(); ctx.globalAlpha = alpha;
+  const g = ctx.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0, color);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
 
 let __fpsMA=60, __fpsFrames=0, __fpsLastTs=0; let __useLowQuality=false; let __remainNotes=0;
 function __trackFPS(ts){ __fpsFrames++; if(!__fpsLastTs){ __fpsLastTs=ts; return; } const span=ts-__fpsLastTs; if (span>=300){ const inst=__fpsFrames*1000/span; __fpsMA=__fpsMA*0.8+inst*0.2; __fpsFrames=0; __fpsLastTs=ts; if (__fpsMA<54) __useLowQuality=true; else if (__fpsMA>58) __useLowQuality=false; } }
@@ -424,7 +476,12 @@ function update(songT, dt){ for(let i=0;i<chart.length;i++){ const n=chart[i]; n
   for(let i=hitFx.length-1;i>=0;i--) if(songT - hitFx[i].t0 > hitFx[i].life) hitFx.splice(i,1);
 }
 
-function render({skipNotes=false}={}){ const judge=getJudgeLineYInternal(); ctx.clearRect(0,0,W,H); const _rec=__useLowQuality?__SPR.recLQ:__SPR.recHQ; for(let lane=0; lane<4; lane++){ const x=lane*laneWidth+laneWidth/2; const s=1+0.18*receptorPulse[lane]; __drawSprite(_rec[lane], x, judge, s); }
+function render({skipNotes=false}={}){ const judge=getJudgeLineYInternal(); ctx.clearRect(0,0,W,H); const _rec=__useLowQuality?__SPR.recLQ:__SPR.recHQ;
+for(let lane=0; lane<4; lane++){
+  const x=lane*laneWidth+laneWidth/2; const pulse=receptorPulse[lane]; const s=1+0.18*pulse;
+  if (pulse>0) drawGlow(x, judge, 42 + 22*pulse, laneColors[lane], 0.35 + 0.35*pulse);
+  __drawSprite(_rec[lane], x, judge, s);
+}
   if(!skipNotes){ const _note=__useLowQuality?__SPR.noteLQ:__SPR.noteHQ; const top=-120, bottom=H+120; for(let i=0;i<chart.length;i++){ const n=chart[i]; if(n.hit) continue; if(n.y<top||n.y>bottom) continue; const x=n.lane*laneWidth+laneWidth/2; __drawSprite(_note[n.lane], x, n.y, 1); } }
   for(let i=0;i<hitFx.length;i++){ const fx=hitFx[i]; const p=Math.min(1,(getSongClockSec()-fx.t0)/fx.life); const x=fx.lane*laneWidth+laneWidth/2; drawRing(x, judge, 18+80*p, 1-p, laneColors[fx.lane]); }
   if(lastJudgementText!=='-'){ ctx.fillStyle='#fff'; ctx.font='bold 32px sans-serif'; ctx.textAlign='center'; const offset=(currentDirection==='up')? 120 : -40; ctx.fillText(lastJudgementText, W/2, judge+offset); }
@@ -455,7 +512,18 @@ const nextIdxByLane=[0,0,0,0]; function rebuildLaneCursors(){ nextIdxByLane.fill
 function onLanePress(lane){ if(!running) return; playTapSound(); const tNow=getJudgeClockSec(); const win=currentWindows().shit; let best=-1, bestAbs=Infinity; for(let i=nextIdxByLane[lane]; i<chart.length; i++){ const n=chart[i]; if(n.hit || n.lane!==lane) continue; const dtMs=(tNow - n.t)*1000; const adt=Math.abs(dtMs); if(adt<=win){ if(adt<bestAbs){ bestAbs=adt; best=i; } } else if (dtMs>win){ nextIdxByLane[lane]=i+1; } else { break; } } if(best>=0){ const n=chart[best]; judge((tNow - n.t)*1000, lane); n.hit=true; __remainNotes--; receptorPulse[lane]=1; if(best>=nextIdxByLane[lane]) nextIdxByLane[lane]=best+1; } else { if(currentJudgeMode==='old') ghostTap(lane); receptorPulse[lane]=1; } }
 
 /* ===== 熱圖（左上角，DPR 友善） ===== */
-function drawDtHeatmap(){ const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0); for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; } const x0=28, y0=28, w=240, h=70; const bw=w/bins; ctx.save(); ctx.globalAlpha=0.95; ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(x0-8,y0-10,w+16,h+52); ctx.fillStyle='#fff'; ctx.font='13px sans-serif'; ctx.fillText('Hit 偏移熱圖 (ms)', x0, y0-12); const maxc=Math.max(1,...hist); for(let i=0;i<bins;i++){ const v=hist[i]; const bh=(v/maxc)*h; const xx=x0 + i*bw; ctx.fillStyle='#78d5ff'; ctx.fillRect(xx, y0+(h-bh), bw-1, bh); } const {avg,std}=getDtStats(); ctx.fillStyle='#fff'; ctx.fillText(`avg: ${avg.toFixed(1)} ms  σ: ${std.toFixed(1)} ms  偏移: ${INPUT_OFFSET_MS} ms`, x0, y0+h+18); ctx.strokeStyle='#ffd966'; ctx.beginPath(); const midx=x0 + (-min)/step*bw; ctx.moveTo(midx,y0); ctx.lineTo(midx,y0+h); ctx.stroke(); ctx.restore(); }
+function drawDtHeatmap(){
+  const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0);
+  for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; }
+  const SCALE=0.85; const x0=24, y0=24; const w=Math.round(240*SCALE), h=Math.round(70*SCALE); const bw=w/bins;
+  ctx.save(); ctx.globalAlpha=0.95; ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(x0-8,y0-10,w+16,h+46);
+  ctx.fillStyle='#fff'; ctx.font='12px sans-serif'; ctx.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
+  const maxc=Math.max(1,...hist);
+  for(let i=0;i<bins;i++){ const v=hist[i]; const bh=(v/maxc)*h; const xx=x0 + i*bw; ctx.fillStyle='#78d5ff'; ctx.fillRect(xx, y0+(h-bh), bw-1, bh); }
+  const {avg,std}=getDtStats(); ctx.fillStyle='#fff'; ctx.fillText(`avg: ${avg.toFixed(1)} ms  σ: ${std.toFixed(1)} ms  偏移: ${INPUT_OFFSET_MS} ms`, x0, y0+h+16);
+  ctx.strokeStyle='#ffd966'; ctx.beginPath(); const midx=x0 + (-min)/step*bw; ctx.moveTo(midx,y0); ctx.lineTo(midx,y0+h); ctx.stroke();
+  ctx.restore();
+} const x0=28, y0=28, w=240, h=70; const bw=w/bins; ctx.save(); ctx.globalAlpha=0.95; ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(x0-8,y0-10,w+16,h+52); ctx.fillStyle='#fff'; ctx.font='13px sans-serif'; ctx.fillText('Hit 偏移熱圖 (ms)', x0, y0-12); const maxc=Math.max(1,...hist); for(let i=0;i<bins;i++){ const v=hist[i]; const bh=(v/maxc)*h; const xx=x0 + i*bw; ctx.fillStyle='#78d5ff'; ctx.fillRect(xx, y0+(h-bh), bw-1, bh); } const {avg,std}=getDtStats(); ctx.fillStyle='#fff'; ctx.fillText(`avg: ${avg.toFixed(1)} ms  σ: ${std.toFixed(1)} ms  偏移: ${INPUT_OFFSET_MS} ms`, x0, y0+h+18); ctx.strokeStyle='#ffd966'; ctx.beginPath(); const midx=x0 + (-min)/step*bw; ctx.moveTo(midx,y0); ctx.lineTo(midx,y0+h); ctx.stroke(); ctx.restore(); }
 
 /* ===== 流程 ===== */
 function startGame(){ if(!selectedSongFile){ alert('請先選擇音樂'); showMusic(); return; } const diff=document.getElementById('difficultySelect').value; const spSel=document.getElementById('speedMultiplier'); const dir=document.getElementById('noteDirection').value; const jmode=document.getElementById('judgeMode').value; currentDifficulty=diff; currentDirection=dir; currentJudgeMode=jmode; let mul=parseFloat(spSel.value); if(diff==='beginner') mul=0.8; else if(diff==='easy') mul=0.9; else if(diff==='ex') mul=1.8; noteSpeed=baseNoteSpeed*mul; document.body.classList.toggle('ex-mode', diff==='ex');
