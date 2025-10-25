@@ -9,14 +9,13 @@
     html, body { touch-action: manipulation; }
     body{
       margin:0; color:#fff; font-family:sans-serif; text-align:center; transition: background .5s ease;
-      /* 柔和但與黑色分離的底色（長期觀看舒適） */
-      background: radial-gradient(1200px 800px at 50% 0%, #0f1a2a 0%, #0b1320 60%, #09101b 100%);
+      /* 柔和、長看舒適，與黑色分離的背景 */
+      background: radial-gradient(1200px 800px at 50% 0%, #101a2c 0%, #0c1524 60%, #0a111d 100%);
     }
     body.ex-mode{ background: linear-gradient(to bottom, #ff3300, #990000, #000000); }
 
     #stage{ position:relative; width:95%; max-width:420px; margin:20px auto; --u:1; }
     canvas{ display:block; background:#121a2a; border:2px solid #fff; width:100%; height:auto; touch-action:manipulation; }
-
     /* 遊玩時移除硬邊，用偽邊界 + 霓虹光暈 */
     #stage.immersive canvas{ border:none; }
     #edgeFade{
@@ -46,10 +45,11 @@
     #pauseButton{ position:absolute; top:10px; right:10px; z-index:3; }
     .pause-bottom{ top:auto !important; bottom:10px !important; }
 
+    /* 倒數字樣：提到最上層，避免被覆蓋 */
     #countdownText{
       position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
-      font-family:'Fredoka One', sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000; z-index:5;
-      pointer-events:none; opacity:1; will-change:transform;
+      font-family:'Fredoka One', sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000;
+      z-index:9999; pointer-events:none; opacity:1; will-change:transform; display:none;
     }
     @keyframes popScale{ 0%{ transform:translate(-50%,-50%) scale(.85);} 50%{ transform:translate(-50%,-50%) scale(1.12);} 100%{ transform:translate(-50%,-50%) scale(1);} }
 
@@ -166,6 +166,8 @@
         <div class="hitkey" id="key-j"></div>
         <div class="hitkey" id="key-k"></div>
       </div>
+      <!-- 倒數文字移進 stage，上層顯示 -->
+      <div id="countdownText">Ready</div>
     </div>
 
     <div class="hud">
@@ -203,7 +205,6 @@
     <button onclick="goToMenu()">回主選單</button>
   </div>
 
-  <div id="countdownText" style="display:none;"></div>
   <div id="warnBanner">⚠️ 音樂無法載入或播放</div>
 
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
@@ -211,9 +212,9 @@
 <script>
 /* =========================================================
  * DFJK 高精度 Cyberpunk 版
- * - Receptor：黑底 + 細白邊 + 雙色霓虹邊（Idle 也很帥）、命中時整顆以 Lane 色亮起
- * - Note：彩色霓虹；掃描線 Overlay；偽邊界光
- * - WebAudio 雙時鐘、快速校正、暫停/續播精準回復
+ * - 修復：進場黑畫面與倒數消失（倒數前即渲染舞台）
+ * - 美術：未來科技感（黑底+細白邊、雙霓虹、刻線、動態掃描、命中整顆亮）
+ * - 音頻：WebAudio 雙時鐘、偏移校正
  * ========================================================= */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
@@ -367,120 +368,128 @@ const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666']; // 音符/亮起色
 const receptorPulse=[0,0,0,0]; const hitFx=[];
 function dirToAngle(dir){ switch(dir){ case 'up':return 0; case 'down':return Math.PI; case 'left':return -Math.PI/2; case 'right':return Math.PI/2; } return 0; }
 
-/* --- Cyberpunk Sprites --- */
+/* --- Cyberpunk Sprites（更科幻） --- */
 
-/* 黑色 Receptor（細白邊 + 霓虹雙色外緣 + 內部刻線/光澤） */
+/* 黑色 Receptor（細白邊 + 雙色霓虹 + 刻線 + 邊緣色差） */
 function makeReceptorBlack(size, dir){
-  const pad=Math.ceil(size*1.6 + 14); const dpr=Math.min(2,window.devicePixelRatio||1);
+  const pad=Math.ceil(size*1.7 + 16); const dpr=Math.min(2,window.devicePixelRatio||1);
   const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
-  const ang=dirToAngle(dir), Hh=size*1.15, Wd=size, headH=Hh*0.55;
+  const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.02, headH=Hh*0.55;
 
-  const path = ()=>{
-    o.beginPath();
-    o.moveTo(0,-Hh/2);
-    o.lineTo(Wd/2,-Hh/2+headH);
-    o.lineTo(Wd*0.22,-Hh/2+headH);
-    o.lineTo(Wd*0.22,Hh/2);
-    o.lineTo(-Wd*0.22,Hh/2);
-    o.lineTo(-Wd*0.22,-Hh/2+headH);
-    o.lineTo(-Wd/2,-Hh/2+headH);
-    o.closePath();
+  const path = (ctx)=>{
+    ctx.beginPath();
+    ctx.moveTo(0,-Hh/2);
+    ctx.lineTo(Wd/2,-Hh/2+headH);
+    ctx.lineTo(Wd*0.23,-Hh/2+headH);
+    ctx.lineTo(Wd*0.23,Hh/2);
+    ctx.lineTo(-Wd*0.23,Hh/2);
+    ctx.lineTo(-Wd*0.23,-Hh/2+headH);
+    ctx.lineTo(-Wd/2,-Hh/2+headH);
+    ctx.closePath();
   };
 
   o.save(); o.translate(pad,pad); o.rotate(ang);
 
-  // 1) 本體深色漸層
-  path();
-  const g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
-  g.addColorStop(0,'#1a1a1a'); g.addColorStop(0.35,'#0f0f10'); g.addColorStop(1,'#000');
+  // 本體多層金屬黒
+  path(o);
+  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
+  g.addColorStop(0,'#181a1f'); g.addColorStop(0.35,'#0d0f14'); g.addColorStop(1,'#000');
   o.fillStyle=g; o.fill();
 
-  // 2) 厚黑邊強化外型
-  o.lineWidth=6; o.strokeStyle='#000'; path(); o.stroke();
-
-  // 3) 細白邊，與背景分離
-  o.lineWidth=1.8; o.strokeStyle='rgba(255,255,255,.95)'; path(); o.stroke();
-
-  // 4) 霓虹雙色外緣（青／洋紅），低強度，讓 Idle 也有科技感
-  o.save();
-  o.globalCompositeOperation='lighter';
-  o.shadowBlur=8; o.shadowColor='rgba(0,255,255,.22)';
-  o.lineWidth=2; o.strokeStyle='rgba(0,255,255,.25)'; path(); o.stroke();
-  o.shadowBlur=7; o.shadowColor='rgba(255,0,160,.18)';
-  o.lineWidth=1.6; o.strokeStyle='rgba(255,0,160,.22)'; path(); o.stroke();
+  // 內折線亮面（面板切角）
+  o.save(); o.clip(); o.globalAlpha=0.18;
+  o.fillStyle='rgba(255,255,255,.08)';
+  for(let i=-3;i<=3;i++){
+    o.beginPath();
+    o.moveTo(-Wd*0.23 + i*6, -Hh*0.1);
+    o.lineTo(0 + i*6, -Hh*0.35);
+    o.lineTo(Wd*0.23 + i*6, -Hh*0.1);
+    o.closePath(); o.fill();
+  }
   o.restore();
 
-  // 5) 內部「面板刻線」與光條
+  // 厚黑邊 + 細白邊
+  o.lineWidth=6; o.strokeStyle='#000'; path(o); o.stroke();
+  o.lineWidth=2; o.strokeStyle='rgba(255,255,255,.95)'; path(o); o.stroke();
+
+  // 邊緣色差（紅／青）
   o.save();
-  o.clip(); // 限制在箭頭內
-  o.globalAlpha=0.28;
-  // 斜向掃描亮條
-  o.strokeStyle='rgba(180,255,255,.16)'; o.lineWidth=1;
-  for(let y=-Hh; y<Hh; y+=7){
-    o.beginPath(); o.moveTo(-Wd, y); o.lineTo(Wd, y+Wd*0.6); o.stroke();
-  }
-  // 兩條電路光帶
-  o.globalAlpha=0.45;
-  o.strokeStyle='rgba(0,255,255,.35)'; o.lineWidth=2;
-  o.beginPath(); o.moveTo(-Wd*0.22,0); o.lineTo(Wd*0.22,0); o.stroke();
-  o.globalAlpha=0.35; o.strokeStyle='rgba(255,0,160,.28)'; o.lineWidth=1.5;
-  o.beginPath(); o.moveTo(-Wd*0.12,Hh*0.18); o.lineTo(Wd*0.12,Hh*0.18); o.stroke();
+  o.globalCompositeOperation='screen';
+  o.lineWidth=2;
+  o.strokeStyle='rgba(255,40,40,.18)'; o.translate(0.6,0); path(o); o.stroke();
+  o.strokeStyle='rgba(40,255,255,.18)'; o.translate(-1.2,0); path(o); o.stroke();
+  o.restore();
+
+  // 雙色霓虹外緣（青／洋紅）
+  o.save();
+  o.globalCompositeOperation='lighter';
+  o.shadowBlur=10; o.shadowColor='rgba(0,255,255,.22)';
+  o.lineWidth=2; o.strokeStyle='rgba(0,255,255,.25)'; path(o); o.stroke();
+  o.shadowBlur=9; o.shadowColor='rgba(255,0,160,.20)';
+  o.lineWidth=1.6; o.strokeStyle='rgba(255,0,160,.22)'; path(o); o.stroke();
+  o.restore();
+
+  // 內部掃描線（細）
+  o.save(); o.clip(); o.globalAlpha=0.22; o.strokeStyle='rgba(175,230,255,.20)'; o.lineWidth=1;
+  for(let y=-Hh; y<Hh; y+=7){ o.beginPath(); o.moveTo(-Wd, y); o.lineTo(Wd, y+Wd*0.6); o.stroke(); }
   o.restore();
 
   o.restore();
   return {canvas:off, half:pad, size:pad*2};
 }
 
-/* 彩色 Receptor（整顆亮起用） */
+/* 彩色 Receptor（命中整顆亮起） */
 function makeReceptorColor(size, dir, color){
-  const pad=Math.ceil(size*1.6 + 14); const dpr=Math.min(2,window.devicePixelRatio||1);
+  const pad=Math.ceil(size*1.7 + 16); const dpr=Math.min(2,window.devicePixelRatio||1);
   const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
-  const ang=dirToAngle(dir), Hh=size*1.15, Wd=size, headH=Hh*0.55;
+  const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.02, headH=Hh*0.55;
 
-  const path = ()=>{
-    o.beginPath();
-    o.moveTo(0,-Hh/2);
-    o.lineTo(Wd/2,-Hh/2+headH);
-    o.lineTo(Wd*0.22,-Hh/2+headH);
-    o.lineTo(Wd*0.22,Hh/2);
-    o.lineTo(-Wd*0.22,Hh/2);
-    o.lineTo(-Wd*0.22,-Hh/2+headH);
-    o.lineTo(-Wd/2,-Hh/2+headH);
-    o.closePath();
+  const path = (ctx)=>{
+    ctx.beginPath();
+    ctx.moveTo(0,-Hh/2);
+    ctx.lineTo(Wd/2,-Hh/2+headH);
+    ctx.lineTo(Wd*0.23,-Hh/2+headH);
+    ctx.lineTo(Wd*0.23,Hh/2);
+    ctx.lineTo(-Wd*0.23,Hh/2);
+    ctx.lineTo(-Wd*0.23,-Hh/2+headH);
+    ctx.lineTo(-Wd/2,-Hh/2+headH);
+    ctx.closePath();
   };
 
   o.save(); o.translate(pad,pad); o.rotate(ang);
 
-  // 彩色填充＋白邊
-  const g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
-  g.addColorStop(0,'#ffffff'); g.addColorStop(0.25,color); g.addColorStop(1,color);
-  o.fillStyle=g; path(); o.fill();
-  o.lineWidth=1.6; o.strokeStyle='#fff'; path(); o.stroke();
+  // 彩色填充（帶金屬高光）
+  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(0.22,color); g.addColorStop(1,color);
+  o.fillStyle=g; path(o); o.fill();
+
+  // 白邊
+  o.lineWidth=2; o.strokeStyle='#fff'; path(o); o.stroke();
 
   // 外圍同色柔光
   o.globalCompositeOperation='lighter';
-  o.shadowColor=color; o.shadowBlur=12; o.lineWidth=2.2; o.strokeStyle=color; path(); o.stroke();
+  o.shadowColor=color; o.shadowBlur=14; o.lineWidth=2.2; o.strokeStyle=color; path(o); o.stroke();
 
   o.restore();
   return {canvas:off, half:pad, size:pad*2};
 }
 
-/* 彩色 Note（霓虹） */
+/* 彩色 Note（霓虹 + 細白邊） */
 function makeColorNote(size, dir, color){
-  const pad=Math.ceil(size*1.6 + 18); const dpr=Math.min(2,window.devicePixelRatio||1);
+  const pad=Math.ceil(size*1.7 + 18); const dpr=Math.min(2,window.devicePixelRatio||1);
   const off=document.createElement('canvas'); off.width=off.height=pad*2*dpr; const o=off.getContext('2d',{alpha:true}); o.scale(dpr,dpr);
-  const ang=dirToAngle(dir), Hh=size*1.15, Wd=size, headH=Hh*0.55;
+  const ang=dirToAngle(dir), Hh=size*1.18, Wd=size*1.02, headH=Hh*0.55;
 
-  const path = ()=>{
-    o.beginPath();
-    o.moveTo(0,-Hh/2);
-    o.lineTo(Wd/2,-Hh/2+headH);
-    o.lineTo(Wd*0.22,-Hh/2+headH);
-    o.lineTo(Wd*0.22,Hh/2);
-    o.lineTo(-Wd*0.22,Hh/2);
-    o.lineTo(-Wd*0.22,-Hh/2+headH);
-    o.lineTo(-Wd/2,-Hh/2+headH);
-    o.closePath();
+  const path = (ctx)=>{
+    ctx.beginPath();
+    ctx.moveTo(0,-Hh/2);
+    ctx.lineTo(Wd/2,-Hh/2+headH);
+    ctx.lineTo(Wd*0.23,-Hh/2+headH);
+    ctx.lineTo(Wd*0.23,Hh/2);
+    ctx.lineTo(-Wd*0.23,Hh/2);
+    ctx.lineTo(-Wd*0.23,-Hh/2+headH);
+    ctx.lineTo(-Wd/2,-Hh/2+headH);
+    ctx.closePath();
   };
 
   o.save(); o.translate(pad,pad); o.rotate(ang);
@@ -489,14 +498,13 @@ function makeColorNote(size, dir, color){
   o.shadowColor=color; o.shadowBlur=14;
 
   // 彩色填充
-  const g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
-  g.addColorStop(0,'#ffffff'); g.addColorStop(0.25,color); g.addColorStop(1,color);
-  path(); o.fillStyle=g; o.fill();
+  let g=o.createLinearGradient(0,-Hh/2,0,Hh/2);
+  g.addColorStop(0,'#ffffff'); g.addColorStop(0.22,color); g.addColorStop(1,color);
+  path(o); o.fillStyle=g; o.fill();
 
-  // 黑粗邊（立體）
-  o.lineWidth=6; o.strokeStyle='#000'; path(); o.stroke();
-  // 細白邊（銳利）
-  o.lineWidth=1.8; o.strokeStyle='rgba(255,255,255,.9)'; path(); o.stroke();
+  // 黑粗邊 + 細白邊
+  o.lineWidth=6; o.strokeStyle='#000'; path(o); o.stroke();
+  o.lineWidth=1.8; o.strokeStyle='rgba(255,255,255,.92)'; path(o); o.stroke();
 
   o.restore();
   return {canvas:off, half:pad, size:pad*2};
@@ -513,15 +521,18 @@ function buildSprites(){
 }
 function drawSprite(sp,x,y,scale=1){ ctx.save(); ctx.translate(x,y); ctx.scale(scale,scale); ctx.drawImage(sp.canvas, -sp.half, -sp.half, sp.size, sp.size); ctx.restore(); }
 
-/* 霓虹光暈 + 掃描線 Overlay */
-function drawGlow(x,y,r,color,alpha){ ctx.save(); ctx.globalAlpha=alpha; const g=ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
-let scanlinePattern=null;
-function buildScanlinePattern(){
-  const off=document.createElement('canvas'); off.width=64; off.height=64; const c=off.getContext('2d');
-  c.strokeStyle='rgba(255,255,255,0.20)'; c.lineWidth=1;
-  for(let i=-64;i<64;i+=8){ c.beginPath(); c.moveTo(i,0); c.lineTo(i+64,64); c.stroke(); }
-  scanlinePattern = ctx.createPattern(off, 'repeat');
+/* 動態掃描亮帶（讓接收器有活感） */
+function drawMovingSheen(x,y,w,color,t){
+  const h=22, yy=y - 46 + (Math.sin(t*2)+1)*10;
+  const g=ctx.createLinearGradient(x-w/2,yy-h/2, x+w/2,yy+h/2);
+  g.addColorStop(0,'rgba(255,255,255,0)');
+  g.addColorStop(0.5,'rgba(180,255,255,0.10)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.fillStyle=g; ctx.fillRect(x-w/2,yy-h/2,w,h); ctx.restore();
 }
+
+/* 霓虹光暈 */
+function drawGlow(x,y,r,color,alpha){ ctx.save(); ctx.globalAlpha=alpha; const g=ctx.createRadialGradient(x,y,0,x,y,r); g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore(); }
 
 /* FPS/畫質 */
 let __fpsMA=60, __fpsFrames=0, __fpsLastTs=0, __useLowQuality=false, __remainNotes=0;
@@ -533,7 +544,7 @@ let audioCtx=null, songBuffer=null, gainNode=null, srcNode=null;
 let startAtCtx=0, startAtSong=0; let songEnded=false; const bufferCache=new Map();
 
 async function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'}); if(!gainNode){ gainNode=audioCtx.createGain(); gainNode.connect(audioCtx.destination);} }
-async function loadSongBuffer(url){ await ensureAudio(); if(bufferCache.has(url)){ songBuffer=bufferCache.get(url); return; } const res=await fetch(url); if(!res.ok) throw new Error('fetch failed'); const arr=await res.arrayBuffer(); const buf=await audioCtx.decodeAudioData(arr); bufferCache.set(url,buf); songBuffer=buf; }
+async function loadSongBuffer(url){ await ensureAudio(); const res=await fetch(url); if(!res.ok) throw new Error('fetch failed'); const arr=await res.arrayBuffer(); const buf=await audioCtx.decodeAudioData(arr); songBuffer=buf; }
 function stopAndResetAudio(){ try{ if(srcNode){ srcNode.onended=null; srcNode.stop(0);} }catch{} srcNode=null; startAtCtx=0; startAtSong=0; songEnded=false; }
 function playFrom(offsetSec){
   if(!audioCtx||!songBuffer) return;
@@ -564,7 +575,7 @@ function openOffsetCalibrator(){
   (async()=>{ try{ await ensureAudio(); if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{} })();
   const overlay=document.createElement('div');
   overlay.id='offset-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;color:#fff;padding:24px;';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:#fff;padding:24px;';
   const BIG='font-size:28px;font-weight:700;', MID='font-size:18px;opacity:.9;', BTN='padding:10px 18px;font-size:18px;border:none;border-radius:10px;margin:8px;cursor:pointer;background:#78d5ff;color:#001;';
   overlay.innerHTML=`
     <div style="${BIG}margin-bottom:12px;">延遲校正</div>
@@ -695,18 +706,22 @@ function render({skipNotes=false}={}){
   const judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H);
 
-  // Receptor（黑底 + 霓虹雙色；命中時整顆彩色亮起）
+  const tAnim = performance.now()/1000;
+
+  // Receptor（黑底 + 霓虹雙色；命中時整顆彩色亮起；加上動態掃描亮帶）
   for(let lane=0; lane<4; lane++){
     const x=lane*laneWidth+laneWidth/2; const pulse=receptorPulse[lane]; const s=1 + 0.18*pulse;
-    // Idle 霓虹柔光
-    drawGlow(x, judge, 34, 'rgba(0,255,255,0.25)', 0.08);
-    drawSprite(SPR.recBlack[lane], x, judge, s);
+    drawSprite(SPR.recBlack[lane], x, judge, s);              // 黑底本體
     if (pulse>0){
-      ctx.save(); ctx.globalAlpha = 0.45 + 0.55*pulse;
+      ctx.save(); ctx.globalAlpha = 0.42 + 0.58*pulse;        // 整顆亮起
       drawSprite(SPR.recColor[lane], x, judge, s);
       ctx.restore();
       drawGlow(x, judge, 46 + 24*pulse, laneColors[lane], 0.28 + 0.32*pulse);
+    } else {
+      drawGlow(x, judge, 36, 'rgba(0,255,255,0.25)', 0.08);   // Idle 柔光
     }
+    // 動態掃描亮帶（即使不按也有未來感）
+    drawMovingSheen(x, judge, 72, laneColors[lane], tAnim + lane*0.25);
   }
 
   if(!skipNotes){
@@ -723,11 +738,6 @@ function render({skipNotes=false}={}){
     const fx=hitFx[i]; const p=Math.min(1,(getSongClockSec()-fx.t0)/fx.life);
     const x=fx.lane*laneWidth+laneWidth/2;
     ctx.save(); ctx.globalAlpha=(1-p); ctx.strokeStyle=laneColors[fx.lane]; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x, judge, 18+80*p, 0, Math.PI*2); ctx.stroke(); ctx.restore();
-  }
-
-  // 掃描線 Overlay（柔和）
-  if (scanlinePattern){
-    ctx.save(); ctx.globalAlpha=0.06; ctx.fillStyle=scanlinePattern; ctx.fillRect(0,0,W,H); ctx.restore();
   }
 
   // 判定文字
@@ -755,6 +765,20 @@ function renderPreviewAt(t){
     const x=n.lane*laneWidth+laneWidth/2; drawSprite(SPR.note[n.lane], x, y, 1);
   }
   drawDtHeatmap();
+}
+
+/* 左上角：Hit 偏移熱圖（等比縮小、DPR 修正） */
+function drawDtHeatmap(){
+  const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0);
+  for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; }
+  const SCALE=0.9; const x0=20, y0=18; const w=Math.round(240*SCALE), h=Math.round(70*SCALE); const bw=w/bins;
+  ctx.save(); ctx.globalAlpha=0.95;
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(x0-8,y0-10,w+16,h+46);
+  ctx.fillStyle='#fff'; ctx.font='12px sans-serif'; ctx.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
+  const maxc=Math.max(1,...hist);
+  for(let i=0;i<bins;i++){ const v=hist[i]; const bh=(v/maxc)*h; const xx=Math.floor(x0 + i*bw); ctx.fillStyle='#78d5ff'; ctx.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); }
+  const {avg,std}=getDtStats(); ctx.fillStyle='#fff'; ctx.fillText(`avg: ${avg.toFixed(1)} ms  σ: ${std.toFixed(1)} ms  偏移: ${INPUT_OFFSET_MS} ms`, x0, y0+h+16);
+  ctx.strokeStyle='#ffd966'; ctx.beginPath(); const midx=x0 + (-min)/step*bw; ctx.moveTo(midx,y0); ctx.lineTo(midx,y0+h); ctx.stroke(); ctx.restore();
 }
 
 function endGameAndShowResult(){
@@ -788,14 +812,23 @@ function loop(ts){
 }
 function stopGameLoop(){ try{ cancelAnimationFrame(loopId);}catch{} loopId=null; }
 
-/* ===== 倒數 ===== */
+/* ===== 倒數（修：倒數前即畫舞台，避免黑畫面；Ready/3/2/1 顯示） ===== */
 function showCountdown(startCallback, opts){
   cancelCountdown(); isCountingDown=true; phase='countdown';
   const previewTime=opts&&typeof opts.previewTime==='number'? opts.previewTime : null;
   const showNotes=!!(opts && opts.showNotes && previewTime!==null);
+
+  // 先畫一幀讓畫面不是黑的
+  if(showNotes) renderPreviewAt(previewTime);
+  else render({skipNotes:true});
+
+  const el=document.getElementById('countdownText'); el.style.display='block'; el.textContent='Ready';
+  const steps=['Ready','3','2','1','Go!']; const stepDur=700;
+
   const countdownLoop=()=>{ if(!isCountingDown) return; if(showNotes) renderPreviewAt(previewTime); else render({skipNotes:true}); countdownRAF=requestAnimationFrame(countdownLoop); }; countdownLoop();
-  const el=document.getElementById('countdownText'); el.style.display='block'; const steps=['Ready','3','2','1','Go!']; const stepDur=700;
+
   const playStep=i=>{ if(!isCountingDown) return; el.textContent=steps[i]; el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out'; };
+
   for(let i=0;i<steps.length;i++){ countdownTimers.push(setTimeout(()=>playStep(i), i*stepDur)); }
   countdownTimers.push(setTimeout(()=>{
     if(!isCountingDown) return; el.style.display='none'; isCountingDown=false; try{ cancelAnimationFrame(countdownRAF);}catch{}
@@ -846,19 +879,10 @@ function onLanePress(lane){
   }
 }
 
-/* ===== 左上角：Hit 偏移熱圖（等比縮小、DPR 修正） ===== */
-function drawDtHeatmap(){
-  const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0);
-  for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; }
-  const SCALE=0.85; const x0=24, y0=24; const w=Math.round(240*SCALE), h=Math.round(70*SCALE); const bw=w/bins;
-  ctx.save(); ctx.globalAlpha=0.95;
-  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(x0-8,y0-10,w+16,h+46);
-  ctx.fillStyle='#fff'; ctx.font='12px sans-serif'; ctx.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
-  const maxc=Math.max(1,...hist);
-  for(let i=0;i<bins;i++){ const v=hist[i]; const bh=(v/maxc)*h; const xx=Math.floor(x0 + i*bw); ctx.fillStyle='#78d5ff'; ctx.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); }
-  const {avg,std}=getDtStats(); ctx.fillStyle='#fff'; ctx.fillText(`avg: ${avg.toFixed(1)} ms  σ: ${std.toFixed(1)} ms  偏移: ${INPUT_OFFSET_MS} ms`, x0, y0+h+16);
-  ctx.strokeStyle='#ffd966'; ctx.beginPath(); const midx=x0 + (-min)/step*bw; ctx.moveTo(midx,y0); ctx.lineTo(midx,y0+h); ctx.stroke(); ctx.restore();
-}
+/* ===== 音量 & 鏘聲 ===== */
+function setVolumes(percent){ const v=Math.max(0,Math.min(100,percent))/100; if(gainNode) gainNode.gain.value=v; if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); const sfxVol=Math.min(1, v*SFX_GAIN); tapPool.setVolume(sfxVol); hitSound.volume=sfxVol; }
+function initVolumeUI(){ const slider=document.getElementById('volumeSlider'); const label=document.getElementById('volumeLabel'); const saved=+localStorage.getItem('dfjk.volume')||80; slider.value=String(saved); label.textContent=`${saved}%`; setVolumes(saved); slider.addEventListener('input', ()=>{ const val=+slider.value; label.textContent=`${val}%`; setVolumes(val); localStorage.setItem('dfjk.volume', String(val)); }); }
+function playTapSound(){ if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); tapPool.play(); }
 
 /* ===== 流程 ===== */
 function startGame(){
@@ -879,15 +903,16 @@ function startGame(){
   showOnly('gameScreen'); setImmersive(true); phase='countdown';
   setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); updateHUD(); __lastRenderTs=0;
 
+  // 倒數前先畫一幀避免黑畫面
+  render({skipNotes:true});
+
   loadSongBuffer(url).then(()=>{
     const durationSec = songBuffer && isFinite(songBuffer.duration) ? songBuffer.duration : 120;
     generateChart(durationSec);
     showCountdown(()=>{
       if(phase!=='countdown') return;
       phase='playing'; freezeLayout(); __lastRenderTs=0; prevSongT=0;
-      try{ if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }catch{}
-      playFrom(0);
-      loopId=requestAnimationFrame(loop);
+      ensureAudio().then(()=>{ if(audioCtx.state==='suspended'){ audioCtx.resume(); } playFrom(0); loopId=requestAnimationFrame(loop); });
     });
   }).catch(e=>{ console.warn(e); showPlayWarning('⚠️ 載入音樂失敗'); goToMenu(); });
 }
@@ -907,28 +932,22 @@ function resumeGame(){
   setupCanvasDPR(); applyDesktopScale(); recomputeLayout();
   phase='countdown';
   const resumeAt = Math.max(0, Math.min(songBuffer? songBuffer.duration : 0, pausedAtSong));
+  // 倒數前先畫一幀
+  renderPreviewAt(resumeAt);
   showCountdown(()=>{
     phase='playing'; freezeLayout();
-    try{ if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }catch{}
-    playFrom(resumeAt);
-    prevSongT = resumeAt;
-    __lastRenderTs=0;
-    loopId=requestAnimationFrame(loop);
+    ensureAudio().then(()=>{ if(audioCtx.state==='suspended'){ audioCtx.resume(); } playFrom(resumeAt); prevSongT=resumeAt; __lastRenderTs=0; loopId=requestAnimationFrame(loop); });
   }, { showNotes:true, previewTime: resumeAt });
 }
 
-/* ===== 音量 & 鏘聲 ===== */
-function setVolumes(percent){ const v=Math.max(0,Math.min(100,percent))/100; if(gainNode) gainNode.gain.value=v; if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); const sfxVol=Math.min(1, v*SFX_GAIN); tapPool.setVolume(sfxVol); hitSound.volume=sfxVol; }
-function initVolumeUI(){ const slider=document.getElementById('volumeSlider'); const label=document.getElementById('volumeLabel'); const saved=+localStorage.getItem('dfjk.volume')||80; slider.value=String(saved); label.textContent=`${saved}%`; setVolumes(saved); slider.addEventListener('input', ()=>{ const val=+slider.value; label.textContent=`${val}%`; setVolumes(val); localStorage.setItem('dfjk.volume', String(val)); }); }
-function playTapSound(){ if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); tapPool.play(); }
-
-/* ===== 背景掃描線樣式預備 ===== */
-buildSprites();
-buildScanlinePattern();
-
-/* ===== 首次初始化 ===== */
+/* ===== 初始建置 ===== */
 function onViewportChanged(){ if(__layoutFrozen) return; if(phase==='playing'||phase==='countdown'){ setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); } }
-applyDesktopScale(); initVolumeUI(); initOffsetUI(); fillSongList();
+function initOffsetAndVolume(){ initOffsetUI(); initVolumeUI(); }
+
+buildSprites();  // 先建 Sprites，倒數前就可畫
+applyDesktopScale();
+initOffsetAndVolume();
+fillSongList();
 window.addEventListener('resize', ()=>{ setupCanvasDPR(); onViewportChanged(); }, {passive:true});
 window.addEventListener('scroll', ()=>{ if(!__layoutFrozen && (phase==='playing'||phase==='countdown')) recomputeLayout(); }, {passive:true});
 if(window.visualViewport){ ['resize','scroll'].forEach(ev=>{ window.visualViewport.addEventListener(ev, ()=>{ setupCanvasDPR(); onViewportChanged(); }, {passive:true}); }); }
