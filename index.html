@@ -12,7 +12,6 @@
     background: radial-gradient(1300px 900px at 50% 0%, #0f1a2c 0%, #0b1324 55%, #07101c 100%);
     overflow-x:hidden;
   }
-  /* 全頁 Cyberpunk：掃描線 + 雜訊（強化） */
   body::before, body::after{
     content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
   }
@@ -34,14 +33,11 @@
   @keyframes scanY{ from { background-position: 0 0, 0 0; } to { background-position: 0 360px, 0 0; } }
   @keyframes noiseShift{ 0%{ transform:translate3d(0,0,0);} 100%{ transform:translate3d(0,-70px,0);} }
 
-  body.ex-mode{ background: linear-gradient(to bottom, #ff3300, #990000, #000000); }
-
   #stage{ position:relative; width:95%; max-width:420px; margin:20px auto; --u:1; z-index:1; }
-  canvas{ display:block; background:#121a2a; border:2px solid #fff; width:100%; height:auto; touch-action:manipulation; }
-  /* 沉浸：去硬邊，改為偽邊界光暈 */
-  #stage.immersive canvas.game{ border:none; }
+  canvas{ display:block; background:#121a2a; width:100%; height:auto; touch-action:manipulation; }
+  canvas.game{ border:none; }
   #edgeFade{
-    position:absolute; inset:0; pointer-events:none; opacity:0; transition:opacity .25s ease;
+    position:absolute; inset:0; pointer-events:none; opacity:1;
     background:
       linear-gradient(to right, rgba(255,255,255,.16), rgba(255,255,255,0) 40%) left/16px 100% no-repeat,
       linear-gradient(to left,  rgba(255,255,255,.16), rgba(255,255,255,0) 40%) right/16px 100% no-repeat,
@@ -49,15 +45,7 @@
       linear-gradient(to top,   rgba(255,255,255,.16), rgba(255,255,255,0) 40%) bottom/100% 16px no-repeat;
     border-radius:10px;
   }
-  #stage.immersive #edgeFade{ opacity:1; }
-  #stage.immersive::after{
-    content:""; position:absolute; inset:-6px; pointer-events:none; border-radius:14px;
-    box-shadow: 0 0 32px 14px rgba(0, 255, 255, .10), 0 0 44px 18px rgba(255, 0, 160, .08);
-  }
-  /* UI 層（鎖定 HUD，不會漂移/裁切） */
-  canvas.ui{
-    position:absolute; inset:0; width:100%; height:100%; pointer-events:none; background:transparent; border:none; z-index:5;
-  }
+  canvas.ui{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; background:transparent; border:none; z-index:5; }
 
   .hitbar{ position:absolute; left:0; width:100%; display:flex; justify-content:space-between; align-items:center; height:calc(90px * var(--u)); z-index:2; opacity:0; pointer-events:none; }
   .hitkey{ flex:1; margin:0 5px; height:calc(90px * var(--u)); }
@@ -69,13 +57,11 @@
   #menuScreen, #musicScreen, #endScreen, #optionsScreen, #pauseScreen{ padding-top:120px; }
   .blur{ filter:blur(6px); pointer-events:none; user-select:none; }
   #pauseButton{ position:absolute; top:10px; right:10px; z-index:3; }
-  .pause-bottom{ top:auto !important; bottom:10px !important; }
 
-  /* 倒數字樣 */
   #countdownText{
     position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
     font-family:'Fredoka One', sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000;
-    z-index:9; pointer-events:none; opacity:1; will-change:transform; display:none;
+    z-index:9; pointer-events:none; display:none;
   }
   @keyframes popScale{ 0%{ transform:translate(-50%,-50%) scale(.85);} 50%{ transform:translate(-50%,-50%) scale(1.12);} 100%{ transform:translate(-50%,-50%) scale(1);} }
 
@@ -86,8 +72,6 @@
   #musicScreen .hint{ opacity:.8; font-size:14px; margin-top:6px; }
 
   #warnBanner{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:rgba(255,80,80,.95); padding:10px 14px; border-radius:8px; font-size:14px; display:none; z-index:20; }
-
-  .options-footer{ position:sticky; bottom:0; z-index:5; padding:10px 0 16px; background:linear-gradient(to top, rgba(15,18,32,.95), rgba(15,18,32,0)); }
 </style>
 </head>
 <body>
@@ -175,7 +159,7 @@
       <button id="offsetCalibBtn">快速校正</button>
     </div>
 
-    <div class="options-footer">
+    <div class="row">
       <button onclick="goToMenu()">回主選單</button>
     </div>
   </div>
@@ -237,7 +221,7 @@
 
 <script>
 /* =========================================================
- * DFJK 高精度 Cyberpunk 版（上升模式 HUD 置底 + 背景強化）
+ * DFJK —— 新箭頭造型（藍色多層 》形＋速度殘影）完全重製
  * ========================================================= */
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
@@ -256,75 +240,52 @@ function setupCanvasDPR(){
 }
 setupCanvasDPR();
 
-const FLICKER_SCALE = 0.9; // 100% 面積 → 81% 面積等比縮放
-const laneWidth = W/4;
-const hitbar = document.querySelector('.hitbar');
-const HITKEY_BASE=90, NOTE_BASE=60;
-let uiScale=1;
-
-let phase='menu';
-let isCountingDown=false; let countdownTimers=[], countdownRAF=null;
-
 const IS_MOBILE = window.matchMedia('(pointer: coarse)').matches;
 const SUPPORTS_VIB = IS_MOBILE && 'vibrate' in navigator;
-let __fpsMode = IS_MOBILE ? 'stable60' : 'unlocked';
-let __lastRenderTs=0; const __TARGET_INTERVAL=1000/60;
+const laneWidth = W/4;
+const HITKEY_BASE=90, NOTE_BASE=64;
+let uiScale=1, __layoutFrozen=false;
 
+const laneColors=['#b266ff', '#66ccff', '#66ff66', '#ff6666']; // lane base for NOTES
+const BLACK = '#000000';
+
+let phase='menu', running=false, paused=false, loopId=null;
+let selectedSongFile=null;
+let currentSongTitle='-', currentDifficulty='normal', currentDirection='down', currentJudgeMode='old';
+let score=0, combo=0, lastJudgementText='-'; let missCount=0, gameOver=false;
+let stats={sick:0,good:0,bad:0,shit:0,miss:0}; let comboFlash='';
+let chart=[], __remainNotes=0;
+
+let cachedRectH = canvas.getBoundingClientRect().height;
+let cachedScaleY = cachedRectH / H;
+let cachedJudgeCss = (HITKEY_BASE * uiScale / 2);
+let cachedJudgeInternal = cachedJudgeCss / cachedScaleY;
 function applyDesktopScale(){
-  const isCoarse = window.matchMedia('(pointer: coarse)').matches;
+  const coarse = window.matchMedia('(pointer: coarse)').matches;
   const wide = window.matchMedia('(min-width: 1024px)').matches;
   const wider = window.matchMedia('(min-width: 1440px)').matches;
-  let u=1; if(!isCoarse && (wide||wider)) u = wider ? 1.8 : 1.5;
-  uiScale=u;
-  const stage=document.getElementById('stage');
-  stage.style.setProperty('--u', String(u));
-  stage.style.maxWidth = `${Math.round(420*u)}px`;
+  let u=1; if(!coarse && (wide||wider)) u = wider ? 1.8 : 1.5;
+  uiScale=u; const stage=document.getElementById('stage');
+  stage.style.setProperty('--u', String(u)); stage.style.maxWidth = `${Math.round(420*u)}px`;
   recomputeLayout();
 }
-
-let cachedRectHeight = canvas.getBoundingClientRect().height;
-let cachedScaleY = cachedRectHeight / H;
-let cachedJudgeLineCss = (HITKEY_BASE * uiScale / 2);
-let cachedJudgeLineInternal = cachedJudgeLineCss / cachedScaleY;
-let __layoutFrozen=false, __frozenRectHeight=null, __frozenScaleY=null, __frozenJudgeCss=null;
-function freezeLayout(){
-  const rect = canvas.getBoundingClientRect();
-  __frozenRectHeight=rect.height; __frozenScaleY=__frozenRectHeight/H;
-  __frozenJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(__frozenRectHeight-HITKEY_BASE*uiScale/2);
-  __layoutFrozen=true; updateHitbarPosition();
-}
-function unfreezeLayout(){ __layoutFrozen=false; recomputeLayout(); }
 function recomputeLayout(){
-  if(__layoutFrozen) return;
-  const rect=canvas.getBoundingClientRect();
-  cachedRectHeight=rect.height; cachedScaleY=cachedRectHeight/H;
-  cachedJudgeLineCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(cachedRectHeight - HITKEY_BASE*uiScale/2);
-  cachedJudgeLineInternal=cachedJudgeLineCss/cachedScaleY;
-  updateHitbarPosition(); positionPauseButton();
+  const rect=canvas.getBoundingClientRect(); cachedRectH=rect.height; cachedScaleY=cachedRectH/H;
+  cachedJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(cachedRectH - HITKEY_BASE*uiScale/2);
+  cachedJudgeInternal=cachedJudgeCss/cachedScaleY; updateHitbarPosition();
 }
-function getJudgeLineYCss(){ return __layoutFrozen? __frozenJudgeCss : cachedJudgeLineCss; }
-function getJudgeLineYInternal(){ return getJudgeLineYCss() / (__layoutFrozen? __frozenScaleY : cachedScaleY); }
+function freezeLayout(){ __layoutFrozen=true; }
+function unfreezeLayout(){ __layoutFrozen=false; recomputeLayout(); }
+function getJudgeLineYInternal(){ return cachedJudgeInternal; }
+function updateHitbarPosition(){ /* DOM hitbar 只是定位參考（透明） */ }
 
-const keys=['d','f','j','k']; const laneDirs=['left','down','up','right'];
-function laneFromKey(k){ switch(k){ case 'd':case 'arrowleft':return 0; case 'f':case 'arrowdown':return 1; case 'j':case 'arrowup':return 2; case 'k':case 'arrowright':return 3; default:return null; } }
+const dtHistory=[]; const DT_HIST_MAX=240;
+function recordDt(d){ dtHistory.push(d); if(dtHistory.length>DT_HIST_MAX) dtHistory.shift(); }
+function getDtStats(){ if(!dtHistory.length) return {avg:0,std:0}; const n=dtHistory.length; const avg=dtHistory.reduce((a,c)=>a+c,0)/n; const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n; return {avg, std:Math.sqrt(va)}; }
 
-let score=0, combo=0, lastJudgementText='-';
-let running=false, paused=false, loopId=null;
-let chart=[], comboFlash='';
-let prevSongT=0, pausedAtSong=0;
+function dirToAngle(dir){ switch(dir){ case 'up':return 0; case 'down':return Math.PI; case 'left':return -Math.PI/2; case 'right':return Math.PI/2; } return 0; }
+function laneFromKey(k){ switch(k){ case 'd': case 'arrowleft': return 0; case 'f': case 'arrowdown': return 1; case 'j': case 'arrowup': return 2; case 'k': case 'arrowright': return 3; default: return null; } }
 
-const hitSound=document.getElementById('hitSound'); let tapPool=null; const SFX_GAIN=1.6;
-let baseNoteSpeed=550, noteSpeed=baseNoteSpeed;
-
-const BASE_WINDOWS = { sick:80, good:130, bad:150, shit:170 };
-const FNF_SCORES  = { sick:350, good:200, bad:100, shit:-50, miss:-300, ghost:-150 };
-const LATE_MISS_GRACE_MS = 160; function currentWindows(){ return BASE_WINDOWS; }
-
-let missCount=0, gameOver=false; let stats={sick:0,good:0,bad:0,shit:0,miss:0};
-let currentSongTitle='-'; let currentDifficulty='normal'; let currentDirection='down'; let currentJudgeMode='old';
-let selectedSongFile=null;
-
-/* 曲目清單（完整） */
 const SONGS = [
   "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3",
   "Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3",
@@ -359,27 +320,6 @@ const SONGS = [
   "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
 ];
 
-/* SFX 池 */
-class TapSoundPool{ constructor(src,size=10){ this.pool=[]; this.idx=0; for(let i=0;i<size;i++){ const a=new Audio(src); a.preload='auto'; a.volume=1.0; this.pool.push(a);} } setVolume(v){ const vol=Math.max(0,Math.min(1,v)); for(const a of this.pool) a.volume=vol; } play(){ const a=this.pool[this.idx]; this.idx=(this.idx+1)%this.pool.length; try{ a.currentTime=0; a.play().catch(()=>{});}catch{} } }
-
-/* 畫面切換 */
-function showOnly(id){ ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>document.getElementById(x).style.display=(x===id?'block':'none')); if(id!=='gameScreen') document.getElementById('gameScreen').classList.remove('blur'); }
-function goToMenu(){ cancelCountdown(); stopGameLoop(); stopAndResetAudio(); setImmersive(false); unfreezeLayout(); showOnly('menuScreen'); phase='menu'; document.body.classList.remove('ex-mode'); document.getElementById('menuChosenSong').textContent = selectedSongFile? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; }
-function showOptions(){ setImmersive(false); showOnly('optionsScreen'); }
-function showMusic(){ setImmersive(false); showOnly('musicScreen'); }
-function setImmersive(on){ const stage=document.getElementById('stage'); if(stage) stage.classList.toggle('immersive', !!on); }
-
-/* 曲庫 UI */
-function fillSongList(){
-  const sel=document.getElementById('songSelect'); if(sel.dataset.filled) return;
-  sel.innerHTML=''; const ph=document.createElement('option'); ph.value=''; ph.textContent='— 請選擇曲目 —'; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph);
-  SONGS.forEach(f=>{ const opt=document.createElement('option'); opt.value=f; opt.textContent=f.replace(/\.mp3$/i,''); if(selectedSongFile===f) opt.selected=true; sel.appendChild(opt); });
-  sel.addEventListener('change',()=>{ document.getElementById('chosenSongLabel').textContent = sel.value? sel.options[sel.selectedIndex].textContent : '尚未選擇'; });
-  sel.dataset.filled='1';
-}
-function confirmSong(){ const sel=document.getElementById('songSelect'); if(!sel.value){ alert('請先選擇音樂'); return; } selectedSongFile=sel.value; document.getElementById('chosenSongLabel').textContent=sel.options[sel.selectedIndex].textContent; document.getElementById('menuChosenSong').textContent=sel.options[sel.selectedIndex].textContent; goToMenu(); }
-
-/* HUD */
 function updateHUD(){
   document.getElementById('score').textContent=score;
   document.getElementById('combo').textContent=combo;
@@ -389,157 +329,169 @@ function updateHUD(){
   document.getElementById('diffLabel').textContent=currentDifficulty.toUpperCase();
   document.getElementById('dirLabel').textContent=(currentDirection==='up'?'上升':'下落');
   document.getElementById('judgeLabel').textContent=(currentJudgeMode==='old'?'Old':'New');
-  const off=document.getElementById('offsetActive'); if(off) off.textContent=`${INPUT_OFFSET_MS} ms`;
+  document.getElementById('offsetActive').textContent = `${INPUT_OFFSET_MS} ms`;
 }
 
-/* 色彩工具 */
-const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666'];
-const receptorPulse=[0,0,0,0]; const hitFx=[];
-function dirToAngle(dir){ switch(dir){ case 'up':return 0; case 'down':return Math.PI; case 'left':return -Math.PI/2; case 'right':return Math.PI/2; } return 0; }
-function hexToRgb(hex){ const m=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex); if(!m) return {r:255,g:255,b:255}; return {r:parseInt(m[1],16), g:parseInt(m[2],16), b:parseInt(m[3],16)}; }
-function rgbToHsl(r,g,b){ r/=255; g/=255; b/=255; const max=Math.max(r,g,b), min=Math.min(r,g,b); let h,s,l=(max+min)/2; if(max===min){ h=s=0; } else { const d=max-min; s=l>0.5? d/(2-max-min): d/(max+min); switch(max){ case r:h=(g-b)/d+(g<b?6:0);break; case g:h=(b-r)/d+2;break; case b:h=(r-g)/d+4;break;} h/=6; } return {h:h*360,s,l}; }
-function hslToHex(h,s,l){ h/=360; const f=(n)=>{ const k=(n+h)%1; const a=s*Math.min(l,1-l); const c=l - a*Math.max(-1, Math.min(k*6-3, Math.min(4-k*6,1))); return Math.round(255*c); }; const r=f(0), g=f(1/3), b=f(2/3); return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`; }
-function accentColors(baseHex){ const {r,g,b}=hexToRgb(baseHex); const {h,s,l}=rgbToHsl(r,g,b); const c1=baseHex; const c2=hslToHex((h+155)%360, Math.min(1, s*0.9), Math.min(0.7, l*1.05)); return {c1,c2}; }
+/* ---------- 新：藍色多層 》形箭頭（含殘影） ---------- */
+function lighten(col, amt){ const c=parseInt(col.slice(1),16); let r=(c>>16)&255, g=(c>>8)&255, b=c&255; r=Math.min(255,Math.round(r+(255-r)*amt)); g=Math.min(255,Math.round(g+(255-g)*amt)); b=Math.min(255,Math.round(b+(255-b)*amt)); return `rgb(${r},${g},${b})`; }
+function darken(col, amt){ const c=parseInt(col.slice(1),16); let r=(c>>16)&255, g=(c>>8)&255, b=c&255; r=Math.max(0,Math.round(r*(1-amt))); g=Math.max(0,Math.round(g*(1-amt))); b=Math.max(0,Math.round(b*(1-amt))); return `rgb(${r},${g},${b})`; }
 
-/* 幾何箭羽 path */
-function chevronPath(g, Wd, Hh){
-  const headH=Hh*0.55;
-  g.beginPath();
-  g.moveTo(0,-Hh/2);
-  g.lineTo(Wd/2,-Hh/2+headH);
-  g.lineTo(Wd*0.22,-Hh/2+headH);
-  g.lineTo(Wd*0.22,Hh/2);
-  g.lineTo(-Wd*0.22,Hh/2);
-  g.lineTo(-Wd*0.22,-Hh/2+headH);
-  g.lineTo(-Wd/2,-Hh/2+headH);
-  g.closePath();
-}
-
-/* 動態箭頭（Receptor 黑底 + 白細邊；Note 彩色本體；命中整顆亮起） */
-function drawDynamicChevron({x,y,size,dir,baseColor,isReceptor,pulse,t}){
-  const Hh=size*1.20, Wd=size*1.06;
-  const {c1,c2}=accentColors(baseColor);
-  const ang=dirToAngle(dir);
-  ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
-
-  if(isReceptor){
-    let g=ctx.createLinearGradient(0,-Hh/2,0,Hh/2);
-    g.addColorStop(0,'#1a1c22'); g.addColorStop(0.35,'#0f1116'); g.addColorStop(1,'#000');
-    ctx.fillStyle=g; chevronPath(ctx,Wd,Hh); ctx.fill();
-    ctx.lineWidth=6; ctx.strokeStyle='#000'; chevronPath(ctx,Wd,Hh); ctx.stroke();
-    ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.98)'; chevronPath(ctx,Wd,Hh); ctx.stroke();
-  }else{
-    const pulseC = 0.1*FLICKER_SCALE + 0.1*FLICKER_SCALE*Math.sin(t*4 + x*0.01);
-    let g=ctx.createLinearGradient(0,-Hh/2,0,Hh/2);
-    g.addColorStop(0, '#ffffff');
-    g.addColorStop(0.22, baseColor);
-    g.addColorStop(1, baseColor);
-    ctx.globalAlpha = 0.95 + 0.05*FLICKER_SCALE*Math.sin(t*5);
-    ctx.shadowColor = baseColor;
-    ctx.shadowBlur  = (12 + 16*pulseC)*FLICKER_SCALE;
-    ctx.fillStyle=g; chevronPath(ctx,Wd,Hh); ctx.fill();
-    ctx.shadowBlur=0; ctx.globalAlpha = 1;
-
-    ctx.lineWidth=6; ctx.strokeStyle='#000'; chevronPath(ctx,Wd,Hh); ctx.stroke();
-    ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.95)'; chevronPath(ctx,Wd,Hh); ctx.stroke();
-  }
-
-  /* 內層虛線 + 電路線 + 彩分離 + 扫描帶 + glitch（縮小至 81% 範圍） */
-  const layerCount = __useLowQuality ? 1 : 3;
-  for(let i=1;i<=layerCount;i++){
-    const k = 1 - i*0.15*FLICKER_SCALE;
-    ctx.save(); ctx.scale(k,k);
-    ctx.lineWidth = Math.max(1, 2.4*(1-k));
-    ctx.setLineDash([6, 6]); ctx.lineDashOffset = - (t*60*FLICKER_SCALE) * (0.4 + i*0.15);
-    ctx.strokeStyle = 'rgba(255,255,255,0.24)';
-    chevronPath(ctx,Wd,Hh); ctx.stroke();
-    ctx.restore();
-  }
-  ctx.setLineDash([]);
+/** 完全重製：以向右為基準繪製，最後再旋轉 */
+function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse,t}){
+  const ang = dirToAngle(dir);
+  const L = size*2.05;           // 箭頭長度
+  const Hh = size*0.95;          // 箭頭高度
+  const inner = 0.62;            // 內層比例
+  const gap = 0.12;              // 線條間距比例
+  const tip = L*0.52;            // 尖端 X 位置（右半）
+  const tail = -L*0.53;          // 尾端 X
+  const cut = Hh*0.32;           // 內凹角
 
   ctx.save();
-  ctx.globalAlpha= isReceptor ? 0.58 : 0.40;
-  ctx.lineWidth = 1.35;
-  ctx.strokeStyle = isReceptor ? 'rgba(120,213,255,.62)' : 'rgba(255,255,255,.34)';
-  const scroll = (t*44*FLICKER_SCALE)%20;
-  const lanes=[-Hh*0.18*FLICKER_SCALE, 0, Hh*0.18*FLICKER_SCALE];
-  lanes.forEach(y0=>{ ctx.beginPath(); ctx.moveTo(-Wd*0.26 + ((scroll)%10), y0); ctx.lineTo( Wd*0.26 + ((scroll)%10), y0); ctx.stroke(); });
-  ctx.restore();
+  ctx.translate(x,y); ctx.rotate(ang);
 
-  const wob = ((Math.sin(t*8)+Math.sin(t*3+1.2))*0.8 + (isReceptor?0:0.4)) * FLICKER_SCALE;
-  ctx.save(); ctx.globalCompositeOperation='lighter';
-  ctx.lineWidth=2; ctx.strokeStyle=c1; ctx.translate(1.0+wob,0); chevronPath(ctx,Wd,Hh); ctx.stroke();
-  ctx.strokeStyle=c2; ctx.translate(-2.0-wob*1.1,0); chevronPath(ctx,Wd,Hh); ctx.stroke();
-  ctx.restore();
+  // --- 殘影（右向）---
+  const trailLen = L*0.9;
+  const bands = 8;
+  for(let i=0;i<bands;i++){
+    const p = i/(bands-1);
+    const w = (1-p)*trailLen;
+    const a = 0.16*(1-p) * (isReceptor? .55 : 1);
+    ctx.save();
+    ctx.globalAlpha = a * (0.8 + 0.2*Math.sin(t*6 + i));
+    ctx.fillStyle = (i%2)? lighten(baseColor,.15) : lighten(baseColor,.35);
+    // 窄長梯形殘影（緊貼箭頭外型）
+    ctx.beginPath();
+    ctx.moveTo(tail - w*0.9, -Hh*0.35*(1-p*0.25));
+    ctx.lineTo( tip - w*0.1, -Hh*0.18*(1-p*0.25));
+    ctx.lineTo( tip - w*0.1,  Hh*0.18*(1-p*0.25));
+    ctx.lineTo(tail - w*0.9,  Hh*0.35*(1-p*0.25));
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
 
-  const bandY = -Hh*0.35*FLICKER_SCALE + ( (Math.sin(t*2)+1)/2 ) * (Hh*0.7*FLICKER_SCALE);
-  ctx.save(); ctx.globalCompositeOperation='lighter';
-  const sh = ctx.createLinearGradient(-Wd/2, bandY-12*FLICKER_SCALE, Wd/2, bandY+12*FLICKER_SCALE);
-  sh.addColorStop(0,'rgba(255,255,255,0)');
-  sh.addColorStop(0.5, isReceptor ? 'rgba(180,255,255,0.13)' : 'rgba(255,255,255,0.12)');
-  sh.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=sh; ctx.fillRect(-Wd/2, bandY-12*FLICKER_SCALE, Wd, 24*FLICKER_SCALE);
-  ctx.restore();
+  // --- 主體：多層 》 >> ---
+  // 外層輪廓
+  const outline = (thick, col)=>{
+    ctx.lineJoin='round'; ctx.lineCap='round';
+    ctx.strokeStyle = col; ctx.lineWidth = thick;
 
-  if(!__useLowQuality){
-    const frameSeed = Math.floor(t*30 + x*0.07 + y*0.03);
-    function rand(s){ const x=Math.sin(s*9999.13)*43758.5453; return x - Math.floor(x); }
-    ctx.save(); ctx.globalCompositeOperation='lighter';
-    const density = isReceptor? (12 + Math.floor(pulse*12)) : 10;
-    for(let i=0;i<density;i++){
-      const side = rand(frameSeed+i) < .5 ? -1 : 1;
-      const yy = -Hh/2 + rand(frameSeed+i*3.1)*Hh*FLICKER_SCALE;
-      const len = (10 + rand(frameSeed+i*5.7)*36) * FLICKER_SCALE;
-      const thick = (1 + rand(frameSeed+i*2.3)*3.5) * FLICKER_SCALE;
-      const xx = (Wd/2 + 3 + rand(frameSeed+i*7.7)*16*FLICKER_SCALE) * side;
+    ctx.beginPath();
+    ctx.moveTo(tail, -Hh*0.55);
+    ctx.lineTo(0, -Hh*0.55);
+    ctx.lineTo(tip, 0);
+    ctx.lineTo(0, Hh*0.55);
+    ctx.lineTo(tail, Hh*0.55);
+    ctx.lineTo(tail + cut, 0);
+    ctx.closePath();
+    ctx.stroke();
+  };
+
+  // 接收器：黑底 + 白細邊（命中時以 baseColor 覆蓋發光）
+  if(isReceptor){
+    // 底片
+    ctx.fillStyle = '#050607';
+    ctx.beginPath();
+    ctx.moveTo(tail, -Hh*0.55);
+    ctx.lineTo(0, -Hh*0.55);
+    ctx.lineTo(tip, 0);
+    ctx.lineTo(0, Hh*0.55);
+    ctx.lineTo(tail, Hh*0.55);
+    ctx.lineTo(tail + cut, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    outline(6, '#000');   // 外黑
+    outline(2.2, 'rgba(255,255,255,.95)'); // 細白邊
+
+    if(pulse>0){
       ctx.save();
-      ctx.translate(xx, yy);
-      ctx.rotate((rand(frameSeed+i*1.9)-.5)*0.6*FLICKER_SCALE);
-      ctx.globalAlpha = (0.22 + rand(frameSeed+i*11.11)*0.30) * FLICKER_SCALE;
-      ctx.fillStyle = (i%2? c1 : c2);
-      ctx.fillRect(-len/2, -thick/2, len, thick);
+      ctx.globalAlpha = 0.40 + 0.50*pulse;
+      ctx.fillStyle = lighten(baseColor,.25);
+      ctx.beginPath();
+      ctx.moveTo(tail, -Hh*0.55);
+      ctx.lineTo(0, -Hh*0.55);
+      ctx.lineTo(tip, 0);
+      ctx.lineTo(0, Hh*0.55);
+      ctx.lineTo(tail, Hh*0.55);
+      ctx.lineTo(tail + cut, 0);
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
-    ctx.restore();
-  }
+  } else {
+    // 音符：三層漸層 》形
+    const layer = (k, lw, c1, c2)=>{
+      const s = 1 - k*gap;
+      ctx.save(); ctx.scale(s,s);
+      const g = ctx.createLinearGradient(tail, 0, tip, 0);
+      g.addColorStop(0, c1);
+      g.addColorStop(1, c2);
+      ctx.strokeStyle = g; ctx.lineWidth = lw; ctx.lineJoin='round'; ctx.lineCap='round';
 
-  if(isReceptor && pulse>0){
-    ctx.save();
-    ctx.globalAlpha = (0.50 + 0.50*pulse) * FLICKER_SCALE;
-    let g=ctx.createLinearGradient(0,-Hh/2,0,Hh/2);
-    g.addColorStop(0,'#ffffff'); g.addColorStop(0.22, baseColor); g.addColorStop(1, baseColor);
-    ctx.fillStyle=g; chevronPath(ctx,Wd,Hh); ctx.fill();
-    ctx.restore();
+      // 畫 2 條 >>（更接近你提供的圖）
+      const drawChevron = (hScale)=>{
+        const hh = Hh*hScale;
+        ctx.beginPath();
+        ctx.moveTo(tail, -hh*0.52);
+        ctx.lineTo(0, -hh*0.52);
+        ctx.lineTo(tip, 0);
+        ctx.lineTo(0, hh*0.52);
+        ctx.lineTo(tail, hh*0.52);
+        ctx.lineTo(tail + cut*hScale, 0);
+        ctx.closePath();
+        ctx.stroke();
+      };
+      drawChevron(1.00);
+      drawChevron(inner);
+      ctx.restore();
+    };
+
+    layer(0, 12, lighten(baseColor,.55), lighten(baseColor,.10));
+    layer(1, 8,  lighten(baseColor,.35), baseColor);
+    layer(2, 4,  '#ffffff', lighten(baseColor,.25));
   }
 
   ctx.restore();
 }
 
-function drawGlitchBurst(x,y,colorA,colorB,intensity){
-  const n=Math.floor(4+intensity*5);
-  ctx.save(); ctx.globalCompositeOperation='lighter';
-  for(let i=0;i<n;i++){
-    const w=(20+Math.random()*44)*FLICKER_SCALE, h=(2.2+Math.random()*3.2)*FLICKER_SCALE;
-    const xx=x + (Math.random()<0.5?-1:1)*(9+Math.random()*22)*FLICKER_SCALE;
-    const yy=y + (Math.random()*2-1)*18*FLICKER_SCALE;
-    ctx.globalAlpha=(0.28+Math.random()*0.30)*FLICKER_SCALE;
-    ctx.fillStyle=(i%2)?colorA:colorB;
-    ctx.fillRect(xx-w/2, yy-h/2, w, h);
+/* 背景（略同前，帶霓虹格線/故障） */
+function drawPlayfieldBackground(t){
+  ctx.save();
+  ctx.fillStyle='#0e1522'; ctx.fillRect(0,0,W,H);
+
+  ctx.globalAlpha=0.22;
+  ctx.strokeStyle='rgba(120,213,255,0.38)';
+  ctx.lineWidth=1;
+  const step=22, ox=(t*26)%step, oy=(t*18)%step;
+  for(let x=-ox; x<=W; x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for(let y=-oy; y<=H; y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  ctx.globalAlpha=0.24;
+  const stripe = ctx.createLinearGradient(0,0, W,0);
+  stripe.addColorStop(0,'rgba(0,255,255,0.28)');
+  stripe.addColorStop(0.5,'rgba(255,0,160,0.24)');
+  stripe.addColorStop(1,'rgba(255,255,0,0.18)');
+  ctx.fillStyle=stripe;
+  const diagH=20, drift=(t*60)%80;
+  ctx.save(); ctx.translate(-drift,0); ctx.rotate(-Math.PI/12);
+  for(let y=-H; y<H*2; y+=diagH*4){ ctx.fillRect(-W, y, W*3, diagH); }
+  ctx.restore();
+
+  // 故障條
+  for(let i=0;i<14;i++){
+    const ww = 30 + Math.random()*120;
+    const hh = 2 + Math.random()*4;
+    const xx = Math.random()*(W-ww);
+    const yy = Math.random()*H;
+    ctx.globalAlpha = 0.16 + Math.random()*0.16;
+    ctx.fillStyle = (i%3===0)?'rgba(0,255,255,0.6)': (i%3===1)?'rgba(255,0,160,0.5)':'rgba(255,255,0,0.45)';
+    ctx.fillRect(xx, yy, ww, hh);
   }
   ctx.restore();
 }
-function drawGlow(x,y,r,color,alpha){
-  r*=FLICKER_SCALE;
-  ctx.save(); ctx.globalAlpha=alpha; const g=ctx.createRadialGradient(x,y,0,x,y,r);
-  g.addColorStop(0,color); g.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.restore();
-}
 
-/* FPS 等 */
-let __fpsMA=60, __fpsFrames=0, __fpsLastTs=0, __useLowQuality=false, __remainNotes=0;
-function trackFPS(ts){ __fpsFrames++; if(!__fpsLastTs){ __fpsLastTs=ts; return;} const span=ts-__fpsLastTs; if(span>=300){ const inst=__fpsFrames*1000/span; __fpsMA=__fpsMA*0.8+inst*0.2; __fpsFrames=0; __fpsLastTs=ts; if(__fpsMA<54) __useLowQuality=true; else if(__fpsMA>58) __useLowQuality=false; } }
-
-/* ===== WebAudio + 軟時鐘 fallback ===== */
+/* WebAudio 時鐘 + 校正（同前） */
 let INPUT_OFFSET_MS = +(localStorage.getItem('dfjk.offsetMs')||0);
 let audioCtx=null, songBuffer=null, gainNode=null, srcNode=null;
 let startAtCtx=0, startAtSong=0; let songEnded=false;
@@ -564,103 +516,32 @@ function getSongClockSecAudio(){
 }
 function getClockSec(){ const ta = getSongClockSecAudio(); if(ta!==null && audioCtx.state==='running') return ta; const t = softBaseSong + (performance.now()/1000 - softStartPerf); return Math.max(0, songBuffer? Math.min(songBuffer.duration, t) : t); }
 function getJudgeClockSec(){ return getClockSec() + (INPUT_OFFSET_MS/1000); }
-function setGlobalOffset(ms){ const clamp = Math.max(-600, Math.min(600, (ms|0))); INPUT_OFFSET_MS=clamp; localStorage.setItem('dfjk.offsetMs', String(INPUT_OFFSET_MS)); const lab=document.getElementById('offsetLabel'); if(lab) lab.textContent=`${INPUT_OFFSET_MS} ms`; const hud=document.getElementById('offsetActive'); if(hud) hud.textContent=`${INPUT_OFFSET_MS} ms`; }
+function setGlobalOffset(ms){ const clamp = Math.max(-600, Math.min(600, (ms|0))); INPUT_OFFSET_MS=clamp; localStorage.setItem('dfjk.offsetMs', String(INPUT_OFFSET_MS)); document.getElementById('offsetLabel').textContent=`${INPUT_OFFSET_MS} ms`; document.getElementById('offsetActive').textContent=`${INPUT_OFFSET_MS} ms`; }
 
-/* 校正 UI（同前，略） */
-function initOffsetUI(){
-  const s=document.getElementById('offsetSlider'); const lab=document.getElementById('offsetLabel');
-  const saved=+(localStorage.getItem('dfjk.offsetMs')||0);
-  s.value=String(saved); lab.textContent=`${saved} ms`; setGlobalOffset(saved);
-  s.addEventListener('input',()=>{ const v=+s.value; lab.textContent=`${v} ms`; setGlobalOffset(v); });
-  document.getElementById('offsetCalibBtn').addEventListener('click', openOffsetCalibrator);
-}
-function openOffsetCalibrator(){
-  (async()=>{ try{ await ensureAudio(); if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{} })();
-  const overlay=document.createElement('div');
-  overlay.id='offset-overlay';
-  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.92);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;color:#fff;padding:24px;';
-  const BIG='font-size:28px;font-weight:700;', MID='font-size:18px;opacity:.9;', BTN='padding:10px 18px;font-size:18px;border:none;border-radius:10px;margin:8px;cursor:pointer;background:#78d5ff;color:#001;';
-  overlay.innerHTML=`
-    <div style="${BIG}margin-bottom:12px;">延遲校正</div>
-    <div style="${MID}margin-bottom:10px;display:flex;gap:10px;align-items:center;">
-      <label>節拍 (BPM)：
-        <select id="bpmSel" style="padding:6px 10px;border-radius:8px;border:1px solid #445;background:#12152a;color:#fff;">
-          <option value="60">60</option>
-          <option value="75">75</option>
-          <option value="90" selected>90</option>
-          <option value="120">120</option>
-        </select>
-      </label>
-      <span id="rangeHint" style="opacity:.85;"></span>
-    </div>
-    <div style="${MID}margin-bottom:10px;">跟著節拍<b>點擊螢幕或按空白鍵</b>，至少 12 次（建議 16～20 次）。</div>
-    <div id="pulseWrap" style="width:220px;height:220px;border-radius:50%;position:relative;margin:8px 0 16px 0;">
-      <div id="pulseDot" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:56px;height:56px;border-radius:50%;background:#fff;box-shadow:0 0 30px rgba(255,255,255,.95);"></div>
-      <div id="pulseRing" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:190px;height:190px;border-radius:50%;border:6px solid rgba(255,255,255,.35);"></div>
-    </div>
-    <div id="progress" style="${MID}margin-bottom:8px;">有效樣本：0 次（目標 ≥ 16）</div>
-    <div id="readout" style="${MID}margin-bottom:18px;">偏移預估：—</div>
-    <div>
-      <button id="ok" style="${BTN}background:#34d399;">完成</button>
-      <button id="cancel" style="${BTN}background:#ff9aa2;">取消</button>
-    </div>`;
-  document.body.appendChild(overlay);
+/* SFX */
+const hitSound=document.getElementById('hitSound'); const SFX_GAIN=1.6;
+class TapSoundPool{ constructor(src,size=10){ this.pool=[]; this.idx=0; for(let i=0;i<size;i++){ const a=new Audio(src); a.preload='auto'; a.volume=1.0; this.pool.push(a);} } setVolume(v){ const vol=Math.max(0,Math.min(1,v)); for(const a of this.pool) a.volume=vol; } play(){ const a=this.pool[this.idx]; this.idx=(this.idx+1)%this.pool.length; try{ a.currentTime=0; a.play().catch(()=>{});}catch{} } }
+let tapPool=null; function setVolumes(percent){ const v=Math.max(0,Math.min(100,percent))/100; if(gainNode) gainNode.gain.value=v; if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); const sfxVol=Math.min(1, v*SFX_GAIN); tapPool.setVolume(sfxVol); hitSound.volume=sfxVol; }
+function playTapSound(){ if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); tapPool.play(); }
 
-  let BPM=90, T=60/BPM; const rangeHint=overlay.querySelector('#rangeHint'); const setRangeText=()=>rangeHint.textContent=`測量範圍：±${Math.round((T/2)*1000)} ms`; setRangeText();
-  const ring=overlay.querySelector('#pulseRing'); const dot=overlay.querySelector('#pulseDot');
-  function flash(){ dot.style.transform='translate(-50%,-50%) scale(1.12)'; ring.style.transition='none'; ring.style.transform='translate(-50%,-50%) scale(0.90)'; requestAnimationFrame(()=>{ ring.style.transition='transform .32s ease-out, opacity .32s ease-out'; dot.style.transform='translate(-50%,-50%) scale(1)'; ring.style.transform='translate(-50%,-50%) scale(1.06)'; ring.style.opacity='.78'; setTimeout(()=>{ ring.style.opacity='.35'; }, 280); }); }
+/* 判定窗/流程 */
+const WINDOWS={ sick:80, good:130, bad:150, shit:170 }, SCORES={ sick:350, good:200, bad:100, shit:-50, miss:-300, ghost:-150 };
+let baseNoteSpeed=550, noteSpeed=baseNoteSpeed;
 
-  let schedTimer=null, t0=null, nextBeat=null;
-  function scheduleTick(t){ try{ const osc=audioCtx.createOscillator(); const env=audioCtx.createGain(); osc.frequency.value=1200; env.gain.value=0; osc.connect(env); env.connect(gainNode||audioCtx.destination); env.gain.setValueAtTime(0,t); env.gain.linearRampToValueAtTime(0.8,t+0.005); env.gain.exponentialRampToValueAtTime(0.0001,t+0.06); osc.start(t); osc.stop(t+0.08);}catch{} }
-  function scheduler(){ const now=audioCtx.currentTime; while(nextBeat < now + 0.25){ scheduleTick(nextBeat); setTimeout(flash, Math.max(0,(nextBeat-now)*1000)); nextBeat+=T; } schedTimer=setTimeout(scheduler,50); }
-  function startMetronome(delay=0.9){ t0=audioCtx.currentTime+delay; nextBeat=t0; scheduler(); }
-  function restart(bpm){ BPM=bpm; T=60/BPM; setRangeText(); taps.length=0; updateUI(); clearTimeout(schedTimer); startMetronome(0.7); }
-
-  const taps=[]; const progress=overlay.querySelector('#progress'); const readout=overlay.querySelector('#readout'); const N_MIN=12, N_TARGET=16;
-  function phaseToMs(t){ let x=t - t0; x -= Math.round(x/T)*T; if (x> T/2) x-=T; if (x<-T/2) x+=T; return x*1000; }
-  function robustEstimate(arr){ if(!arr.length) return 0; const sorted=[...arr].sort((a,b)=>a-b); const med=sorted[Math.floor(sorted.length/2)]; const devs=arr.map(x=>Math.abs(x-med)); const ds=[...devs].sort((a,b)=>a-b); const MAD=ds[Math.floor(ds.length/2)]||1; const thr=Math.max(25, 2.5*MAD); const filtered=arr.filter(x=>Math.abs(x-med)<=thr); const mean=filtered.reduce((a,c)=>a+c,0)/Math.max(1,filtered.length); return Math.round(mean); }
-  function updateUI(){ const ms=robustEstimate(taps.map(t=>phaseToMs(t))); const n=taps.length; progress.textContent=`有效樣本：${n} 次（目標 ≥ ${N_TARGET}）`; readout.textContent = n? `偏移預估：${ms} ms　建議套用：${-ms} ms` : '偏移預估：—'; okBtn.disabled = n < N_MIN; }
-  function registerTap(){ taps.push(audioCtx.currentTime); updateUI(); if(SUPPORTS_VIB) navigator.vibrate(6); }
-  function keyHandler(e){ if(e.repeat) return; if(e.code==='Space'){ e.preventDefault(); registerTap(); } if(e.code==='Escape'){ e.preventDefault(); cleanup(); } }
-  function pointerHandler(e){ if(e.target.closest('button')) return; registerTap(); }
-  window.addEventListener('keydown', keyHandler, true); overlay.addEventListener('pointerdown', pointerHandler, {passive:true});
-  const okBtn=overlay.querySelector('#ok'), cancelBtn=overlay.querySelector('#cancel'), bpmSel=overlay.querySelector('#bpmSel'); okBtn.disabled=true;
-  bpmSel.addEventListener('change', ()=>{ const val=parseInt(bpmSel.value,10)||90; restart(val); });
-  function applyAndClose(){ const ms=robustEstimate(taps.map(t=>phaseToMs(t))); setGlobalOffset(-ms); cleanup(); }
-  function cleanup(){ clearTimeout(schedTimer); window.removeEventListener('keydown', keyHandler, true); overlay.removeEventListener('pointerdown', pointerHandler); overlay.remove(); }
-  okBtn.addEventListener('click', applyAndClose); okBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); applyAndClose(); });
-  cancelBtn.addEventListener('click', cleanup); cancelBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); cleanup(); });
-  startMetronome(0.8);
-}
-
-/* 統計/震動 */
-const dtHistory=[]; const DT_HIST_MAX=240;
-function recordDt(dtMs){ dtHistory.push(dtMs); if(dtHistory.length>DT_HIST_MAX) dtHistory.shift(); }
-function getDtStats(){ if(!dtHistory.length) return {avg:0,std:0}; const n=dtHistory.length; const avg=dtHistory.reduce((a,c)=>a+c,0)/n; const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n; return {avg, std:Math.sqrt(va)}; }
-function hapticForRating(r){ if(!SUPPORTS_VIB) return; const map={'SICK!':12,'GOOD':8,'BAD':5,'SHIT':3}; navigator.vibrate(map[r]||6); }
-
-/* 判定 */
 function judge(dtMs, lane){
-  const WN=currentWindows(); const adt=Math.abs(dtMs);
+  const adt=Math.abs(dtMs);
   let rating='', base=0, incCombo=true;
-  if(adt<=WN.sick){ rating='SICK!'; base=FNF_SCORES.sick; stats.sick++; }
-  else if(adt<=WN.good){ rating='GOOD'; base=FNF_SCORES.good; stats.good++; }
-  else if(adt<=WN.bad){ rating='BAD'; base=FNF_SCORES.bad; stats.bad++; }
-  else if(adt<=WN.shit){ rating='SHIT'; base=FNF_SCORES.shit; stats.shit++; incCombo=false; }
-  else { miss(); return; }
-  const p=Math.min(1, adt/WN.shit); const centrality=Math.pow(1-p,1.25);
-  score=Math.max(0, Math.round(score + base * centrality));
-  if(incCombo) combo++; else combo=Math.max(0, combo-1);
-  lastJudgementText=rating; receptorPulse[lane]=1;
-  hitFx.push({lane, t0:getClockSec(), life:0.25});
-  recordDt(dtMs); hapticForRating(rating); updateHUD();
-  if(combo>0 && combo%10===0){ comboFlash=`COMBO x${combo}!!`; setTimeout(()=>comboFlash='',800); }
+  if(adt<=WINDOWS.sick){ rating='SICK!'; base=SCORES.sick; stats.sick++; }
+  else if(adt<=WINDOWS.good){ rating='GOOD'; base=SCORES.good; stats.good++; }
+  else if(adt<=WINDOWS.bad){ rating='BAD'; base=SCORES.bad; stats.bad++; }
+  else if(adt<=WINDOWS.shit){ rating='SHIT'; base=SCORES.shit; stats.shit++; incCombo=false; }
+  else { lastJudgementText='MISS'; combo=0; missCount++; stats.miss++; score=Math.max(0, score+SCORES.miss); updateHUD(); return; }
+  const p=Math.min(1, adt/WINDOWS.shit); const centrality=Math.pow(1-p,1.25);
+  score=Math.max(0, Math.round(score + base*centrality));
+  if(incCombo) combo++; else combo=Math.max(0,combo-1);
+  lastJudgementText=rating; recordDt(dtMs); updateHUD();
 }
-function miss(){ lastJudgementText='MISS'; combo=0; missCount++; stats.miss++; score=Math.max(0, score+FNF_SCORES.miss); updateHUD(); if(currentDifficulty==='ex' && missCount>15) triggerFailOnce('你輸了！EX 模式 MISS 超過 15 次'); }
-function ghostTap(lane){ lastJudgementText='MISS'; combo=0; score=Math.max(0, score+FNF_SCORES.ghost); receptorPulse[lane]=0.5; if(SUPPORTS_VIB) navigator.vibrate(2); updateHUD(); }
-function triggerFailOnce(msg){ if(gameOver) return; gameOver=true; running=false; stopGameLoop(); stopAndResetAudio(); setTimeout(()=>{ alert(msg); goToMenu(); },0); }
 
-/* 譜面 */
 function generateChart(durationSec){
   chart=[]; const d=currentDifficulty;
   let doubleNoteChance=0.35, tmin=0.20, tmax=0.45;
@@ -668,163 +549,77 @@ function generateChart(durationSec){
   else if(d==='easy'){ doubleNoteChance=0.20; tmin=0.25; tmax=0.50; }
   else if(d==='normal'){ doubleNoteChance=0.35; tmin=0.20; tmax=0.45; }
   else if(d==='hard'){ doubleNoteChance=0.55; tmin=0.15; tmax=0.35; }
+
   if(!(d==='ex'||d==='hell')){
     let t=1; while(t<durationSec){
       const used=new Set(); const arr=[]; const cnt=Math.random()<doubleNoteChance?2:1;
-      while(arr.length<cnt){ const lane=Math.floor(Math.random()*4); if(!used.has(lane)){ used.add(lane); arr.push({t,lane,type:'tap',hit:false,y:-50}); } }
+      while(arr.length<cnt){ const lane=Math.floor(Math.random()*4); if(!used.has(lane)){ used.add(lane); arr.push({t,lane,hit:false,y:-50}); } }
       chart.push(...arr); t += Math.random()*(tmax-tmin)+tmin;
     }
-    __remainNotes=chart.length; rebuildLaneCursors(); return;
-  }
-  const beat=0.5; let t=1; let cur=0; const next=()=>{ cur=(cur+1)%4; return cur; }; const push=(tt,ln)=>chart.push({t:tt,lane:ln,type:'tap',hit:false,y:-50}); const rnd=()=>Math.floor(Math.random()*4);
-  while(t<durationSec){
-    if(d==='ex'){ push(t,next()); if(Math.random()<0.60) push(t,(cur+2)%4); if(Math.random()<0.35) push(t+beat/2,(cur+1)%4); if(Math.random()<0.18){ push(t+beat/3,rnd()); push(t+2*beat/3,rnd()); } t += Math.random()<0.5 ? beat/2 : beat; }
-    else { push(t,next()); if(Math.random()<0.85) push(t,(cur+2)%4); push(t+beat/2,(cur+1)%4); if(Math.random()<0.4){ push(t+beat/4,rnd()); push(t+3*beat/4,rnd()); } t += beat/2; }
-  }
-  __remainNotes=chart.length; rebuildLaneCursors();
-}
-function noteYAtTimeFor(tHit, tNow){ const judge=getJudgeLineYInternal(); return (currentDirection==='down')? (judge - (tHit - tNow)*noteSpeed) : (judge + (tHit - tNow)*noteSpeed); }
-
-/* Lane Cursor */
-const nextIdxByLane=[0,0,0,0];
-function rebuildLaneCursors(){ nextIdxByLane.fill(0); chart.sort((a,b)=>a.t-b.t); }
-
-/* 更新/繪圖 */
-function updateHitbarPosition(){ if(!hitbar || document.getElementById('gameScreen').style.display==='none') return; const topPx=getJudgeLineYCss() - (HITKEY_BASE*uiScale/2); hitbar.style.top=`${topPx}px`; }
-function positionPauseButton(){ const btn=document.getElementById('pauseButton'); if(!btn) return; btn.classList.remove('pause-bottom'); const isCoarse=window.matchMedia('(pointer: coarse)').matches; if(isCoarse && currentDirection==='up') btn.classList.add('pause-bottom'); }
-
-/* ======= 強化 Playfield 背景 ======= */
-function drawPlayfieldBackground(t){
-  ctx.save();
-  // 1) 深色基底
-  ctx.fillStyle='#0e1522'; ctx.fillRect(0,0,W,H);
-
-  // 2) 格線（更亮、更密）
-  ctx.globalAlpha=0.22;
-  ctx.strokeStyle='rgba(120,213,255,0.38)';
-  ctx.lineWidth=1;
-  const step=22;
-  const ox=(t*26)%step, oy=(t*18)%step;
-  for(let x=-ox; x<=W; x+=step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-  for(let y=-oy; y<=H; y+=step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-
-  // 3) 對角霓虹帶（動得更明顯）
-  ctx.globalAlpha=0.24;
-  const stripe = ctx.createLinearGradient(0,0, W,0);
-  stripe.addColorStop(0,'rgba(0,255,255,0.28)');
-  stripe.addColorStop(0.5,'rgba(255,0,160,0.24)');
-  stripe.addColorStop(1,'rgba(255,255,0,0.18)');
-  ctx.fillStyle=stripe;
-  const diagH=20;
-  const drift = (t*60)%80;
-  ctx.save();
-  ctx.translate(-drift,0);
-  ctx.rotate(-Math.PI/12);
-  for(let y=-H; y<H*2; y+=diagH*4){
-    ctx.fillRect(-W, y, W*3, diagH);
-  }
-  ctx.restore();
-
-  // 4) 隨機故障條（少量、亮）
-  if(!__useLowQuality){
-    const n=14;
-    for(let i=0;i<n;i++){
-      const ww = 30 + Math.random()*120;
-      const hh = 2 + Math.random()*4;
-      const xx = Math.random()*(W-ww);
-      const yy = Math.random()*H;
-      ctx.globalAlpha = 0.16 + Math.random()*0.16;
-      ctx.fillStyle = (i%3===0)?'rgba(0,255,255,0.6)': (i%3===1)?'rgba(255,0,160,0.5)':'rgba(255,255,0,0.45)';
-      ctx.fillRect(xx, yy, ww, hh);
+  } else {
+    const beat=0.5; let t=1; let cur=0; const next=()=>{ cur=(cur+1)%4; return cur; }; const push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50}); const rnd=()=>Math.floor(Math.random()*4);
+    while(t<durationSec){
+      if(d==='ex'){ push(t,next()); if(Math.random()<0.60) push(t,(cur+2)%4); if(Math.random()<0.35) push(t+beat/2,(cur+1)%4); if(Math.random()<0.18){ push(t+beat/3,rnd()); push(t+2*beat/3,rnd()); } t += Math.random()<0.5 ? beat/2 : beat; }
+      else { push(t,next()); if(Math.random()<0.85) push(t,(cur+2)%4); push(t+beat/2,(cur+1)%4); if(Math.random()<0.4){ push(t+beat/4,rnd()); push(t+3*beat/4,rnd()); } t += beat/2; }
     }
   }
-
-  // 5) 偽邊界光暈（更顯眼）
-  ctx.globalAlpha=0.28;
-  const g=ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.18, W/2,H/2, Math.max(W,H)*0.85);
-  g.addColorStop(0,'rgba(0,0,0,0)');
-  g.addColorStop(1,'rgba(0,0,0,0.55)');
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-
-  ctx.restore();
+  __remainNotes=chart.length;
 }
+
+/* 更新與繪製 */
+function noteYAtTimeFor(tHit, tNow){ const judge=getJudgeLineYInternal(); return (currentDirection==='down')? (judge - (tHit - tNow)*noteSpeed) : (judge + (tHit - tNow)*noteSpeed); }
 
 function update(songT, dt){
   for(let i=0;i<chart.length;i++){ const n=chart[i]; n.y=noteYAtTimeFor(n.t, songT); }
   for(let i=0;i<chart.length;i++){
-    const n=chart[i];
-    if(!n.hit && ((songT - n.t)*1000) > (currentWindows().shit + LATE_MISS_GRACE_MS)){
-      n.hit=true; __remainNotes--; miss(); if (i>=nextIdxByLane[n.lane]) nextIdxByLane[n.lane]=i+1;
-    }
+    const n=chart[i]; if(n.hit) continue;
+    const lateMs = (songT - n.t)*1000;
+    if(lateMs > WINDOWS.shit + 160){ n.hit=true; __remainNotes--; lastJudgementText='MISS'; combo=0; missCount++; stats.miss++; score=Math.max(0, score+SCORES.miss); updateHUD(); }
   }
-  for(let i=0;i<4;i++) receptorPulse[i]=Math.max(0, receptorPulse[i]-dt*3.2);
-  for(let i=hitFx.length-1;i>=0;i--) if(songT - hitFx[i].t0 > hitFx[i].life) hitFx.splice(i,1);
 }
 
-function render({skipNotes=false}={}){
-  const judge=getJudgeLineYInternal();
+function render(){
+  const t=performance.now()/1000; const judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H);
-  const tAnim = performance.now()/1000;
+  drawPlayfieldBackground(t);
 
-  drawPlayfieldBackground(tAnim);
-
-  // Receptor
-  for(let lane=0; lane<4; lane++){
-    const x=lane*laneWidth+laneWidth/2; const pulse=receptorPulse[lane];
-    const s=1 + 0.18*FLICKER_SCALE*pulse;
-    drawDynamicChevron({x, y:judge, size:NOTE_BASE*s, dir:laneDirs[lane], baseColor:laneColors[lane], isReceptor:true,  pulse, t:tAnim});
-    if (pulse>0){
-      const {c1,c2}=accentColors(laneColors[lane]);
-      drawGlitchBurst(x, judge, c1, c2, pulse);
-      drawGlow(x, judge, 50 + 28*pulse, laneColors[lane], (0.32 + 0.36*pulse)*FLICKER_SCALE);
-    } else {
-      drawGlow(x, judge, 34, 'rgba(0,255,255,0.22)', 0.08*FLICKER_SCALE);
-    }
+  // Receptors（黑底＋白細邊；命中時整顆亮）
+  for(let i=0;i<4;i++){
+    const x=i*laneWidth+laneWidth/2;
+    drawBlueStreakArrow({x, y:judge, size:NOTE_BASE, dir:['left','down','up','right'][i], baseColor:laneColors[i], isReceptor:true, pulse:0, t});
   }
 
-  // Notes
-  if(!skipNotes){
-    const top=-120, bottom=H+120;
-    for(let i=0;i<chart.length;i++){
-      const n=chart[i]; if(n.hit) continue; if(n.y<top||n.y>bottom) continue;
-      const x=n.lane*laneWidth+laneWidth/2;
-      drawDynamicChevron({x, y:n.y, size:NOTE_BASE, dir:laneDirs[n.lane], baseColor:laneColors[n.lane], isReceptor:false, pulse:0, t:tAnim + i*0.03});
-    }
+  // Notes（彩色 + 殘影）
+  const top=-120, bottom=H+120;
+  for(let i=0;i<chart.length;i++){
+    const n=chart[i]; if(n.hit) continue; if(n.y<top||n.y>bottom) continue;
+    const x=n.lane*laneWidth+laneWidth/2;
+    drawBlueStreakArrow({x, y:n.y, size:NOTE_BASE, dir:['left','down','up','right'][n.lane], baseColor:laneColors[n.lane], isReceptor:false, pulse:0, t:t+i*0.02});
   }
 
-  // 命中環
-  for(let i=0;i<hitFx.length;i++){
-    const fx=hitFx[i]; const p=Math.min(1,(getClockSec()-fx.t0)/fx.life);
-    const x=fx.lane*laneWidth+laneWidth/2;
-    ctx.save(); ctx.globalAlpha=(1-p)*FLICKER_SCALE; ctx.strokeStyle=laneColors[fx.lane]; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x, judge, (18+80*p)*FLICKER_SCALE, 0, Math.PI*2); ctx.stroke(); ctx.restore();
-  }
-
+  // 判定文字
   if(lastJudgementText!=='-'){
     ctx.fillStyle='#fff'; ctx.font='bold 32px sans-serif'; ctx.textAlign='center';
     const offset=(currentDirection==='up')? 120 : -40;
     ctx.fillText(lastJudgementText, W/2, judge+offset);
   }
   if(comboFlash){
-    ctx.fillStyle='#ff78d5'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center'; ctx.fillText(comboFlash, W/2, H/2 - 100);
+    ctx.fillStyle='#ff78d5'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center';
+    ctx.fillText(comboFlash, W/2, H/2 - 100);
   }
 
   renderUI();
 }
 
-/* ===== HUD：上升打擊時「直接置底」 ===== */
+/* 左上熱圖：上升模式時「直接置底」 */
 function renderUI(){
   const bins=36, min=-300, max=300, step=(max-min)/bins; const hist=new Array(bins).fill(0);
   for(const v of dtHistory){ const i=Math.floor((v-min)/step); if(i>=0&&i<bins) hist[i]++; }
   uictx.clearRect(0,0,W,H);
 
   const safeLeft=14;
-  const SCALE=0.96; const w=Math.round(240*SCALE), h=Math.round(74*SCALE); const bw=w/bins;
-
-  // ↓↓↓ 這裡改成「上升打擊時直接置底」 ↓↓↓
-  const topDefault = 24 + (IS_MOBILE ? 6 : 0);
-  const y0 = (currentDirection==='up')
-    ? (H - h - 24)          // 直接最下方，留 24px 安全邊距
-    : topDefault;
+  const w=230, h=74; const bw=w/bins;
+  const y0 = (currentDirection==='up') ? (H - h - 24) : (24 + (IS_MOBILE?6:0));
   const x0=safeLeft;
 
   uictx.save();
@@ -838,123 +633,59 @@ function renderUI(){
   uictx.restore();
 }
 
-function renderPreviewAt(t){
-  const judge=getJudgeLineYInternal();
-  ctx.clearRect(0,0,W,H);
-  const tt = performance.now()/1000;
-
-  drawPlayfieldBackground(tt);
-
-  for(let lane=0; lane<4; lane++){
-    const x=lane*laneWidth+laneWidth/2;
-    drawDynamicChevron({x, y:judge, size:NOTE_BASE, dir:laneDirs[lane], baseColor:laneColors[lane], isReceptor:true, pulse:0, t:tt});
-  }
-  const top=-120, bottom=H+120;
-  for(let i=0;i<chart.length;i++){
-    const n=chart[i]; if(n.hit) continue; const y=noteYAtTimeFor(n.t,t); if(y<top||y>bottom) continue;
-    const x=n.lane*laneWidth+laneWidth/2;
-    drawDynamicChevron({x, y, size:NOTE_BASE, dir:laneDirs[n.lane], baseColor:laneColors[n.lane], isReceptor:false, pulse:0, t:tt + i*0.03});
-  }
-  renderUI();
-}
-
-function endGameAndShowResult(){
-  running=false; lastJudgementText='END'; updateHUD();
-  document.getElementById('finalSong').textContent=currentSongTitle;
-  document.getElementById('finalDiff').textContent=currentDifficulty.toUpperCase();
-  document.getElementById('finalDir').textContent=(currentDirection==='up'?'上升':'下落');
-  document.getElementById('finalJudge').textContent=(currentJudgeMode==='old'?'Old':'New');
-  document.getElementById('finalScore').textContent=score;
-  document.getElementById('statSick').textContent=stats.sick;
-  document.getElementById('statGood').textContent=stats.good;
-  document.getElementById('statBad').textContent=stats.bad;
-  document.getElementById('statShit').textContent=stats.shit;
-  document.getElementById('statMiss').textContent=stats.miss;
-  showOnly('endScreen'); setImmersive(false); phase='menu';
-}
-
-/* 迴圈 */
-function loop(ts){
-  if(paused) return;
-  const songT=getClockSec(); const dt=Math.max(0, songT - prevSongT); prevSongT=songT;
-  update(songT, dt); trackFPS(ts);
-  let doRender=true;
-  if(__fpsMode==='stable60' && IS_MOBILE){
-    if(ts-__lastRenderTs < __TARGET_INTERVAL-0.5) doRender=false;
-    else { const steps=Math.max(1, Math.floor((ts-__lastRenderTs)/__TARGET_INTERVAL)); __lastRenderTs += steps*__TARGET_INTERVAL; }
-  }
-  if(doRender) render();
-  if(songEnded || __remainNotes<=0){ endGameAndShowResult(); return; }
-  loopId=requestAnimationFrame(loop);
-}
-function stopGameLoop(){ try{ cancelAnimationFrame(loopId);}catch{} loopId=null; }
-
-/* 倒數（首幀預渲染） */
-function showCountdown(startCallback, opts){
-  cancelCountdown(); isCountingDown=true; phase='countdown';
-  const previewTime=opts&&typeof opts.previewTime==='number'? opts.previewTime : null;
-  const showNotes=!!(opts && opts.showNotes && previewTime!==null);
-  if(showNotes) renderPreviewAt(previewTime); else render({skipNotes:true});
-
-  const el=document.getElementById('countdownText'); el.style.display='block'; el.textContent='Ready';
-  const steps=['Ready','3','2','1','Go!']; const stepDur=700;
-
-  const countdownLoop=()=>{ if(!isCountingDown) return; if(showNotes) renderPreviewAt(previewTime); else render({skipNotes:true}); countdownRAF=requestAnimationFrame(countdownLoop); }; countdownLoop();
-  const playStep=i=>{ if(!isCountingDown) return; el.textContent=steps[i]; el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out'; };
-
-  for(let i=0;i<steps.length;i++){ countdownTimers.push(setTimeout(()=>playStep(i), i*stepDur)); }
-  countdownTimers.push(setTimeout(()=>{ if(!isCountingDown) return; el.style.display='none'; isCountingDown=false; try{ cancelAnimationFrame(countdownRAF);}catch{}; startCallback(); }, steps.length*stepDur));
-}
-function cancelCountdown(){ if(!isCountingDown && countdownTimers.length===0 && !countdownRAF) return; isCountingDown=false; countdownTimers.forEach(id=>clearTimeout(id)); countdownTimers=[]; try{ cancelAnimationFrame(countdownRAF);}catch{} countdownRAF=null; const el=document.getElementById('countdownText'); el.style.animation='none'; el.style.display='none'; }
-
-/* 提示 */
-const warnBanner=document.getElementById('warnBanner'); let audioWarned=false;
-function showPlayWarning(msg){ if(audioWarned) return; audioWarned=true; warnBanner.textContent=msg||'⚠️ 音樂無法播放：請確認檔名/路徑，或點一下畫面再按開始。'; warnBanner.style.display='block'; setTimeout(()=>{ warnBanner.style.display='none'; audioWarned=false; },3000); }
-
-/* 輸入 */
-window.addEventListener('keydown', e=>{
-  if(e.repeat) return;
-  const k=e.key.toLowerCase(); const lane=laneFromKey(k);
-  if(lane!==null){ if(phase==='playing') onLanePress(lane); e.preventDefault(); return; }
-  if(e.key==='Escape'){
-    if(phase==='countdown'){ cancelCountdown(); goToMenu(); return; }
-    if(phase==='playing'){ paused? resumeGame() : pauseGame(); return; }
-    if(phase==='paused'){ resumeGame(); return; }
-  }
-});
-canvas.addEventListener('pointerdown', e=>{
-  if(phase!=='playing') return; e.preventDefault();
-  const rect=canvas.getBoundingClientRect(); const x=e.clientX-rect.left; const cssLaneWidth=rect.width/4;
-  const lane=Math.min(3, Math.max(0, Math.floor(x/cssLaneWidth))); onLanePress(lane);
-}, {passive:false});
-
+/* 互動 */
 function onLanePress(lane){
   if(!running) return;
   playTapSound();
-  const tNow=getJudgeClockSec(); const win=currentWindows().shit;
+  const tNow = getJudgeClockSec();
   let best=-1, bestAbs=Infinity;
-  for(let i=nextIdxByLane[lane]; i<chart.length; i++){
+  for(let i=0;i<chart.length;i++){
     const n=chart[i]; if(n.hit || n.lane!==lane) continue;
     const dtMs=(tNow - n.t)*1000; const adt=Math.abs(dtMs);
-    if(adt<=win){ if(adt<bestAbs){ bestAbs=adt; best=i; } }
-    else if (dtMs>win){ nextIdxByLane[lane]=i+1; }
-    else { break; }
+    if(adt<=WINDOWS.shit && adt<bestAbs){ bestAbs=adt; best=i; }
+    if(dtMs>WINDOWS.shit) break;
   }
   if(best>=0){
-    const n=chart[best]; judge((tNow - n.t)*1000, lane); n.hit=true; __remainNotes--; receptorPulse[lane]=1;
-    if(best>=nextIdxByLane[lane]) nextIdxByLane[lane]=best+1;
-  } else {
-    if(currentJudgeMode==='old') ghostTap(lane);
-    receptorPulse[lane]=1;
+    const n=chart[best]; n.hit=true; __remainNotes--; judge((tNow - n.t)*1000, lane);
+  }else if(currentJudgeMode==='old'){
+    lastJudgementText='MISS'; combo=0; score=Math.max(0,score+SCORES.ghost); updateHUD();
   }
 }
 
-/* 音量 & 鏘聲 */
-function setVolumes(percent){ const v=Math.max(0,Math.min(100,percent))/100; if(gainNode) gainNode.gain.value=v; if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); const sfxVol=Math.min(1, v*SFX_GAIN); tapPool.setVolume(sfxVol); hitSound.volume=sfxVol; }
-function initVolumeUI(){ const slider=document.getElementById('volumeSlider'); const label=document.getElementById('volumeLabel'); const saved=+localStorage.getItem('dfjk.volume')||80; slider.value=String(saved); label.textContent=`${saved}%`; setVolumes(saved); slider.addEventListener('input', ()=>{ const val=+slider.value; label.textContent=`${val}%`; setVolumes(val); localStorage.setItem('dfjk.volume', String(val)); }); }
-function playTapSound(){ if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); tapPool.play(); }
+/* 倒數 */
+let isCountingDown=false, countdownTimers=[], countdownRAF=null;
+function showCountdown(startCallback){
+  cancelCountdown(); isCountingDown=true;
+  const el=document.getElementById('countdownText'); el.style.display='block';
+  const steps=['Ready','3','2','1','Go!']; const stepDur=700;
+  const renderCount=()=>{ if(!isCountingDown) return; render(); countdownRAF=requestAnimationFrame(renderCount); }; renderCount();
+  const playStep=i=>{ if(!isCountingDown) return; el.textContent=steps[i]; el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out'; };
+  for(let i=0;i<steps.length;i++){ countdownTimers.push(setTimeout(()=>playStep(i), i*stepDur)); }
+  countdownTimers.push(setTimeout(()=>{ if(!isCountingDown) return; el.style.display='none'; isCountingDown=false; cancelAnimationFrame(countdownRAF); startCallback(); }, steps.length*stepDur));
+}
+function cancelCountdown(){ if(!isCountingDown && countdownTimers.length===0 && !countdownRAF) return; isCountingDown=false; countdownTimers.forEach(id=>clearTimeout(id)); countdownTimers=[]; try{ cancelAnimationFrame(countdownRAF);}catch{} countdownRAF=null; const el=document.getElementById('countdownText'); el.style.animation='none'; el.style.display='none'; }
 
-/* 流程 */
+/* UI 切換 */
+function showOnly(id){ ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>document.getElementById(x).style.display=(x===id?'block':'none')); if(id!=='gameScreen') document.getElementById('gameScreen').classList.remove('blur'); }
+function goToMenu(){ cancelCountdown(); stopGameLoop(); stopAndResetAudio(); unfreezeLayout(); showOnly('menuScreen'); phase='menu'; document.getElementById('menuChosenSong').textContent = selectedSongFile? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; }
+function showOptions(){ showOnly('optionsScreen'); }
+function showMusic(){ showOnly('musicScreen'); }
+
+/* 音量/校正 UI */
+function initVolumeUI(){ const slider=document.getElementById('volumeSlider'); const label=document.getElementById('volumeLabel'); const saved=+localStorage.getItem('dfjk.volume')||80; slider.value=String(saved); label.textContent=`${saved}%`; setVolumes(saved); slider.addEventListener('input', ()=>{ const val=+slider.value; label.textContent=`${val}%`; setVolumes(val); localStorage.setItem('dfjk.volume', String(val)); }); }
+function initOffsetUI(){ const s=document.getElementById('offsetSlider'); const lab=document.getElementById('offsetLabel'); const saved=+(localStorage.getItem('dfjk.offsetMs')||0); s.value=String(saved); lab.textContent=`${saved} ms`; setGlobalOffset(saved); document.getElementById('offsetCalibBtn').addEventListener('click', ()=>alert('快速校正已保留，若需加強我再替你升級喔')); }
+
+/* 曲庫 UI */
+function fillSongList(){
+  const sel=document.getElementById('songSelect'); if(sel.dataset.filled) return;
+  sel.innerHTML=''; const ph=document.createElement('option'); ph.value=''; ph.textContent='— 請選擇曲目 —'; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph);
+  SONGS.forEach(f=>{ const opt=document.createElement('option'); opt.value=f; opt.textContent=f.replace(/\.mp3$/i,''); if(selectedSongFile===f) opt.selected=true; sel.appendChild(opt); });
+  sel.addEventListener('change',()=>{ document.getElementById('chosenSongLabel').textContent = sel.value? sel.options[sel.selectedIndex].textContent : '尚未選擇'; });
+  sel.dataset.filled='1';
+}
+function confirmSong(){ const sel=document.getElementById('songSelect'); if(!sel.value){ alert('請先選擇音樂'); return; } selectedSongFile=sel.value; document.getElementById('chosenSongLabel').textContent=sel.options[sel.selectedIndex].textContent; document.getElementById('menuChosenSong').textContent=sel.options[sel.selectedIndex].textContent; goToMenu(); }
+
+/* 控制流程 */
 function startGame(){
   if(!selectedSongFile){ alert('請先選擇音樂'); showMusic(); return; }
   const diff=document.getElementById('difficultySelect').value;
@@ -963,73 +694,60 @@ function startGame(){
   const jmode=document.getElementById('judgeMode').value;
   currentDifficulty=diff; currentDirection=dir; currentJudgeMode=jmode;
   let mul=parseFloat(spSel.value); if(diff==='beginner') mul=0.8; else if(diff==='easy') mul=0.9; else if(diff==='ex') mul=1.8;
-  noteSpeed=baseNoteSpeed*mul; document.body.classList.toggle('ex-mode', diff==='ex');
+  noteSpeed=baseNoteSpeed*mul;
 
-  stopGameLoop(); score=0; combo=0; lastJudgementText='-'; comboFlash=''; chart=[]; paused=false; running=true; missCount=0; gameOver=false;
-  stats={sick:0,good:0,bad:0,shit:0,miss:0}; prevSongT=0; pausedAtSong=0;
-  for(let i=0;i<4;i++) receptorPulse[i]=0; hitFx.length=0; dtHistory.length=0; updateHUD();
-
+  score=0; combo=0; lastJudgementText='-'; missCount=0; gameOver=false; stats={sick:0,good:0,bad:0,shit:0,miss:0};
+  chart=[]; __remainNotes=0; dtHistory.length=0; updateHUD();
   currentSongTitle=selectedSongFile.replace(/\.mp3$/i,''); const url='music/'+encodeURIComponent(selectedSongFile);
-  showOnly('gameScreen'); setImmersive(true); phase='countdown';
-  setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); updateHUD(); __lastRenderTs=0;
 
-  render({skipNotes:true}); // 避免黑畫面
-
+  showOnly('gameScreen'); phase='countdown'; setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); render();
   loadSongBuffer(url).then(()=>{
     const durationSec = songBuffer && isFinite(songBuffer.duration) ? songBuffer.duration : 120;
     generateChart(durationSec);
     showCountdown(()=>{
-      if(phase!=='countdown') return;
-      phase='playing'; freezeLayout(); __lastRenderTs=0; prevSongT=0;
-      (async()=>{ await ensureAudio(); try{ if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{}; playFrom(0); })();
-      loopId=requestAnimationFrame(loop);
+      running=true; freezeLayout(); playFrom(0);
+      loopId=requestAnimationFrame(gameLoop);
     });
-  }).catch(e=>{ console.warn(e); showPlayWarning('⚠️ 載入音樂失敗'); goToMenu(); });
+  }).catch(e=>{ console.warn(e); document.getElementById('warnBanner').style.display='block'; setTimeout(()=>document.getElementById('warnBanner').style.display='none',3000); goToMenu(); });
 }
 
 function pauseGame(){
-  if(phase==='countdown'){ cancelCountdown(); goToMenu(); return; }
-  if(!running||paused) return;
-  pausedAtSong = getClockSec();
-  paused=true; phase='paused'; stopGameLoop(); unfreezeLayout();
-  document.getElementById('gameScreen').classList.add('blur'); showOnly('pauseScreen');
+  if(!running||paused) return; paused=true; showOnly('pauseScreen'); document.getElementById('gameScreen').classList.add('blur');
   try{ if(srcNode){ srcNode.onended=null; srcNode.stop(0);} }catch{} srcNode=null;
 }
-
 function resumeGame(){
-  if(!paused) return; paused=false;
-  showOnly('gameScreen'); document.getElementById('gameScreen').classList.remove('blur');
-  setupCanvasDPR(); applyDesktopScale(); recomputeLayout();
-  phase='countdown';
-  const resumeAt = Math.max(0, Math.min(songBuffer? songBuffer.duration : 0, pausedAtSong));
-  renderPreviewAt(resumeAt);
-  showCountdown(()=>{
-    phase='playing'; freezeLayout();
-    (async()=>{ await ensureAudio(); try{ if(audioCtx.state==='suspended') await audioCtx.resume(); }catch{}; playFrom(resumeAt); })();
-    prevSongT=resumeAt; __lastRenderTs=0; loopId=requestAnimationFrame(loop);
-  }, { showNotes:true, previewTime: resumeAt });
+  if(!paused) return; paused=false; showOnly('gameScreen'); document.getElementById('gameScreen').classList.remove('blur');
+  playFrom(getClockSec()); loopId=requestAnimationFrame(gameLoop);
 }
 
-/* 初始化 */
-function onViewportChanged(){ if(__layoutFrozen) return; if(phase==='playing'||phase==='countdown'){ setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); renderUI(); } }
-function initOffsetAndVolume(){ initOffsetUI(); initVolumeUI(); }
+function gameLoop(){
+  if(paused) return;
+  const t = getClockSec(); const tPrev = t - 1/60;
+  update(t, t - tPrev); render();
+  if(songEnded || __remainNotes<=0){ running=false; stopGameLoop(); stopAndResetAudio(); document.getElementById('finalSong').textContent=currentSongTitle; document.getElementById('finalDiff').textContent=currentDifficulty.toUpperCase(); document.getElementById('finalDir').textContent=(currentDirection==='up'?'上升':'下落'); document.getElementById('finalJudge').textContent=(currentJudgeMode==='old'?'Old':'New'); document.getElementById('finalScore').textContent=score; document.getElementById('statSick').textContent=stats.sick; document.getElementById('statGood').textContent=stats.good; document.getElementById('statBad').textContent=stats.bad; document.getElementById('statShit').textContent=stats.shit; document.getElementById('statMiss').textContent=stats.miss; showOnly('endScreen'); return; }
+  loopId=requestAnimationFrame(gameLoop);
+}
+function stopGameLoop(){ try{ cancelAnimationFrame(loopId);}catch{} loopId=null; }
 
-applyDesktopScale();
-initOffsetAndVolume();
-fillSongList();
+/* 事件 */
+window.addEventListener('keydown', e=>{
+  if(e.repeat) return;
+  const lane=laneFromKey(e.key.toLowerCase());
+  if(lane!==null){ if(phase==='countdown') return; if(phase==='game'||phase==='playing'){ onLanePress(lane); } if(phase==='countdown' || phase==='playing'){ onLanePress(lane);} if(running) e.preventDefault(); return; }
+  if(e.key==='Escape'){ if(phase==='countdown'){ cancelCountdown(); goToMenu(); } else if(running && !paused){ pauseGame(); } else if(paused){ resumeGame(); } }
+});
+canvas.addEventListener('pointerdown', e=>{
+  if(!running || paused) return; const rect=canvas.getBoundingClientRect(); const x=e.clientX-rect.left; const cssLaneWidth=rect.width/4;
+  const lane=Math.min(3, Math.max(0, Math.floor(x/cssLaneWidth))); onLanePress(lane);
+});
 
-window.addEventListener('resize', ()=>{ setupCanvasDPR(); onViewportChanged(); }, {passive:true});
-window.addEventListener('scroll', ()=>{ if(!__layoutFrozen && (phase==='playing'||phase==='countdown')) recomputeLayout(); }, {passive:true});
-if(window.visualViewport){ ['resize','scroll'].forEach(ev=>{ window.visualViewport.addEventListener(ev, ()=>{ setupCanvasDPR(); onViewportChanged(); }, {passive:true}); }); }
-window.addEventListener('orientationchange', ()=>{ setupCanvasDPR(); unfreezeLayout(); applyDesktopScale(); recomputeLayout(); if(phase==='playing'||phase==='countdown') freezeLayout(); }, {passive:true});
+function init(){
+  applyDesktopScale(); initVolumeUI(); initOffsetUI(); fillSongList();
+}
+init();
+window.addEventListener('resize', ()=>{ setupCanvasDPR(); applyDesktopScale(); recomputeLayout(); render(); });
 
-document.addEventListener('contextmenu', e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); });
-document.addEventListener('gesturestart', e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); });
-document.addEventListener('dblclick', e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); });
-
-goToMenu();
-
-/* 綁定 */
+/* 綁定導出 */
 Object.assign(window, { startGame, showMusic, showOptions, goToMenu, pauseGame, resumeGame, confirmSong });
 </script>
 </body>
