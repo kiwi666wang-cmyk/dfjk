@@ -27,7 +27,7 @@
   @keyframes noiseShift{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(0,-70px,0)}}
   #stage{position:relative;width:95%;max-width:420px;margin:20px auto;--u:1;z-index:1}
   canvas{display:block;background:#0f1727;width:100%;height:auto}
-  canvas#gameCanvas{touch-action:none}
+  #gameCanvas{touch-action:none}
   canvas.ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;background:transparent;border:none;z-index:5}
   #edgeFade{position:absolute;inset:0;pointer-events:none;opacity:1;border-radius:10px;
     background:
@@ -49,6 +49,20 @@
   @keyframes popScale{0%{transform:translate(-50%,-50%) scale(.85)}50%{transform:translate(-50%,-50%) scale(1.12)}100%{transform:translate(-50%,-50%) scale(1)}}
   #warnBanner{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:rgba(255,80,80,.95);padding:10px 14px;border-radius:8px;font-size:14px;display:none;z-index:20}
   #debug{position:fixed;left:8px;bottom:8px;background:rgba(0,0,0,.55);padding:6px 10px;border-radius:6px;font:12px/1.4 monospace;z-index:25}
+
+  /* 校正覆蓋層 */
+  #calibOverlay{position:fixed;inset:0;display:none;z-index:50;background:rgba(3,7,15,.86);backdrop-filter:blur(2px)}
+  #calibWrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92vw);padding:18px 16px;border-radius:12px;background:rgba(10,16,30,.9);box-shadow:0 10px 40px rgba(0,0,0,.4);border:1px solid rgba(120,213,255,.3)}
+  #calibTitle{font-size:22px;margin:6px 0 4px}
+  #calibInfo{opacity:.85;font-size:14px;margin-bottom:8px}
+  #calibBeatDot{width:24px;height:24px;border-radius:50%;margin:10px auto;background:#78d5ff;box-shadow:0 0 24px rgba(120,213,255,.9)}
+  #calibBig{font:700 42px/1.2 'Fredoka One',sans-serif;margin:8px 0 2px}
+  #calibStat{font:14px/1.4 monospace;opacity:.95;margin:2px 0 10px}
+  .calibBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .calibBtn{flex:1 1 140px;padding:14px 12px;font-size:18px;border-radius:10px;border:none;cursor:pointer}
+  .calibBtn.primary{background:#78d5ff}
+  .calibBtn.warn{background:#ffc857}
+  .calibBtn.cancel{background:#ff6b6b}
 </style>
 </head>
 <body>
@@ -174,6 +188,22 @@
     <button onclick="window.goToMenu && window.goToMenu()">回主選單</button>
   </div>
 
+  <!-- 校正覆蓋層 -->
+  <div id="calibOverlay">
+    <div id="calibWrap">
+      <div id="calibTitle">🎯 快速校正</div>
+      <div id="calibInfo">跟著節拍（每拍 800ms）按 DFJK 或點擊畫面，10 次後自動給建議偏移。</div>
+      <div id="calibBeatDot"></div>
+      <div id="calibBig">待機</div>
+      <div id="calibStat">0/10　建議偏移：—</div>
+      <div class="calibBtns">
+        <button id="calibStart" class="calibBtn primary">開始</button>
+        <button id="calibFinish" class="calibBtn warn" disabled>完成</button>
+        <button id="calibCancel" class="calibBtn cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
   <audio id="bgm" preload="auto"></audio>
 
@@ -253,7 +283,6 @@ function laneCenterX(index){
 }
 
 /* ========= 小工具 ========= */
-function dirToAngle(dir){switch(dir){case 'up':return -Math.PI/2;case 'down':return Math.PI/2;case 'left':return Math.PI;case 'right':return 0;}return 0}
 function laneFromKey(k){switch(k){case'd':case'arrowleft':return 0;case'f':case'arrowdown':return 1;case'j':case'arrowup':return 2;case'k':case'arrowright':return 3;default:return null}}
 function laneFromPointer(xCss){const rect=canvas.getBoundingClientRect();const x=xCss/rect.width*W;let best=0,bestd=1e9;for(let i=0;i<4;i++){const d=Math.abs(x-laneCenterX(i));if(d<bestd){bestd=d;best=i}}return best;}
 function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
@@ -285,12 +314,13 @@ function glitchAura(x,y,r,t,intensity=1){
   ctx.restore();
 }
 
+function dirToAngle(dir){switch(dir){case 'up':return -Math.PI/2;case 'down':return Math.PI/2;case 'left':return Math.PI;case 'right':return 0;}return 0}
 /* receptor 平時黑底白邊；命中/空打時整顆亮色 + 故障 */
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
   const p = Math.max(0, Math.min(1, pulse||0));
   const ang=dirToAngle(dir);
   const L=size*2.05, Hh=size*0.95, inner=0.62, cut=Hh*0.32;
-  const tip=L*0.52, tail=-L*TAIL_FACTOR;
+  const tip=L*0.52, tail=-L*0.44;
 
   ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
 
@@ -312,7 +342,7 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     const trailLen=L*0.92, bands=7;
     for(let i=0;i<bands;i++){
       const pp=i/(bands-1), w=(1-pp)*trailLen;
-      const a=(0.12*(1-pp))*GLITCH_AMPLIFY*((isReceptor)? p:1);
+      const a=(0.12*(1-pp))*1.5*((isReceptor)? p:1);
       ctx.save(); ctx.globalAlpha=a*(0.85+0.25*Math.sin(t*7+i));
       ctx.fillStyle = (i%2)? lighten(baseColor,.18):lighten(baseColor,.38);
       ctx.beginPath();
@@ -331,7 +361,7 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();
     ctx.lineWidth=2.1;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.stroke();
     if(p>0){
-      ctx.save();ctx.globalAlpha=(0.30+0.45*p)*GLITCH_AMPLIFY;ctx.fillStyle=lighten(baseColor,.28);
+      ctx.save();ctx.globalAlpha=(0.30+0.45*p)*1.5;ctx.fillStyle=lighten(baseColor,.28);
       ctx.beginPath();ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();ctx.restore();
     }
   }else{
@@ -339,7 +369,7 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     drawChevron(Hh*inner, 3.0, '#ffffff');
   }
 
-  const gAmp=(isReceptor? size*0.05 : size*0.10)*GLITCH_AMPLIFY*((isReceptor)? (0.3+0.7*p):1);
+  const gAmp=(isReceptor? size*0.05 : size*0.10)*1.5*((isReceptor)? (0.3+0.7*p):1);
   for(let k=0;k<4;k++){
     const ox=Math.sin(t*20 + k*1.9)*gAmp;
     const oy=Math.cos(t*26 + k*2.1)*gAmp*0.45;
@@ -384,7 +414,7 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* ========= 音訊：倒數完才允許播放 ========= */
+/* ========= 音訊：倒數完才允許播放（避免回音） ========= */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 const bgmEl=document.getElementById('bgm');
 let audioCtx=null,gainNode=null,buffer=null,srcNode=null,mode='silent';
@@ -404,8 +434,15 @@ async function loadViaWebAudio(url){
     buffer=await audioCtx.decodeAudioData(arr);
     durationSec=buffer.duration||120;
     waReady=true;
-    if(canStartMusic && mode!=='webaudio'){ startWebAudio(getClockSec()); }
-  }catch(e){}
+    if(canStartMusic){
+      if(mode==='html5'){ // 由 HTML5 平滑切換到 WebAudio，避免雙播回音
+        const cur=getClockSec(); try{bgmEl.pause();}catch{}
+        startWebAudio(cur);
+      }else if(mode==='silent'){
+        startWebAudio(getClockSec());
+      }
+    }
+  }catch(e){/* 忽略，HTML5 會接手 */}
 }
 function startWebAudio(offsetSec){
   if(!buffer) return;
@@ -422,7 +459,9 @@ function startWebAudio(offsetSec){
 function loadViaHTML5(url){
   return new Promise((resolve,reject)=>{
     bgmEl.src=url; bgmEl.preload='auto';
-    const ok=()=>{cleanup(); durationSec=isFinite(bgmEl.duration)?bgmEl.duration:durationSec; htmlReady=true; if(canStartMusic && mode!=='webaudio' && mode!=='html5'){ startHTML5(getClockSec()); } resolve(); };
+    const ok=()=>{cleanup(); durationSec=isFinite(bgmEl.duration)?bgmEl.duration:durationSec; htmlReady=true;
+      if(canStartMusic && mode==='silent'){ startHTML5(getClockSec()); } // 只在 silent 時啟動，避免回音
+      resolve(); };
     const err=()=>{cleanup(); reject(new Error('html5 error'));};
     const cleanup=()=>{ bgmEl.removeEventListener('canplay',ok); bgmEl.removeEventListener('error',err); };
     bgmEl.addEventListener('canplay',ok,{once:true});
@@ -569,19 +608,13 @@ function render(opts={skipNotes:false}){
   }
   if(lastJudgementText!=='-'){ctx.fillStyle='#fff';ctx.font='bold 32px sans-serif';ctx.textAlign='center';const off=(currentDirection==='up')?120:-40;ctx.fillText(lastJudgementText,W/2,judge+off);}
 }
-
-/* === 倒數專用：預覽剩餘音符（不改狀態、不計判定、不記 MISS） === */
 function renderPreviewAt(previewSongTimeSec){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
-
-  // receptor 保留現有 pulse
   for(let i=0;i<4;i++){
     const x=laneCenterX(i);
     drawBlueStreakArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:laneColors[i],isReceptor:true,pulse:receptorPulse[i],t});
   }
-
-  // 將「未命中」音符用預覽時間算位置（不改 chart[].y）
   const top=-140,bottom=H+140;
   for(let i=0;i<chart.length;i++){
     const n=chart[i]; if(n.hit)continue;
@@ -592,7 +625,7 @@ function renderPreviewAt(previewSongTimeSec){
   }
 }
 
-/* ========= UI：熱圖 + 左上徽章 ========= */
+/* ========= UI：熱圖 + 徽章 ========= */
 function drawCornerBadge(){
   const x=14,y=14;
   uictx.save(); uictx.translate(x,y);
@@ -644,11 +677,11 @@ function onLanePress(lane){
   }
 }
 
-/* ========= 倒數（支援顯示剩餘音符） ========= */
+/* ========= 倒數 ========= */
 let isCountingDown=false, countdownRAF=null;
 function showCountdown(startCallback, opts={}){
-  const showNotes = !!opts.showNotes;
-  const previewTimeSec = (typeof opts.previewTime === 'number') ? opts.previewTime : 0;
+  const showNotes=!!opts.showNotes;
+  const previewTimeSec=(typeof opts.previewTime==='number')?opts.previewTime:0;
 
   cancelCountdown(); isCountingDown=true;
   const el=document.getElementById('countdownText'); el.style.display='block';
@@ -660,12 +693,10 @@ function showCountdown(startCallback, opts={}){
     const elapsed=now-t0;
     let acc=0, idx=labels.length-1;
     for(let i=0;i<labels.length;i++){acc+=dur[i]; if(elapsed<acc){idx=i; break;}}
-    el.textContent = (idx<labels.length? labels[idx] : 'Go!');
+    el.textContent=(idx<labels.length?labels[idx]:'Go!');
     el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
 
-    // 倒數畫面：可選擇顯示剩餘音符（不改狀態）
-    if(showNotes){ renderPreviewAt(previewTimeSec); }
-    else{ render({skipNotes:true}); }
+    if(showNotes){ renderPreviewAt(previewTimeSec); } else { render({skipNotes:true}); }
     renderUI();
 
     if(elapsed>=COUNTDOWN_MS){
@@ -685,6 +716,7 @@ function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
 /* ========= 音量/校正/曲庫 ========= */
+function setGlobalOffset(ms){const v=Math.max(-600,Math.min(600,(ms|0)));INPUT_OFFSET_MS=v;localStorage.setItem('dfjk.offsetMs',String(v));document.getElementById('offsetLabel').textContent=`${v} ms`;document.getElementById('offsetActive').textContent=`${v} ms`}
 function initVolumeUI(){
   const s=document.getElementById('volumeSlider');
   const l=document.getElementById('volumeLabel');
@@ -692,12 +724,106 @@ function initVolumeUI(){
   s.value=String(saved); l.textContent=`${saved}%`; setVolumes(saved); setSfxFromMaster(saved);
   s.addEventListener('input',()=>{const v=+s.value; l.textContent=`${v}%`; setVolumes(v); setSfxFromMaster(v); localStorage.setItem('dfjk.volume',String(v));});
 }
-function setGlobalOffset(ms){const v=Math.max(-600,Math.min(600,(ms|0)));INPUT_OFFSET_MS=v;localStorage.setItem('dfjk.offsetMs',String(v));document.getElementById('offsetLabel').textContent=`${v} ms`;document.getElementById('offsetActive').textContent=`${v} ms`}
+
+/* ====== 快速校正 Overlay ====== */
+const calibPanel=document.getElementById('calibOverlay');
+const calibStartBtn=document.getElementById('calibStart');
+const calibFinishBtn=document.getElementById('calibFinish');
+const calibCancelBtn=document.getElementById('calibCancel');
+const calibBig=document.getElementById('calibBig');
+const calibDot=document.getElementById('calibBeatDot');
+const calibStat=document.getElementById('calibStat');
+
+let isCalibrating=false, calibT0=0, calibInt=0.8, calibBeats=16, tapSamples=[], tapHandler=null, calibTimer=null, dotTimer=null;
+
+function openCalibrator(){
+  if(phase==='playing'||phase==='countdown') { banner('請先退出遊戲再校正'); return; }
+  calibPanel.style.display='block';
+  calibBig.textContent='待機';
+  calibStat.textContent='0/10　建議偏移：—';
+  tapSamples=[]; calibFinishBtn.disabled=true;
+}
+function closeCalibrator(){ calibPanel.style.display='none'; stopCalibTimers(); isCalibrating=false; if(tapHandler){window.removeEventListener('keydown',tapHandler); calibPanel.removeEventListener('pointerdown',tapHandler); tapHandler=null;} }
+function stopCalibTimers(){ if(calibTimer){clearInterval(calibTimer);calibTimer=null;} if(dotTimer){clearInterval(dotTimer);dotTimer=null;} }
+
+function startCalib(){
+  tapSamples=[]; calibFinishBtn.disabled=true; isCalibrating=true;
+  try{ ensureAudio().then(()=>audioCtx.resume()).catch(()=>{});}catch{}
+  calibT0=performance.now()/1000 + 0.8; // 0.8s後開始第一拍
+  const beats=calibBeats; const int=calibInt;
+
+  // 節拍可視
+  dotTimer=setInterval(()=>{
+    calibDot.style.transform='scale(1.25)';
+    calibDot.style.boxShadow='0 0 28px rgba(120,213,255,1)';
+    setTimeout(()=>{calibDot.style.transform='scale(1)';calibDot.style.boxShadow='0 0 24px rgba(120,213,255,.9)';},120);
+  }, int*1000);
+
+  // 節拍音（WebAudio beep）
+  const beep = ()=>{
+    if(!audioCtx) return;
+    const osc=audioCtx.createOscillator(); const g=audioCtx.createGain();
+    osc.frequency.value=880; g.gain.value=0.0001; osc.connect(g); g.connect(audioCtx.destination);
+    const t=audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(0.5,t+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+0.08);
+    osc.start(t); osc.stop(t+0.09);
+  };
+
+  let beatCount=0;
+  calibTimer=setInterval(()=>{
+    if(beatCount>=beats){ stopCalibTimers(); return; }
+    beep(); beatCount++;
+  }, int*1000);
+
+  // Tap 收集
+  tapHandler=(e)=>{
+    if(e.type==='keydown'){
+      const k=e.key.toLowerCase();
+      if(k!=='d'&&k!=='f'&&k!=='j'&&k!=='k') return;
+      e.preventDefault();
+    }
+    const t=performance.now()/1000;
+    // 對齊最近拍
+    let k=Math.round((t - calibT0)/int);
+    const tBeat=calibT0 + k*int;
+    const deltaMs=(t - tBeat)*1000;
+    if (Math.abs(deltaMs)<=400){ tapSamples.push(deltaMs); }
+    const need=10; const nowN=Math.min(tapSamples.length,need);
+    let advise='—';
+    if(nowN>=4){
+      const sorted=[...tapSamples].sort((a,b)=>a-b);
+      const mid=sorted[Math.floor(sorted.length/2)];
+      const rec=Math.max(-600,Math.min(600,Math.round(mid/5)*5));
+      advise = (rec>0?'+':'')+rec+' ms';
+    }
+    calibBig.textContent = nowN+'/'+need;
+    calibStat.textContent = `${nowN}/${need}　建議偏移：${advise}`;
+    if(nowN>=need) calibFinishBtn.disabled=false;
+  };
+  window.addEventListener('keydown',tapHandler);
+  calibPanel.addEventListener('pointerdown',tapHandler);
+}
+
+function finishCalib(){
+  if(tapSamples.length===0){ closeCalibrator(); return; }
+  const sorted=[...tapSamples].sort((a,b)=>a-b);
+  const mid=sorted[Math.floor(sorted.length/2)];
+  const recommended=Math.max(-600,Math.min(600,Math.round(mid/5)*5));
+  setGlobalOffset(recommended);
+  banner(`已套用偏移：${recommended} ms`);
+  closeCalibrator();
+}
+
 function initOffsetUI(){
   const s=document.getElementById('offsetSlider'),lab=document.getElementById('offsetLabel');
   const saved=+(localStorage.getItem('dfjk.offsetMs')||0);
   s.value=String(saved); lab.textContent=`${saved} ms`; setGlobalOffset(saved);
-  document.getElementById('offsetCalibBtn').addEventListener('click',()=>alert('快速校正保留；要全自動我再升級。'));
+  document.getElementById('offsetCalibBtn').addEventListener('click',openCalibrator);
+  calibStartBtn.addEventListener('click',()=>{ if(!isCalibrating){ startCalib(); }});
+  calibFinishBtn.addEventListener('click',finishCalib);
+  calibCancelBtn.addEventListener('click',closeCalibrator);
 }
 
 /* 曲庫（完整） */
@@ -730,7 +856,7 @@ const SONGS = [
   "YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3",
   "YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3",
   "YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3",
-  "【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3",
+  "【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3",
   "Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3",
   "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
 ];
@@ -771,14 +897,12 @@ async function startGame(){
 
     generateChart(durationSec || 120);
 
-    // 預先載音，但禁止開聲
+    // 預載，禁止開聲
     waReady=htmlReady=false; canStartMusic=false; stopAllAudio(); mode='silent';
     loadViaWebAudio(url);
     loadViaHTML5(url).catch(()=>{});
 
-    // 初次倒數不顯示音符
     showCountdown(()=>{
-      // 倒數結束：啟動 → 立刻設為 playing（修 ESC）
       canStartMusic=true;
       phase='playing';
       running=true; paused=false; prevT=0;
@@ -807,11 +931,10 @@ function resumeGame(){
   paused=false; phase='countdown';
   showOnly('gameScreen'); document.getElementById('gameScreen').classList.remove('blur');
 
-  // 倒數：顯示「暫停當下」的剩餘音符
   canStartMusic=false;
   showCountdown(()=>{
     canStartMusic=true;
-    phase='playing';         // ★ 恢復後立即設定 playing（修 ESC）
+    phase='playing';
     running=true; prevT=pausedAt;
     playSilent(pausedAt);
     if(waReady)      startWebAudio(getClockSec());
@@ -859,13 +982,13 @@ window.addEventListener('keydown',e=>{
   const lane=laneFromKey(key);
   if(lane!==null){ if(running&&!paused) onLanePress(lane); e.preventDefault(); return; }
   if(key==='escape'){
-    // 只有在 playing ↔ paused 間切換
     if(phase==='playing'){ pauseGame(); }
     else if(phase==='paused'){ resumeGame(); }
     e.preventDefault();
   }
 });
 
+/* 只在 canvas 上攔截觸控，讓手機的暫停按鈕可點擊 */
 canvas.addEventListener('pointerdown',e=>{
   if(!running||paused)return;
   e.preventDefault();
@@ -873,13 +996,9 @@ canvas.addEventListener('pointerdown',e=>{
   const lane=laneFromPointer(e.clientX-rect.left);
   onLanePress(lane);
 },{passive:false});
+canvas.addEventListener('touchstart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
+canvas.addEventListener('touchmove',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 
-window.addEventListener('touchstart',e=>{
-  if(phase==='playing'||phase==='countdown') e.preventDefault();
-},{passive:false});
-window.addEventListener('touchmove',e=>{
-  if(phase==='playing'||phase==='countdown') e.preventDefault();
-},{passive:false});
 window.addEventListener('dblclick',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 window.addEventListener('gesturestart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 
