@@ -55,7 +55,7 @@
   #calibWrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92vw);padding:18px 16px;border-radius:12px;background:rgba(10,16,30,.9);box-shadow:0 10px 40px rgba(0,0,0,.4);border:1px solid rgba(120,213,255,.3)}
   #calibTitle{font-size:22px;margin:6px 0 4px}
   #calibInfo{opacity:.85;font-size:14px;margin-bottom:8px}
-  #calibBeatDot{width:24px;height:24px;border-radius:50%;margin:10px auto;background:#78d5ff;box-shadow:0 0 24px rgba(120,213,255,.9)}
+  #calibBeatDot{width:24px;height:24px;border-radius:50%;margin:10px auto;background:#78d5ff;box-shadow:0 0 28px rgba(120,213,255,.9)}
   #calibBig{font:700 42px/1.2 'Fredoka One',sans-serif;margin:8px 0 2px}
   #calibStat{font:14px/1.4 monospace;opacity:.95;margin:2px 0 10px}
   .calibBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
@@ -130,11 +130,21 @@
         <option value="new">New Input（移除 WRONG）</option>
       </select>
     </div>
+
+    <!-- 主音量 -->
     <div class="row">
-      <label for="volumeSlider">音量：</label>
+      <label for="volumeSlider">主音量：</label>
       <input id="volumeSlider" type="range" min="0" max="100" value="80" />
       <span id="volumeLabel">80%</span>
     </div>
+
+    <!-- ★ 新增：敲擊聲音量（只控制金屬敲擊與校正 beep） -->
+    <div class="row">
+      <label for="sfxSlider">敲擊聲音量：</label>
+      <input id="sfxSlider" type="range" min="0" max="100" value="70" />
+      <span id="sfxLabel">70%</span>
+    </div>
+
     <div class="row"><hr style="opacity:.2"></div>
     <h3>🎯 命中延遲校正</h3>
     <div class="row">
@@ -215,7 +225,7 @@
 const MUSIC_DIR = 'music/';
 const CENTER_TUCK_PX = 10;
 const GLITCH_AMPLIFY = 1.5;
-const TAIL_FACTOR    = 0.36;   // ← 尾翼更短（你前一個需求）
+const TAIL_FACTOR    = 0.36;
 const COUNTDOWN_MS   = 3200;
 
 /* ========= 畫布與尺寸 ========= */
@@ -283,15 +293,16 @@ function laneCenterX(index){
 }
 
 /* ========= 小工具 ========= */
-function setDebug(mode, err){debugEl.textContent=`mode: ${mode} | err: ${err||'-'}`;}
 function laneFromKey(k){switch(k){case'd':case'arrowleft':return 0;case'f':case'arrowdown':return 1;case'j':case'arrowup':return 2;case'k':case'arrowright':return 3;default:return null}}
 function laneFromPointer(xCss){const rect=canvas.getBoundingClientRect();const x=xCss/rect.width*W;let best=0,bestd=1e9;for(let i=0;i<4;i++){const d=Math.abs(x-laneCenterX(i));if(d<bestd){bestd=d;best=i}}return best;}
 function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
 function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory.length;const avg=dtHistory.reduce((a,c)=>a+c,0)/n;const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;return{avg,std:Math.sqrt(va)};}
 function banner(msg){const b=document.getElementById('warnBanner'); b.textContent=msg; b.style.display='block'; setTimeout(()=>b.style.display='none',3000);}
+function setDebug(mode, err){debugEl.textContent=`mode: ${mode} | err: ${err||'-'}`}
 
 /* ========= Cyberpunk 箭頭 ========= */
 function lighten(c,a){const p=parseInt(c.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`}
+
 function glitchAura(x,y,r,t,intensity=1){
   if(intensity<=0) return;
   ctx.save();
@@ -312,8 +323,8 @@ function glitchAura(x,y,r,t,intensity=1){
   ctx.strokeStyle='rgba(255,0,160,.45)'; ctx.beginPath(); ctx.arc(x-1.1,y+1.1,r*0.98,0,Math.PI*2); ctx.stroke();
   ctx.restore();
 }
+
 function dirToAngle(dir){switch(dir){case 'up':return -Math.PI/2;case 'down':return Math.PI/2;case 'left':return Math.PI;case 'right':return 0;}return 0}
-/* receptor：黑底白邊；命中/空打時整顆亮色 + 故障 */
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
   const p = Math.max(0, Math.min(1, pulse||0));
   const ang=dirToAngle(dir);
@@ -412,14 +423,20 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* ========= 音訊：倒數完才允許播放（避免回音） + SFX 敲擊聲 ========= */
+/* ========= 音訊（含 SFX 獨立音量） ========= */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 const bgmEl=document.getElementById('bgm');
 let audioCtx=null,gainNode=null,buffer=null,srcNode=null,mode='silent';
-let sfxGain=null; // ← SFX 混音（跟 master 同一路）
 let startAtCtx=0,startAtSong=0,softBaseSong=0,softStartPerf=0;
 let durationSec=120,songEnded=false;
 let waReady=false, htmlReady=false, canStartMusic=false;
+
+/* 主音量（0..1）與 SFX 使用者音量（0..1） */
+let MASTER_VOL_N = 0.8;
+let SFX_LEVEL = (+(localStorage.getItem('dfjk.sfxVol')||70))/100;
+
+/* 混音節點：主 => destination；SFX => sfxGain => 主 */
+let sfxGain = null;
 
 async function ensureAudio(){
   if(!audioCtx){
@@ -431,30 +448,31 @@ async function ensureAudio(){
   }
   if(!sfxGain){
     sfxGain=audioCtx.createGain();
-    sfxGain.gain.value=0.85; // SFX 比主音量略小
     sfxGain.connect(gainNode);
+    applySfxGain(); // 初始化一次
   }
 }
-function loadViaWebAudio(url){
-  return (async ()=>{
-    try{
-      await ensureAudio();
-      const res=await fetch(url,{mode:'cors'});
-      if(!res.ok) throw new Error(`fetch ${res.status}`);
-      const arr=await res.arrayBuffer();
-      buffer=await audioCtx.decodeAudioData(arr);
-      durationSec=buffer.duration||120;
-      waReady=true;
-      if(canStartMusic){
-        if(mode==='html5'){
-          const cur=getClockSec(); try{bgmEl.pause();}catch{}
-          startWebAudio(cur);
-        }else if(mode==='silent'){
-          startWebAudio(getClockSec());
-        }
+
+function setDebug(mode, err){debugEl.textContent=`mode: ${mode} | err: ${err||'-'}`}
+
+async function loadViaWebAudio(url){
+  try{
+    await ensureAudio();
+    const res=await fetch(url,{mode:'cors'});
+    if(!res.ok) throw new Error(`fetch ${res.status}`);
+    const arr=await res.arrayBuffer();
+    buffer=await audioCtx.decodeAudioData(arr);
+    durationSec=buffer.duration||120;
+    waReady=true;
+    if(canStartMusic){
+      if(mode==='html5'){
+        const cur=getClockSec(); try{bgmEl.pause();}catch{}
+        startWebAudio(cur);
+      }else if(mode==='silent'){
+        startWebAudio(getClockSec());
       }
-    }catch(e){/* 讓 HTML5 當後備 */}
-  })();
+    }
+  }catch(e){/* 忽略，HTML5 會接手 */}
 }
 function startWebAudio(offsetSec){
   if(!buffer) return;
@@ -494,72 +512,93 @@ function getClockSec(){
   if(mode==='webaudio' && audioCtx && buffer && srcNode){
     return Math.max(0,Math.min(durationSec,(audioCtx.currentTime-startAtCtx)+startAtSong));
   }
-  if(mode==='html5'){
-    const t = (bgmEl && !isNaN(bgmEl.currentTime)) ? bgmEl.currentTime : (performance.now()/1000-softStartPerf)+softBaseSong;
-    return Math.max(0,Math.min(durationSec,t));
-  }
+  if(mode==='html5'){ return Math.max(0,Math.min(durationSec,(performance.now()/1000-softStartPerf)+softBaseSong)); }
   return Math.max(0,Math.min(durationSec,(performance.now()/1000-softStartPerf)+softBaseSong));
 }
 function getJudgeClockSec(){return getClockSec()+(INPUT_OFFSET_MS/1000)}
 function setVolumes(percent){
   const v=Math.max(0,Math.min(100,percent))/100;
+  MASTER_VOL_N = v;
   if(gainNode) gainNode.gain.value=v;
   if(bgmEl)    bgmEl.volume=v;
+  applySfxGain();
 }
 
-/* ========= SFX ========= */
-const hitSound=document.getElementById('hitSound');const SFX_GAIN=1.6;
-class TapSoundPool{constructor(src,size=10){this.pool=[];this.idx=0;for(let i=0;i<size;i++){const a=new Audio(src);a.preload='auto';a.volume=1.0;this.pool.push(a)}}setVolume(v){const vol=Math.max(0,Math.min(1,v));for(const a of this.pool)a.volume=vol}play(){const a=this.pool[this.idx];this.idx=(this.idx+1)%this.pool.length;try{a.currentTime=0;a.play().catch(()=>{})}catch{}}}
+/* ★ 套用 SFX 音量（主音量 * 使用者 SFX 係數），並同步 mp3 池後備音量 */
+const SFX_GAIN = 1.6; // 後備 mp3 的額外增益上限
 let tapPool=null;
-function setSfxFromMaster(percent){
-  const v=Math.max(0,Math.min(100,percent))/100;
-  if(sfxGain) sfxGain.gain.value=Math.min(1,v*0.85); // 合成 SFX 也跟主音量走
-  if(!tapPool)tapPool=new TapSoundPool(hitSound.src,12);
-  tapPool.setVolume(Math.min(1,v*SFX_GAIN));
-  hitSound.volume=Math.min(1,v*SFX_GAIN);
+const hitSound=document.getElementById('hitSound');
+
+function applySfxGain(){
+  if(sfxGain) sfxGain.gain.value = Math.min(1, MASTER_VOL_N * SFX_LEVEL);
+  // 後備 mp3 與池
+  if(!tapPool) tapPool = new TapSoundPool(hitSound.src, 12);
+  const poolVol = Math.min(1, MASTER_VOL_N * SFX_GAIN * SFX_LEVEL);
+  tapPool.setVolume(poolVol);
+  hitSound.volume = poolVol;
+}
+function setSfxLevelUI(percent){
+  SFX_LEVEL = Math.max(0, Math.min(100, percent)) / 100;
+  localStorage.setItem('dfjk.sfxVol', String(percent));
+  applySfxGain();
 }
 
-// 合成金屬「ㄆㄧㄚˉ」：主音(三角)+金屬泛音(方波)+帶通噪音點擊
+class TapSoundPool{constructor(src,size=10){this.pool=[];this.idx=0;for(let i=0;i<size;i++){const a=new Audio(src);a.preload='auto';a.volume=1.0;this.pool.push(a)}}setVolume(v){const vol=Math.max(0,Math.min(1,v));for(const a of this.pool)a.volume=vol}play(){const a=this.pool[this.idx];this.idx=(this.idx+1)%this.pool.length;try{a.currentTime=0;a.play().catch(()=>{})}catch{}}}
+
+/* ★ 更清脆的金屬 Ping（頻率更高、衰減更短、加短促噪聲） */
 function playMetalPing(){
-  if(!audioCtx){
-    if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12);
+  if(!audioCtx){ // 無 WebAudio 退回 mp3 池
+    if(!tapPool) tapPool = new TapSoundPool(hitSound.src, 12);
     tapPool.play();
     return;
   }
-  const t0=audioCtx.currentTime+0.001, dur=0.12;
+  const t0 = audioCtx.currentTime + 0.001;
+  const dur = 0.09; // 短一點
+  const mix = audioCtx.createGain();
+  mix.connect(sfxGain || gainNode);
 
-  const mix=audioCtx.createGain();
-  (sfxGain||gainNode).connect ? mix.connect(sfxGain||gainNode) : mix.connect(audioCtx.destination);
-
-  const osc=audioCtx.createOscillator();
-  osc.type='triangle'; osc.frequency.setValueAtTime(1900,t0);
-  osc.frequency.exponentialRampToValueAtTime(1200,t0+dur);
-  const g1=audioCtx.createGain(); g1.gain.setValueAtTime(0.0001,t0);
-  g1.gain.exponentialRampToValueAtTime(0.55,t0+0.004);
-  g1.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  // 主體：triangle 高頻下滑
+  const osc = audioCtx.createOscillator();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(2600, t0);           // ↑ 調高起始頻率
+  osc.frequency.exponentialRampToValueAtTime(1800, t0 + dur);
+  const g1 = audioCtx.createGain();
+  g1.gain.setValueAtTime(0.0001, t0);
+  g1.gain.exponentialRampToValueAtTime(0.55, t0 + 0.004);
+  g1.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   osc.connect(g1); g1.connect(mix);
 
-  const osc2=audioCtx.createOscillator();
-  osc2.type='square'; osc2.frequency.setValueAtTime(3100,t0);
-  const g2=audioCtx.createGain(); g2.gain.setValueAtTime(0.18,t0);
-  g2.gain.exponentialRampToValueAtTime(0.0001,t0+dur*0.9);
+  // 輔助：超高頻方波短閃
+  const osc2 = audioCtx.createOscillator();
+  osc2.type = 'square';
+  osc2.frequency.setValueAtTime(5200, t0);          // ↑ 更高，帶亮邊
+  const g2 = audioCtx.createGain();
+  g2.gain.setValueAtTime(0.12, t0);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur*0.8);
   osc2.connect(g2); g2.connect(mix);
 
-  const noiseBuf=audioCtx.createBuffer(1,256,audioCtx.sampleRate);
-  const data=noiseBuf.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1;
-  const noise=audioCtx.createBufferSource(); noise.buffer=noiseBuf;
-  const bp=audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=6000; bp.Q.value=4;
-  const ng=audioCtx.createGain(); ng.gain.setValueAtTime(0.14,t0);
-  ng.gain.exponentialRampToValueAtTime(0.0001,t0+0.05);
+  // 亮點：短促高頻噪聲（bandpass）
+  const noiseBuf = audioCtx.createBuffer(1, 256, audioCtx.sampleRate);
+  const data = noiseBuf.getChannelData(0);
+  for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = noiseBuf;
+  const bp = audioCtx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = 7000; bp.Q.value = 5;  // ↑ 中心頻率更高
+  const ng = audioCtx.createGain();
+  ng.gain.setValueAtTime(0.10, t0);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
   noise.connect(bp); bp.connect(ng); ng.connect(mix);
 
-  osc.start(t0);  osc.stop(t0+dur+0.02);
-  osc2.start(t0); osc2.stop(t0+dur);
-  noise.start(t0); noise.stop(t0+0.06);
+  osc.start(t0);  osc.stop(t0 + dur + 0.02);
+  osc2.start(t0); osc2.stop(t0 + dur);
+  noise.start(t0); noise.stop(t0 + 0.05);
 }
+
+/* 以 WebAudio 為主；失敗才用 mp3 池 */
 async function playTapSound(){
-  try{ await ensureAudio(); if(audioCtx){ playMetalPing(); return; } }catch{}
-  if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12);
+  try{ await ensureAudio(); if(audioCtx) { playMetalPing(); return; } }catch{}
+  if(!tapPool) tapPool = new TapSoundPool(hitSound.src, 12);
   tapPool.play();
 }
 
@@ -687,7 +726,7 @@ function renderPreviewAt(previewSongTimeSec){
   }
 }
 
-/* ========= UI：熱圖 + 徽章 ========= */
+/* ========= UI：角落徽章 + 熱圖 ========= */
 function drawCornerBadge(){
   const x=14,y=14;
   uictx.save(); uictx.translate(x,y);
@@ -719,7 +758,8 @@ function renderUI(){
 /* ========= 輸入 ========= */
 function onLanePress(lane){
   if(!running)return;
-  playTapSound();
+  playTapSound(); // 命中或空打都會敲
+
   const tNow=getJudgeClockSec();
   let bestIdx=-1, bestAbs=Infinity;
   for(let i=0;i<chart.length;i++){
@@ -780,11 +820,24 @@ function showMusic(){showOnly('musicScreen')}
 /* ========= 音量/校正/曲庫 ========= */
 function setGlobalOffset(ms){const v=Math.max(-600,Math.min(600,(ms|0)));INPUT_OFFSET_MS=v;localStorage.setItem('dfjk.offsetMs',String(v));document.getElementById('offsetLabel').textContent=`${v} ms`;document.getElementById('offsetActive').textContent=`${v} ms`}
 function initVolumeUI(){
+  // 主音量
   const s=document.getElementById('volumeSlider');
   const l=document.getElementById('volumeLabel');
   const saved=+localStorage.getItem('dfjk.volume')||80;
-  s.value=String(saved); l.textContent=`${saved}%`; setVolumes(saved); setSfxFromMaster(saved);
-  s.addEventListener('input',()=>{const v=+s.value; l.textContent=`${v}%`; setVolumes(v); setSfxFromMaster(v); localStorage.setItem('dfjk.volume',String(v));});
+  s.value=String(saved); l.textContent=`${saved}%`; setVolumes(saved);
+
+  // 敲擊聲音量（獨立）
+  const ss=document.getElementById('sfxSlider');
+  const sl=document.getElementById('sfxLabel');
+  const savedSfx=+localStorage.getItem('dfjk.sfxVol')||70;
+  ss.value=String(savedSfx); sl.textContent=`${savedSfx}%`; setSfxLevelUI(savedSfx);
+
+  s.addEventListener('input',()=>{const v=+s.value; l.textContent=`${v}%`; setVolumes(v); localStorage.setItem('dfjk.volume',String(v));});
+  ss.addEventListener('input',()=>{const v=+ss.value; sl.textContent=`${v}%`; setSfxLevelUI(v);});
+}
+
+function setSfxFromMaster(percent){ // 兼容舊呼叫（留著）
+  setVolumes(percent);
 }
 
 /* ====== 快速校正 Overlay ====== */
@@ -812,14 +865,15 @@ function startCalib(){
   tapSamples=[]; calibFinishBtn.disabled=true; isCalibrating=true;
   try{ ensureAudio().then(()=>audioCtx.resume()).catch(()=>{});}catch{}
   calibT0=performance.now()/1000 + 0.8;
+  const beats=calibBeats; const int=calibInt;
 
   dotTimer=setInterval(()=>{
     calibDot.style.transform='scale(1.25)';
     calibDot.style.boxShadow='0 0 28px rgba(120,213,255,1)';
     setTimeout(()=>{calibDot.style.transform='scale(1)';calibDot.style.boxShadow='0 0 24px rgba(120,213,255,.9)';},120);
-  }, calibInt*1000);
+  }, int*1000);
 
-  // 與主 SFX 同路的節拍器
+  // 校正 Beep（走 SFX 音量）
   const beep = ()=>{
     if(!audioCtx) return;
     const t = audioCtx.currentTime;
@@ -838,9 +892,9 @@ function startCalib(){
 
   let beatCount=0;
   calibTimer=setInterval(()=>{
-    if(beatCount>=calibBeats){ stopCalibTimers(); return; }
+    if(beatCount>=beats){ stopCalibTimers(); return; }
     beep(); beatCount++;
-  }, calibInt*1000);
+  }, int*1000);
 
   tapHandler=(e)=>{
     if(e.type==='keydown'){
@@ -849,8 +903,8 @@ function startCalib(){
       e.preventDefault();
     }
     const t=performance.now()/1000;
-    let k=Math.round((t - calibT0)/calibInt);
-    const tBeat=calibT0 + k*calibInt;
+    let k=Math.round((t - calibT0)/int);
+    const tBeat=calibT0 + k*int;
     const deltaMs=(t - tBeat)*1000;
     if (Math.abs(deltaMs)<=400){ tapSamples.push(deltaMs); }
     const need=10; const nowN=Math.min(tapSamples.length,need);
@@ -887,7 +941,7 @@ function initOffsetUI(){
   calibCancelBtn.addEventListener('click',closeCalibrator);
 }
 
-/* 曲庫（完整） */
+/* 曲庫 */
 const SONGS = [
   "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3",
   "Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3",
@@ -978,6 +1032,7 @@ async function startGame(){
     goToMenu();
   }
 }
+
 function pauseGame(){
   if(!running||paused)return;
   paused=true; phase='paused';
@@ -1047,8 +1102,6 @@ window.addEventListener('keydown',e=>{
     e.preventDefault();
   }
 });
-
-/* 只在 canvas 上攔截觸控，讓手機的暫停按鈕可點擊 */
 canvas.addEventListener('pointerdown',e=>{
   if(!running||paused)return;
   e.preventDefault();
@@ -1058,7 +1111,6 @@ canvas.addEventListener('pointerdown',e=>{
 },{passive:false});
 canvas.addEventListener('touchstart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 canvas.addEventListener('touchmove',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
-
 window.addEventListener('dblclick',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 window.addEventListener('gesturestart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 
@@ -1071,7 +1123,7 @@ function init(){
     console.error(err); banner('⚠️ 初始化出錯，請重整（詳見 Console）');
   }
 }
-window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout(); if(phase==='countdown'){ /* 保留倒數畫面渲染 */ } renderUI();});
+window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout(); if(phase==='countdown'){ } renderUI();});
 init();
 </script>
 </body>
