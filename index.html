@@ -31,6 +31,7 @@
   #gameCanvas{touch-action:none}
   canvas.ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;background:transparent;border:none;z-index:5}
 
+  /* 漸層偽邊界 */
   #edgeFade{position:absolute;inset:0;pointer-events:none;opacity:1;border-radius:10px;z-index:6;
     background:
       linear-gradient(to right, rgba(255,255,255,.16), rgba(255,255,255,0) 40%) left/16px 100% no-repeat,
@@ -74,9 +75,9 @@
   <div id="menuScreen">
     <h1>🎵 DFJK 高精度 Cyberpunk 版</h1>
     <div class="row">
-      <button onclick="window.startGame()">開始遊戲</button>
-      <button onclick="window.showMusic()">音樂</button>
-      <button onclick="window.showOptions()">選項</button>
+      <button id="btnStart">開始遊戲</button>
+      <button id="btnMusic">音樂</button>
+      <button id="btnOptions">選項</button>
     </div>
     <div class="row">已選曲目：<span id="menuChosenSong">尚未選擇</span></div>
   </div>
@@ -89,8 +90,8 @@
       <div class="hint">必須選擇曲目才可開始。</div>
     </div>
     <div class="row">
-      <button onclick="window.confirmSong()">確定</button>
-      <button onclick="window.goToMenu()">回主選單</button>
+      <button id="btnSongConfirm">確定</button>
+      <button class="btnBackMenu">回主選單</button>
     </div>
     <div class="row">已選：<span id="chosenSongLabel">尚未選擇</span></div>
   </div>
@@ -155,12 +156,12 @@
       <span id="offsetLabel">0 ms</span>
       <button id="offsetCalibBtn" type="button">快速校正</button>
     </div>
-    <div class="row"><button onclick="window.goToMenu()">回主選單</button></div>
+    <div class="row"><button class="btnBackMenu">回主選單</button></div>
   </div>
 
   <!-- 遊戲畫面 -->
   <div id="gameScreen" style="display:none; position:relative;">
-    <button id="pauseButton" onclick="window.pauseGame()">⏸️</button>
+    <button id="pauseButton">⏸️</button>
     <div id="stage">
       <canvas id="gameCanvas" width="420" height="640"></canvas>
       <canvas id="uiCanvas" class="ui" width="420" height="640"></canvas>
@@ -179,8 +180,8 @@
   <!-- 暫停 -->
   <div id="pauseScreen" style="display:none;">
     <h2>⏸️ 遊戲暫停</h2>
-    <button onclick="window.resumeGame()">▶️ 繼續</button>
-    <button onclick="window.goToMenu()">回主選單</button>
+    <button id="btnResume">▶️ 繼續</button>
+    <button class="btnBackMenu">回主選單</button>
   </div>
 
   <!-- 結算 -->
@@ -196,8 +197,8 @@
     <p>BAD：<span id="statBad">0</span></p>
     <p>SHIT：<span id="statShit">0</span></p>
     <p>MISS：<span id="statMiss">0</span></p>
-    <button onclick="window.startGame()">再玩一次</button>
-    <button onclick="window.goToMenu()">回主選單</button>
+    <button id="btnRestart">再玩一次</button>
+    <button class="btnBackMenu">回主選單</button>
   </div>
 
   <!-- 校正覆蓋層 -->
@@ -220,12 +221,10 @@
   <audio id="bgm" preload="auto"></audio>
 
   <div id="warnBanner">⚠️ 提示</div>
-  <div id="debug">mode: - | err: -</div>
+  <div id="debug" style="display:none">-</div>
 
 <script>
-/* ====== 參考：主要結構與上一版一致，僅重點改「電流四面八方」與「填色回復」 ====== */
-
-/* 尺寸 / DPR */
+/* ===================== 基本尺寸 & DPR ===================== */
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
 const uiCanvas=document.getElementById('uiCanvas');
@@ -241,7 +240,7 @@ setupDPR();
 const IS_MOBILE=window.matchMedia('(pointer: coarse)').matches;
 const SUPPORTS_VIB=IS_MOBILE&&'vibrate' in navigator;
 
-/* 狀態 */
+/* ===================== 狀態 ===================== */
 const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666']; // 左下上右
 const laneDirs=['left','down','up','right'];
 const HITKEY_BASE=90, NOTE_BASE=46;
@@ -264,7 +263,7 @@ function addHitFx(lane){hitFx.push({lane,t0:performance.now()/1000,life:0.25});}
 let comboFlashText='', comboFlashT0=0;
 function triggerComboFlash(){comboFlashText=`COMBO x${combo}!!`; comboFlashT0=performance.now()/1000;}
 
-/* 版面 */
+/* ===================== 版面 ===================== */
 let cachedRectH=canvas.getBoundingClientRect().height;
 let cachedScaleY=cachedRectH/H;
 let cachedJudgeCss=(HITKEY_BASE*uiScale/2);
@@ -293,18 +292,17 @@ function laneCenterX(index){
   return x;
 }
 
-/* 工具 */
+/* ===================== 工具 ===================== */
 function laneFromKey(k){switch(k){case'd':case'arrowleft':return 0;case'f':case'arrowdown':return 1;case'j':case'arrowup':return 2;case'k':case'arrowright':return 3;default:return null}}
 function laneFromPointer(xCss){const rect=canvas.getBoundingClientRect();const x=xCss/rect.width*W;let best=0,bestd=1e9;for(let i=0;i<4;i++){const d=Math.abs(x-laneCenterX(i));if(d<bestd){bestd=d;best=i}}return best;}
 function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
 function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory.length;const avg=dtHistory.reduce((a,c)=>a+c,0)/n;const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;return{avg,std:Math.sqrt(va)};}
 function banner(msg){const b=document.getElementById('warnBanner'); b.textContent=msg; b.style.display='block'; setTimeout(()=>b.style.display='none',3000);}
 
-/* 視覺：工具 */
+/* ===================== 視覺：特效 ===================== */
 const EFFECT_INTENSITY=1.0;
 function lighten(c,a){const p=parseInt(c.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`}
 
-/* 放射光暈（保留） */
 function glitchAura(x,y,r,t,intensity=1){
   if(intensity<=0) return;
   ctx.save();
@@ -324,7 +322,7 @@ function glitchAura(x,y,r,t,intensity=1){
   ctx.restore();
 }
 
-/* ✅ 四面八方雷擊（重寫） */
+/* 四面八方雷擊 */
 function radialElectric(x,y,r,t,intensity=1){
   ctx.save();
   ctx.globalCompositeOperation='lighter';
@@ -337,11 +335,9 @@ function radialElectric(x,y,r,t,intensity=1){
     const ex = sx + Math.cos(ang)*len;
     const ey = sy + Math.sin(ang)*len;
 
-    // 多段抖動（像真閃電）
     const k=5; ctx.beginPath();
     for(let j=0;j<=k;j++){
       const p=j/k;
-      // 沿路徑法線方向抖動
       const nx = sx+(ex-sx)*p + (Math.sin(t*40 + i*2 + j*1.3)*3.0) + (Math.random()*2-1)*1.2;
       const ny = sy+(ey-sy)*p + (Math.cos(t*36 + i*2 + j*1.1)*3.0) + (Math.random()*2-1)*1.2;
       j?ctx.lineTo(nx,ny):ctx.moveTo(nx,ny);
@@ -350,7 +346,6 @@ function radialElectric(x,y,r,t,intensity=1){
     ctx.strokeStyle=(i%3===0)?'#ffffff':((i%2)?'rgba(0,255,255,.9)':'rgba(255,0,160,.9)');
     ctx.stroke();
 
-    // 分岔
     if(Math.random()<0.45){
       const ba = ang + (Math.random()*0.8-0.4);
       const bl = len*(0.35+0.35*Math.random());
@@ -362,7 +357,6 @@ function radialElectric(x,y,r,t,intensity=1){
       ctx.lineWidth=1.2; ctx.strokeStyle=(i%2)?'rgba(0,255,255,.8)':'rgba(255,0,160,.8)'; ctx.stroke();
     }
   }
-  // 火花
   const sparks=Math.floor(22*intensity);
   for(let s=0;s<sparks;s++){
     const a=Math.random()*Math.PI*2;
@@ -376,10 +370,9 @@ function radialElectric(x,y,r,t,intensity=1){
   ctx.restore();
 }
 
-/* 箭頭主體（含填色邏輯） */
-const TAIL_FACTOR=0.30; // 尾翼短一點
+/* 箭頭造型 */
+const TAIL_FACTOR=0.30; // 尾翼略短
 function dirToAngle(dir){switch(dir){case'up':return -Math.PI/2;case'down':return Math.PI/2;case'left':return Math.PI;case'right':return 0;}return 0}
-
 function drawArrowPath(tail,tip,Hh,cut){
   ctx.beginPath();
   ctx.moveTo(tail, -Hh*0.55);
@@ -390,22 +383,17 @@ function drawArrowPath(tail,tip,Hh,cut){
   ctx.lineTo(tail+cut,0);
   ctx.closePath();
 }
-
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
   const p = Math.max(0, Math.min(1, pulse||0));
   const ang=dirToAngle(dir);
   const L=size*2.05, Hh=size*0.95, inner=0.62, cut=Hh*0.32;
   const tip=L*0.52, tail=-L*TAIL_FACTOR;
-
   ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
 
   if(isReceptor){
-    // 底：黑 + 白邊
     ctx.fillStyle='#050607';
     drawArrowPath(tail,tip,Hh,cut); ctx.fill();
     ctx.lineWidth=2.1; ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.stroke();
-
-    // ✅ 按下時整塊填色（顏色強度由 pulse 決定）
     if(p>0){
       const grad=ctx.createLinearGradient(tail,-Hh, tip,Hh);
       grad.addColorStop(0, lighten(baseColor, .15));
@@ -415,9 +403,7 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
       drawArrowPath(tail,tip,Hh,cut); ctx.fill();
       ctx.globalAlpha = 1;
     }
-
   }else{
-    // ✅ 音符：永遠實心漸層填滿 + 內白線（更有未來感）
     const grad=ctx.createLinearGradient(tail,-Hh, tip,Hh);
     grad.addColorStop(0, '#ffffff');
     grad.addColorStop(0.25, lighten(baseColor, .25));
@@ -425,7 +411,6 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     ctx.fillStyle=grad;
     drawArrowPath(tail,tip,Hh,cut); ctx.fill();
 
-    // 內部白色細 chevron
     ctx.beginPath();
     ctx.moveTo(tail, -Hh*0.52);
     ctx.lineTo(0,   -Hh*0.52);
@@ -437,7 +422,7 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     ctx.lineWidth=3.0; ctx.strokeStyle='#ffffff'; ctx.stroke();
   }
 
-  // 橫向掃描裂紋（縮到 ~0.81 面積）
+  // 縮小到 0.9 線性（面積 ≈ 0.81）範圍內的掃描裂紋
   const gAmp=(isReceptor? size*0.05 : size*0.10)*((isReceptor)? (0.3+0.7*p):1);
   const slices=4*((isReceptor)? (0.4+0.6*p):1);
   for(let s=0;s<slices;s++){
@@ -448,10 +433,8 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     ctx.beginPath(); ctx.moveTo(tail,yy); ctx.lineTo(tip,yy); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,255,255,1)'; ctx.stroke();
     ctx.restore();
   }
-
   ctx.restore();
 
-  // 外圍光暈 + ✅ 四面八方雷擊（按下時更強）
   const R = isReceptor ? size*1.02 : size*0.88;
   const now = performance.now()/1000;
   const boost = isReceptor ? (0.45 + 0.9*p) : 0.9;
@@ -478,7 +461,7 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* 音訊（BGM）—— 省略不變的多數邏輯，仍保留 WebAudio/HTML5 雙路徑與金屬敲擊聲池 */
+/* ===================== 音訊（BGM + 敲擊聲） ===================== */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 const bgmEl=document.getElementById('bgm');
 let audioCtx=null,gainNode=null,buffer=null,srcNode=null,mode='silent';
@@ -498,7 +481,7 @@ function stopAllAudio(){ try{ if(srcNode){srcNode.onended=null; srcNode.stop(0);
 function getClockSec(){ if(mode==='webaudio'&&audioCtx&&buffer&&srcNode){ return Math.max(0,Math.min(durationSec,(audioCtx.currentTime-startAtCtx)+startAtSong)); } if(mode==='html5'){ const t=(bgmEl && !isNaN(bgmEl.currentTime))?bgmEl.currentTime:(performance.now()/1000-softStartPerf)+softBaseSong; return Math.max(0,Math.min(durationSec,t)); } return Math.max(0,Math.min(durationSec,(performance.now()/1000-softStartPerf)+softBaseSong)); }
 function getJudgeClockSec(){return getClockSec()+(INPUT_OFFSET_MS/1000)}
 
-/* 敲擊聲池（同前版） */
+/* 敲擊聲池 */
 const hitSound=document.getElementById('hitSound');const SFX_GAIN=1.6;
 class TapSoundPool{constructor(src,size=10){this.pool=[];this.idx=0;for(let i=0;i<size;i++){const a=new Audio(src);a.preload='auto';a.volume=1.0;this.pool.push(a)}}setVolume(v){const vol=Math.max(0,Math.min(1,v));for(const a of this.pool)a.volume=vol}play(){const a=this.pool[this.idx];this.idx=(this.idx+1)%this.pool.length;try{a.currentTime=0;a.play().catch(()=>{})}catch{}}}
 let tapPool=null;
@@ -512,7 +495,7 @@ async function playMetalPing(){ try{await ensureAudio(); if(!audioCtx) throw 0; 
 }catch{ if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); tapPool.play(); } }
 async function playTapSound(){ try{await ensureAudio(); if(audioCtx){ await playMetalPing(); return; } }catch{} if(!tapPool) tapPool=new TapSoundPool(hitSound.src,12); tapPool.play(); }
 
-/* 判定 */
+/* ===================== 判定 ===================== */
 const WINDOWS={sick:80,good:130,bad:150,shit:170}, SCORES={sick:350,good:200,bad:100,shit:-50,miss:-300,ghost:-150};
 let baseNoteSpeed=550, noteSpeed=baseNoteSpeed;
 function judge(dtMs,lane){
@@ -531,7 +514,7 @@ function judge(dtMs,lane){
   updateHUD();
 }
 
-/* 譜 / 更新 */
+/* ===================== 譜 / 更新 ===================== */
 const FIRST_NOTE_LEAD=1.6;
 function generateChart(dur){
   chart=[]; const d=currentDifficulty;
@@ -581,7 +564,7 @@ function update(songT,dt){
   for(let i=hitFx.length-1;i>=0;i--){ if((performance.now()/1000 - hitFx[i].t0)>hitFx[i].life){ hitFx.splice(i,1);} }
 }
 
-/* 繪圖 */
+/* ===================== 繪圖 ===================== */
 function updateHUD(){
   document.getElementById('score').textContent=score;
   document.getElementById('combo').textContent=combo;
@@ -646,7 +629,7 @@ function renderPreviewAt(previewSongTimeSec){
   }
 }
 
-/* 角落徽章 + 熱圖 */
+/* 角落徽章 + 熱圖（上升模式移到底） */
 function drawCornerBadge(){
   const x=14,y=14;
   uictx.save(); uictx.translate(x,y);
@@ -673,7 +656,7 @@ function renderUI(){
   uictx.strokeStyle='#ffd966';uictx.beginPath();const midx=x0+(-min)/step*bw;uictx.moveTo(midx,y0);uictx.lineTo(midx,y0+h);uictx.stroke();uictx.restore();
 }
 
-/* 輸入 */
+/* ===================== 輸入 ===================== */
 function onLanePress(lane){
   if(!running)return;
   playTapSound();
@@ -694,7 +677,7 @@ function onLanePress(lane){
   }
 }
 
-/* 倒數 */
+/* ===================== 倒數 ===================== */
 let isCountingDown=false, countdownRAF=null;
 function showCountdown(startCallback, opts={}){
   const showNotes=!!opts.showNotes;
@@ -721,13 +704,13 @@ function showCountdown(startCallback, opts={}){
 }
 function cancelCountdown(){ if(!isCountingDown && !countdownRAF) return; isCountingDown=false; try{cancelAnimationFrame(countdownRAF)}catch{} countdownRAF=null; const el=document.getElementById('countdownText'); el.style.animation='none'; el.style.display='none'; }
 
-/* UI 切換 */
+/* ===================== 畫面切換 ===================== */
 function showOnly(id){['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>document.getElementById(x).style.display=(x===id?'block':'none')); if(id!=='gameScreen')document.getElementById('gameScreen').classList.remove('blur');}
 function goToMenu(){cancelCountdown();stopGameLoop();stopAllAudio();phase='menu';running=false;paused=false;showOnly('menuScreen');document.getElementById('menuChosenSong').textContent=selectedSongFile?selectedSongFile.replace(/\.mp3$/i,''):'尚未選擇';}
 function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
-/* 音量/校正/曲庫 */
+/* ===================== 音量/校正/曲庫 ===================== */
 function setGlobalOffset(ms){ const v=Math.max(-600,Math.min(600,(ms|0))); INPUT_OFFSET_MS=v; localStorage.setItem('dfjk.offsetMs',String(v)); document.getElementById('offsetLabel').textContent=`${v} ms`; document.getElementById('offsetActive').textContent=`${v} ms`; }
 function initVolumeUI(){
   const mS=document.getElementById('volumeSlider'), mL=document.getElementById('volumeLabel');
@@ -759,7 +742,7 @@ const SONGS=[ "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth
 function fillSongList(){const sel=document.getElementById('songSelect'); if(sel.dataset.filled)return; sel.innerHTML=''; const ph=document.createElement('option'); ph.value=''; ph.textContent='— 請選擇曲目 —'; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph); SONGS.forEach(f=>{const opt=document.createElement('option');opt.value=f;opt.textContent=f.replace(/\.mp3$/i,'');if(selectedSongFile===f)opt.selected=true;sel.appendChild(opt);}); sel.addEventListener('change',()=>{document.getElementById('chosenSongLabel').textContent=sel.value?sel.options[sel.selectedIndex].textContent:'尚未選擇';}); sel.dataset.filled='1'; }
 function confirmSong(){const sel=document.getElementById('songSelect');if(!sel.value){alert('請先選擇音樂');return;}selectedSongFile=sel.value;document.getElementById('chosenSongLabel').textContent=sel.options[sel.selectedIndex].textContent;document.getElementById('menuChosenSong').textContent=sel.options[sel.selectedIndex].textContent;goToMenu();}
 
-/* 流程 */
+/* ===================== 流程 ===================== */
 let pausedAt=0;
 async function startGame(){
   if(!selectedSongFile){ showMusic(); alert('請先選擇音樂'); return; }
@@ -844,7 +827,7 @@ function gameLoop(){
 }
 function stopGameLoop(){try{cancelAnimationFrame(loopId)}catch{}loopId=null;}
 
-/* 校正（同前版，略） */
+/* ===================== 校正 ===================== */
 const calibPanel=document.getElementById('calibOverlay');
 const calibStartBtn=document.getElementById('calibStart');
 const calibFinishBtn=document.getElementById('calibFinish');
@@ -885,9 +868,7 @@ function startCalib(){
 }
 function finishCalib(){ if(tapSamples.length===0){closeCalibrator();return;} const rec=robustRecommend(tapSamples); setGlobalOffset(rec); banner(`已套用偏移：${rec} ms`); closeCalibrator(); }
 
-/* 全域綁定與事件 */
-window.startGame=startGame; window.pauseGame=pauseGame; window.resumeGame=resumeGame; window.showOptions=showOptions; window.showMusic=showMusic; window.goToMenu=goToMenu; window.confirmSong=confirmSong;
-
+/* ===================== 事件與初始化 ===================== */
 window.addEventListener('keydown',e=>{
   if(e.repeat)return;
   const key=e.key.toLowerCase();
@@ -910,10 +891,22 @@ canvas.addEventListener('touchmove',e=>{ if(phase==='playing'||phase==='countdow
 window.addEventListener('dblclick',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 window.addEventListener('gesturestart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 
-/* 初始化 */
-function init(){ applyDesktopScale(); setupDPR(); recomputeLayout(); initVolumeUI(); initOffsetUI(); fillSongList(); }
+function bindButtons(){
+  const $ = s=>document.querySelector(s);
+  $('#btnStart')?.addEventListener('click', startGame);
+  $('#btnMusic')?.addEventListener('click', showMusic);
+  $('#btnOptions')?.addEventListener('click', showOptions);
+  $('#btnSongConfirm')?.addEventListener('click', confirmSong);
+  document.querySelectorAll('.btnBackMenu').forEach(b=>b.addEventListener('click', goToMenu));
+  $('#pauseButton')?.addEventListener('click', pauseGame);
+  $('#btnResume')?.addEventListener('click', resumeGame);
+  $('#btnRestart')?.addEventListener('click', startGame);
+}
+
+function init(){ applyDesktopScale(); setupDPR(); recomputeLayout(); initVolumeUI(); initOffsetUI(); fillSongList(); bindButtons(); }
 window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout(); if(phase==='countdown'){ render({skipNotes:true}); renderUI(); }});
 init();
+
 </script>
 </body>
 </html>
