@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>DFJK Holo-Prism 版</title>
+<title>DFJK Holo-Prism + Noise</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
 <style>
   html,body{margin:0;touch-action:manipulation;overscroll-behavior:none}
@@ -11,7 +11,6 @@
     color:#fff;font-family:sans-serif;text-align:center;
     background: radial-gradient(1200px 780px at 50% 0%, #101b33 0%, #0a1226 55%, #07111f 100%);
   }
-  /* 玻璃雜訊+掃描場 */
   body::before,body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0}
   body::before{
     background:
@@ -30,7 +29,6 @@
   canvas{display:block;background:#0c1322;width:100%;height:auto}
   #uiCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;background:transparent;border:none;z-index:6}
 
-  /* 漸層偽邊界 */
   #edgeFade{position:absolute;inset:0;pointer-events:none;border-radius:10px;z-index:5;
     background:
       linear-gradient(to right, rgba(255,255,255,.16), rgba(255,255,255,0) 40%) left/16px 100% no-repeat,
@@ -58,9 +56,8 @@
 </head>
 <body>
 
-  <!-- 主選單 -->
   <div id="menuScreen">
-    <h1>🎵 DFJK Holo-Prism 版</h1>
+    <h1>🎵 DFJK Holo-Prism + Noise</h1>
     <div>
       <button id="btnStart">開始遊戲</button>
       <button id="btnMusic">音樂</button>
@@ -69,7 +66,6 @@
     <div>已選曲目：<span id="menuChosenSong">尚未選擇</span></div>
   </div>
 
-  <!-- 音樂選單 -->
   <div id="musicScreen" style="display:none;">
     <h2>🎼 選擇本局曲目</h2>
     <div>
@@ -83,7 +79,6 @@
     <div>已選：<span id="chosenSongLabel">尚未選擇</span></div>
   </div>
 
-  <!-- 選項 -->
   <div id="optionsScreen" style="display:none;">
     <h2>⚙️ 遊戲選項</h2>
 
@@ -127,7 +122,6 @@
       </select>
     </div>
 
-    <!-- 主音量／敲擊音量 -->
     <div>
       <label for="volumeSlider">主音量（BGM）：</label>
       <input id="volumeSlider" type="range" min="0" max="100" value="80" />
@@ -153,7 +147,6 @@
     </div>
   </div>
 
-  <!-- 遊戲畫面 -->
   <div id="gameScreen" style="display:none; position:relative;">
     <button id="pauseButton">⏸️</button>
 
@@ -173,14 +166,12 @@
     </div>
   </div>
 
-  <!-- 暫停 -->
   <div id="pauseScreen" style="display:none;">
     <h2>⏸️ 遊戲暫停</h2>
     <button id="btnResume">▶️ 繼續</button>
     <button class="btnBackMenu">回主選單</button>
   </div>
 
-  <!-- 結算 -->
   <div id="endScreen" style="display:none;">
     <h2>🎮 遊戲結束！</h2>
     <p>曲目：<span id="finalSong">-</span></p>
@@ -213,16 +204,16 @@
     </div>
   </div>
 
-  <!-- 音效 -->
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
   <audio id="bgm" preload="auto"></audio>
 
   <div id="warnBanner">⚠️ 提示</div>
 
 <script>
-/* ================= 尺寸 / 公用 ================= */
+/* ===== 簡便工具 ===== */
 const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const banner=(m)=>{const b=$("#warnBanner");b.textContent=m;b.style.display="block";setTimeout(()=>b.style.display="none",2400);}
+
 const canvas=$("#gameCanvas"), ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
 const uiCanvas=$("#uiCanvas"), uictx=uiCanvas.getContext('2d',{alpha:true});
 let W=420,H=640;
@@ -231,10 +222,10 @@ function setupDPR(){const dpr=Math.min(window.devicePixelRatio||1,2); canvas.wid
 const IS_MOBILE=matchMedia('(pointer: coarse)').matches;
 const SUPPORTS_VIB=IS_MOBILE && 'vibrate' in navigator;
 
-/* ================= 遊戲狀態 ================= */
+/* ===== 狀態 ===== */
 const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666']; // 左 下 上 右
 const laneDirs=['left','down','up','right'];
-const HITKEY_BASE=90, NOTE_BASE=40; // NOTE_BASE 稍小，避免擠
+const HITKEY_BASE=90, NOTE_BASE=40;
 let uiScale=1;
 
 let phase='menu', running=false, paused=false, loopId=null;
@@ -244,7 +235,7 @@ let stats={sick:0,good:0,bad:0,shit:0,miss:0};
 let chart=[], __remainNotes=0, receptorPulse=[0,0,0,0];
 let currentSongTitle='-', currentDifficulty='normal', currentDirection='down', currentJudgeMode='old';
 
-/* 打擊線與版面 */
+/* ===== 幾何 ===== */
 let cachedRectH=canvas.getBoundingClientRect().height, cachedScaleY=cachedRectH/H;
 let cachedJudgeCss=(HITKEY_BASE*uiScale/2), cachedJudgeInternal=cachedJudgeCss/cachedScaleY;
 function recomputeLayout(){const rect=canvas.getBoundingClientRect(); cachedRectH=rect.height; cachedScaleY=cachedRectH/H; cachedJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(cachedRectH-HITKEY_BASE*uiScale/2); cachedJudgeInternal=cachedJudgeCss/cachedScaleY;}
@@ -252,50 +243,81 @@ function applyDesktopScale(){const coarse=matchMedia('(pointer: coarse)').matche
 function getJudgeLineYInternal(){return cachedJudgeInternal;}
 function laneCenterX(i){const lw=W/4; let x=i*lw+lw/2; if(i===1)x+=6; if(i===2)x-=6; return x;}
 
-/* 偏移熱圖資料 */
+/* ===== 偏移統計 ===== */
 const dtHistory=[]; const DT_HIST_MAX=240;
 function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
 function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory.length;const avg=dtHistory.reduce((a,c)=>a+c,0)/n;const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;return{avg,std:Math.sqrt(va)};}
 let comboFlashText='', comboFlashT0=0; function triggerComboFlash(){comboFlashText=`COMBO x${combo}!!`; comboFlashT0=performance.now()/1000;}
 
-/* =================== Holo-Prism 效果 =================== */
-const STYLE={
-  prismSheenSpeed: 1.2,   // 掃光速度
-  trailSteps: 4,          // 拖尾層數
-  trailGap: 10,           // 拖尾間距
-  trailAlpha: .18,        // 拖尾透明
-  tailFactor: .22,        // 尾翼長度（更短）
-  ringHexSize: 9          // 命中蜂巢單元尺寸
+/* ===== Prism 外觀參數 ===== */
+const STYLE={prismSheenSpeed:1.2, trailSteps:4, trailGap:10, trailAlpha:.18, tailFactor:.22, ringHexSize:9};
+
+/* ======= 新增：雜訊 / 噪聲特效參數 ======= */
+const NOISE={
+  size: 140,           // 雜訊貼圖大小（正方）
+  intensity: 0.18,     // 遮罩整體透明度
+  drift: 24,           // 每秒平移像素（看起來在流動）
+  shards: 7,           // 每顆箭頭外噴的碎片線條數量
+  shardLen: 18,        // 碎片長度
+  rgbFringe: 0.8       // RGB Split 偏移像素
 };
+let noiseCanvas=null, noiseCtx=null;
+function buildNoisePattern(){
+  const s=NOISE.size;
+  noiseCanvas=document.createElement('canvas'); noiseCanvas.width=s; noiseCanvas.height=s;
+  noiseCtx=noiseCanvas.getContext('2d');
+  // 背景透明，畫一些彩色短線 + 微點
+  for(let i=0;i<360;i++){
+    const x=Math.random()*s, y=Math.random()*s;
+    const w= (Math.random()<0.65? 10+Math.random()*30 : 2+Math.random()*6);
+    const h= (Math.random()<0.3? 1 : 2);
+    const hue=Math.floor(Math.random()*360);
+    noiseCtx.fillStyle=`hsla(${hue}, 85%, 60%, ${0.10+Math.random()*0.18})`;
+    noiseCtx.fillRect(x,y,w,h);
+  }
+  // 少量亮點
+  for(let i=0;i<120;i++){
+    const x=Math.random()*s, y=Math.random()*s;
+    noiseCtx.fillStyle='rgba(255,255,255,.14)'; noiseCtx.fillRect(x,y,1,1);
+  }
+}
+buildNoisePattern();
+
 function dirToAngle(d){switch(d){case'up':return -Math.PI/2;case'down':return Math.PI/2;case'left':return Math.PI;case'right':return 0;}return 0}
 function lighten(hex,a){const p=parseInt(hex.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`;}
 function arrowPolyParams(size){const L=size*2.05, Hh=size*0.92, cut=Hh*0.30, tip=L*0.50, tail=-L*STYLE.tailFactor; return {L,Hh,cut,tip,tail};}
-function arrowPath(ctx, size){
+function arrowPath(c,size){
   const {Hh,cut,tip,tail}=arrowPolyParams(size);
-  ctx.beginPath();
-  ctx.moveTo(tail,-Hh*0.55);
-  ctx.lineTo(0,-Hh*0.55);
-  ctx.lineTo(tip,0);
-  ctx.lineTo(0,Hh*0.55);
-  ctx.lineTo(tail,Hh*0.55);
-  ctx.lineTo(tail+cut,0);
-  ctx.closePath();
+  c.beginPath();
+  c.moveTo(tail,-Hh*0.55);
+  c.lineTo(0,-Hh*0.55);
+  c.lineTo(tip,0);
+  c.lineTo(0,Hh*0.55);
+  c.lineTo(tail,Hh*0.55);
+  c.lineTo(tail+cut,0);
+  c.closePath();
 }
+
+/* ====== Prism 主體 + 雜訊 ====== */
 function drawPrismCore({x,y,size,dir,isReceptor,baseColor,pulse=0,t=0}){
   const ang=dirToAngle(dir), p=Math.max(0,Math.min(1,pulse||0));
   ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
 
-  // 1) 基底玻璃
+  // 0) RGB Split 微色散（描邊）
+  ctx.save();
+  arrowPath(ctx,size);
+  ctx.lineWidth=1.3;
+  ctx.strokeStyle='rgba(0,255,255,.35)'; ctx.translate(NOISE.rgbFringe,-NOISE.rgbFringe); ctx.stroke();
+  ctx.setTransform(1,0,0,1, x, y); ctx.rotate(ang); // 重置平移
+  arrowPath(ctx,size);
+  ctx.strokeStyle='rgba(255,0,160,.35)'; ctx.translate(-NOISE.rgbFringe,NOISE.rgbFringe); ctx.stroke();
+  ctx.restore();
+
+  // 1) 基底（黑底白邊 / 或彩色箭頭）
   arrowPath(ctx,size);
   if(isReceptor){
     ctx.fillStyle='#050607'; ctx.fill();
     ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.stroke();
-    if(p>0){
-      const g=ctx.createLinearGradient(-size, -size, size, size);
-      g.addColorStop(0,lighten(baseColor,.25));
-      g.addColorStop(1,baseColor);
-      ctx.globalAlpha=.25+.75*p; ctx.fillStyle=g; arrowPath(ctx,size); ctx.fill(); ctx.globalAlpha=1;
-    }
   }else{
     const g=ctx.createLinearGradient(-size, -size, size, size);
     g.addColorStop(0,'#ffffff');
@@ -305,7 +327,7 @@ function drawPrismCore({x,y,size,dir,isReceptor,baseColor,pulse=0,t=0}){
     ctx.lineWidth=2.6; ctx.strokeStyle='#ffffff'; ctx.stroke();
   }
 
-  // 2) 稜線（多段內線）
+  // 2) 內部稜線
   const k=6; ctx.save(); ctx.clip();
   for(let i=0;i<k;i++){
     const u=i/(k-1)-.5, yy=u*size*.95;
@@ -313,18 +335,45 @@ function drawPrismCore({x,y,size,dir,isReceptor,baseColor,pulse=0,t=0}){
     ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(-size,yy); ctx.lineTo(size*1.1,yy); ctx.stroke();
   }
-  // 3) 掃光（玻璃高光帶）
-  const sweep = (Math.sin(t*STYLE.prismSheenSpeed*2)+1)/2; // 0~1
+  // 3) 掃光
+  const sweep = (Math.sin(t*STYLE.prismSheenSpeed*2)+1)/2;
   const sw = size*0.65, sx = -size + (size*2.2)*sweep;
   const grad = ctx.createLinearGradient(sx-sw,0,sx+sw,0);
   grad.addColorStop(0,'rgba(255,255,255,0)');
   grad.addColorStop(0.5,'rgba(255,255,255,.25)');
   grad.addColorStop(1,'rgba(255,255,255,0)');
   ctx.fillStyle=grad; ctx.fillRect(-size*1.2,-size*1.2,size*2.4,size*2.4);
-  ctx.restore();
+
+  // 4) 噪聲 Pattern 遮罩（在箭頭內流動）
+  const off = (t*NOISE.drift)%NOISE.size;
+  ctx.globalAlpha = NOISE.intensity * (isReceptor ? (0.6+0.6*p) : 1.0);
+  ctx.globalCompositeOperation = 'lighter';
+  for(let ry=-NOISE.size; ry<=NOISE.size; ry+=NOISE.size){
+    for(let rx=-NOISE.size; rx<=NOISE.size; rx+=NOISE.size){
+      ctx.drawImage(noiseCanvas, -size+rx+off, -size+ry-off, NOISE.size, NOISE.size);
+    }
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.restore(); // clip end
+
+  // 5) 邊緣 Glitch 碎片
+  const sparks = Math.floor(NOISE.shards*(isReceptor? (0.6+1.2*p):1));
+  for(let i=0;i<sparks;i++){
+    const a = (Math.random()*0.6 - 0.3) + (ang); // 近似朝箭頭方向
+    const r = size*0.65 + Math.random()*12;
+    const sx = Math.cos(a)*r, sy = Math.sin(a)*r;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + Math.cos(a)*NOISE.shardLen, sy + Math.sin(a)*NOISE.shardLen);
+    ctx.strokeStyle = lighten(baseColor,.35);
+    ctx.globalAlpha = 0.25 + Math.random()*0.35;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
 
   ctx.restore();
 }
+
 function drawTrail({x,y,size,dir,baseColor,t}){
   const ang=dirToAngle(dir), step=STYLE.trailSteps, gap=STYLE.trailGap, a=STYLE.trailAlpha;
   for(let i=1;i<=step;i++){
@@ -334,6 +383,7 @@ function drawTrail({x,y,size,dir,baseColor,t}){
     ctx.restore();
   }
 }
+
 function hexRipple(x,y,r,hex,alpha){
   ctx.save();
   ctx.globalAlpha=alpha;
@@ -359,7 +409,7 @@ function hexRipple(x,y,r,hex,alpha){
   ctx.restore();
 }
 
-/* 背景：三層視差 HUD 網格 + 斜向光帶 */
+/* ===== 背景 ===== */
 function drawPlayfieldBackground(t){
   ctx.save();
   ctx.fillStyle='#0c1322'; ctx.fillRect(0,0,W,H);
@@ -373,7 +423,7 @@ function drawPlayfieldBackground(t){
     ctx.globalAlpha=L.alpha; ctx.strokeStyle=L.col; ctx.lineWidth=1;
     const ox=(t*L.speed)%L.step, oy=(t*L.speed*0.7)%L.step;
     for(let x=-ox; x<=W; x+=L.step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-    for(let y=-oy; y<=H; y+=L.step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    for(let y=-oy; y<=H; y+=L.step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(0+y,H+y);ctx.stroke();} // 略帶斜切感
   }
 
   ctx.globalAlpha=0.25;
@@ -390,7 +440,7 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* ================= 音訊 / 敲擊聲 ================= */
+/* ===== 音訊（含金屬敲擊） ===== */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 const bgmEl=$("#bgm");
 let audioCtx=null,gainNode=null,buffer=null,srcNode=null,mode='silent';
@@ -410,7 +460,6 @@ function stopAllAudio(){ try{ if(srcNode){srcNode.onended=null; srcNode.stop(0);
 function getClockSec(){ if(mode==='webaudio'&&audioCtx&&buffer&&srcNode){ return Math.max(0,Math.min(durationSec,(audioCtx.currentTime-startAtCtx)+startAtSong)); } if(mode==='html5'){ const t=(bgmEl && !isNaN(bgmEl.currentTime))?bgmEl.currentTime:(performance.now()/1000-softStartPerf)+softBaseSong; return Math.max(0,Math.min(durationSec,t)); } return Math.max(0,Math.min(durationSec,(performance.now()/1000-softStartPerf)+softBaseSong)); }
 function getJudgeClockSec(){return getClockSec()+(INPUT_OFFSET_MS/1000)}
 
-/* 金屬敲擊聲（空打也會） */
 async function playTapSound(){
   try{
     await ensureAudio(); const t0=audioCtx.currentTime+0.001, dur=0.09;
@@ -435,7 +484,7 @@ async function playTapSound(){
   }catch{}
 }
 
-/* ================= 判定 / 生成 ================= */
+/* ===== 判定 / 譜面生成 ===== */
 const WINDOWS={sick:80,good:130,bad:150,shit:170}, SCORES={sick:350,good:200,bad:100,shit:-50,miss:-300,ghost:-150};
 let baseNoteSpeed=550, noteSpeed=baseNoteSpeed;
 function judge(dtMs,lane){
@@ -478,7 +527,7 @@ function generateChart(dur){
 }
 function noteYAtTimeFor(thit,tnow){const j=getJudgeLineYInternal();return (currentDirection==='down')?(j-(thit-tnow)*noteSpeed):(j+(thit-tnow)*noteSpeed)}
 
-/* ================= 更新 / 繪圖 ================= */
+/* ===== 更新 / 繪圖 ===== */
 function updateHUD(){ $("#score").textContent=score; $("#combo").textContent=combo; $("#judgement").textContent=lastJudgementText; $("#missCount").textContent=missCount; $("#songTitle").textContent=currentSongTitle; $("#diffLabel").textContent=currentDifficulty.toUpperCase(); $("#dirLabel").textContent=(currentDirection==='up'?'上升':'下落'); $("#judgeLabel").textContent=(currentJudgeMode==='old'?'Old':'New'); $("#offsetActive").textContent=`${INPUT_OFFSET_MS} ms`; }
 
 const hitFx=[];
@@ -494,13 +543,11 @@ function render({skipNotes=false}={}){
   ctx.clearRect(0,0,W,H);
   drawPlayfieldBackground(t);
 
-  // 受器（Holo-Prism）
   for(let i=0;i<4;i++){
     const x=laneCenterX(i);
     drawPrismCore({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],isReceptor:true,baseColor:laneColors[i],pulse:receptorPulse[i],t});
   }
 
-  // 命中蜂巢脈衝（整體效果替換掉之前的電流）
   for(const fx of hitFx){
     const age=(performance.now()/1000-fx.t0), life=fx.life, p=Math.min(1,age/life);
     const x=laneCenterX(fx.lane);
@@ -537,7 +584,7 @@ function renderPreviewAt(songTime){
   }
 }
 
-/* UI：左上徽章 + 熱圖（上升模式置底） */
+/* ===== UI / 熱圖 ===== */
 function drawCornerBadge(){
   const x=14,y=14; uictx.save(); uictx.translate(x,y);
   uictx.fillStyle='rgba(0,0,0,.55)'; uictx.fillRect(0,0,92,28);
@@ -562,7 +609,7 @@ function renderUI(){
   uictx.strokeStyle='#ffd966';uictx.beginPath();const midx=x0+(-min)/step*bw;uictx.moveTo(midx,y0);uictx.lineTo(midx,y0+h);uictx.stroke();uictx.restore();
 }
 
-/* ================= 輸入 ================= */
+/* ===== 輸入 ===== */
 function laneFromKey(k){switch(k){case'd':case'arrowleft':return 0;case'f':case'arrowdown':return 1;case'j':case'arrowup':return 2;case'k':case'arrowright':return 3;default:return null}}
 function laneFromPointer(xCss){const rect=canvas.getBoundingClientRect();const x=xCss/rect.width*W;let best=0,bestd=1e9;for(let i=0;i<4;i++){const d=Math.abs(x-laneCenterX(i));if(d<bestd){bestd=d;best=i}}return best;}
 function onLanePress(lane){
@@ -598,7 +645,7 @@ canvas.addEventListener('touchmove',e=>{ if(phase==='playing'||phase==='countdow
 window.addEventListener('dblclick',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 window.addEventListener('gesturestart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 
-/* ================= 倒數 ================= */
+/* ===== 倒數 ===== */
 let isCountingDown=false, countdownRAF=null;
 function showCountdown(startCallback, opts={}){
   const showNotes=!!opts.showNotes; const previewTimeSec=(typeof opts.previewTime==='number')?opts.previewTime:0;
@@ -620,13 +667,13 @@ function showCountdown(startCallback, opts={}){
 }
 function cancelCountdown(){ if(!isCountingDown && !countdownRAF)return; isCountingDown=false; try{cancelAnimationFrame(countdownRAF)}catch{} countdownRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; }
 
-/* ================= 畫面切換 ================= */
+/* ===== 畫面切換 ===== */
 function showOnly(id){['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>$("#"+x).style.display=(x===id?'block':'none')); if(id!=='gameScreen')$("#gameScreen").classList.remove('blur');}
 function goToMenu(){cancelCountdown();stopGameLoop();stopAllAudio();phase='menu';running=false;paused=false;showOnly('menuScreen');$("#menuChosenSong").textContent=selectedSongFile?selectedSongFile.replace(/\.mp3$/i,''):'尚未選擇';}
 function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
-/* ================= 音量/偏移/曲庫 ================= */
+/* ===== 音量/偏移/曲庫 ===== */
 function setGlobalOffset(ms){const v=Math.max(-600,Math.min(600,(ms|0))); INPUT_OFFSET_MS=v; localStorage.setItem('dfjk.offsetMs',String(v)); $("#offsetLabel").textContent=`${v} ms`; $("#offsetActive").textContent=`${v} ms`;}
 function initVolumeUI(){
   const mS=$("#volumeSlider"), mL=$("#volumeLabel"), sS=$("#sfxSlider"), sL=$("#sfxLabel");
@@ -644,7 +691,6 @@ function initOffsetUI(){
   $("#offsetCalibBtn").addEventListener('click',openCalibrator);
 }
 
-/* 曲庫 */
 const SONGS=[ "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3","Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3","Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3","Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collaboration Music Video #BBBBダンス - Creepy Nuts.mp3","KANA-BOON - Silhouette - KANABOONVEVO.mp3","Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3","Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3","ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3","Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3","Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3","OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3","YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3","yung kai - blue (official music video) - yung kai.mp3","【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3","【MV】隙_ゆーり【オリジナル】 - ゆーり🍎🐥〔24〕・yuri (1).mp3","【imase】NIGHT DANCER（MV） - imase.mp3","なとり - Overdose - なとり _ natori.mp3","好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3","廻廻奇譚 - Eve MV - Eve.mp3","青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3","Toge Toge Sadistic - Enormita (youtube).mp3","My dream girls - NACHERRY (youtube).mp3","PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3","YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3","YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3","YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3","【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3","Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3","ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3" ];
 function fillSongList(){
   const sel=$("#songSelect"); if(sel.dataset.filled)return;
@@ -662,7 +708,7 @@ function confirmSong(){
   goToMenu();
 }
 
-/* ================= 流程 ================= */
+/* ===== 流程 ===== */
 let pausedAt=0;
 async function startGame(){
   if(!selectedSongFile){ showMusic(); alert('請先選擇音樂'); return; }
@@ -723,7 +769,7 @@ function gameLoop(){
 }
 function stopGameLoop(){try{cancelAnimationFrame(loopId)}catch{} loopId=null;}
 
-/* ================= 校正 ================= */
+/* ===== 校正 ===== */
 const calibPanel=$("#calibOverlay"), calibStartBtn=$("#calibStart"), calibFinishBtn=$("#calibFinish"), calibCancelBtn=$("#calibCancel");
 const calibBig=$("#calibBig"), calibDot=$("#calibBeatDot"), calibStat=$("#calibStat");
 let isCalibrating=false, calibInt=1.0, calibBeats=16, tapSamples=[], calibTimers=[], tapHandler=null;
@@ -757,7 +803,7 @@ function startCalib(){
 }
 function finishCalib(){ if(tapSamples.length===0){closeCalibrator();return;} const rec=robustRecommend(tapSamples); setGlobalOffset(rec); banner(`已套用偏移：${rec} ms`); closeCalibrator(); }
 
-/* ================= 綁定 / 初始化 ================= */
+/* ===== 綁定 / 初始化 ===== */
 function bindButtons(){
   $("#btnStart").addEventListener('click', startGame);
   $("#btnMusic").addEventListener('click', showMusic);
