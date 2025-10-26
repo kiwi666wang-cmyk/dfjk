@@ -186,6 +186,11 @@
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
 
 <script>
+/* ====== 可調參數 ====== */
+const CENTER_TUCK_PX = 10;   // 讓中間兩鍵彼此靠近的像素（F 往右、J 往左）
+const GLITCH_AMPLIFY = 1.35; // 故障強度倍率（>1 更狂）
+const TAIL_FACTOR    = 0.44; // 箭尾長度比例（越小越短，原本約 0.53）
+
 /* ===== 基本參數 ===== */
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
@@ -199,13 +204,20 @@ const IS_MOBILE=window.matchMedia('(pointer: coarse)').matches;
 const SUPPORTS_VIB=IS_MOBILE&&'vibrate' in navigator;
 
 const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666'];
-/* 視覺順序：左、下、上、右（D/F/J/K） */
+// 視覺順序固定：左、下、上、右（D/F/J/K）
 const laneDirs=['left','down','up','right'];
-const laneWidth=W/4;
 const HITKEY_BASE=90;
-/* 再小一點點 */
 const NOTE_BASE=44;
 let uiScale=1;
+
+/* 中心位置（含中間內縮） */
+function laneCenterX(index){
+  const laneWidth = W/4;
+  let x = index*laneWidth + laneWidth/2;
+  if(index===1) x += CENTER_TUCK_PX;     // F 往右
+  if(index===2) x -= CENTER_TUCK_PX;     // J 往左
+  return x;
+}
 
 let phase='menu',running=false,paused=false,loopId=null,prevT=0;
 let selectedSongFile=null;
@@ -218,8 +230,21 @@ let cachedRectH=canvas.getBoundingClientRect().height;
 let cachedScaleY=cachedRectH/H;
 let cachedJudgeCss=(HITKEY_BASE*uiScale/2);
 let cachedJudgeInternal=cachedJudgeCss/cachedScaleY;
-function recomputeLayout(){const rect=canvas.getBoundingClientRect();cachedRectH=rect.height;cachedScaleY=rect.height/H;cachedJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(rect.height-HITKEY_BASE*uiScale/2);cachedJudgeInternal=cachedJudgeCss/cachedScaleY;}
-function applyDesktopScale(){const coarse=window.matchMedia('(pointer: coarse)').matches;const wide=window.matchMedia('(min-width:1024px)').matches;const wider=window.matchMedia('(min-width:1440px)').matches;let u=1;if(!coarse&&(wide||wider))u=wider?1.8:1.5;uiScale=u;document.getElementById('stage').style.setProperty('--u',String(u));document.getElementById('stage').style.maxWidth=`${Math.round(420*u)}px`;recomputeLayout();}
+function recomputeLayout(){
+  const rect=canvas.getBoundingClientRect();
+  cachedRectH=rect.height; cachedScaleY=cachedRectH/H;
+  cachedJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(cachedRectH-HITKEY_BASE*uiScale/2);
+  cachedJudgeInternal=cachedJudgeCss/cachedScaleY;
+}
+function applyDesktopScale(){
+  const coarse=window.matchMedia('(pointer: coarse)').matches;
+  const wide=window.matchMedia('(min-width:1024px)').matches;
+  const wider=window.matchMedia('(min-width:1440px)').matches;
+  let u=1; if(!coarse&&(wide||wider))u=wider?1.8:1.5;
+  uiScale=u; document.getElementById('stage').style.setProperty('--u',String(u));
+  document.getElementById('stage').style.maxWidth=`${Math.round(420*u)}px`;
+  recomputeLayout();
+}
 function getJudgeLineYInternal(){return cachedJudgeInternal;}
 
 const receptorPulse=[0,0,0,0];
@@ -227,7 +252,7 @@ const dtHistory=[];const DT_HIST_MAX=240;
 function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
 function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory.length;const avg=dtHistory.reduce((a,c)=>a+c,0)/n;const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;return{avg,std:Math.sqrt(va)};}
 
-/* 修正旋轉角度：基礎圖形朝「右」 */
+/* 基礎圖形朝右 → 修正各方向角度 */
 function dirToAngle(dir){
   switch(dir){
     case 'up':    return -Math.PI/2;
@@ -241,29 +266,40 @@ function laneFromKey(k){switch(k){case'd':case'arrowleft':return 0;case'f':case'
 
 const SONGS=[ "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3","Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3","Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3","Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collaboration Music Video #BBBBダンス - Creepy Nuts.mp3","KANA-BOON - Silhouette - KANABOONVEVO.mp3","Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3","Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3","ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3","Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3","Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3","OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3","YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3","yung kai - blue (official music video) - yung kai.mp3","【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3","【MV】隙_ゆーり【オリジナル】 - ゆーり🍎🐥〔24〕・yuri (1).mp3","【imase】NIGHT DANCER（MV） - imase.mp3","なとり - Overdose - なとり _ natori.mp3","好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3","廻廻奇譚 - Eve MV - Eve.mp3","青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3","Toge Toge Sadistic - Enormita (youtube).mp3","My dream girls - NACHERRY (youtube).mp3","PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3","YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3","YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3","YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3","【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3","Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3","ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"];
 
-function updateHUD(){document.getElementById('score').textContent=score;document.getElementById('combo').textContent=combo;document.getElementById('judgement').textContent=lastJudgementText;document.getElementById('missCount').textContent=missCount;document.getElementById('songTitle').textContent=currentSongTitle;document.getElementById('diffLabel').textContent=currentDifficulty.toUpperCase();document.getElementById('dirLabel').textContent=(currentDirection==='up'?'上升':'下落');document.getElementById('judgeLabel').textContent=(currentJudgeMode==='old'?'Old':'New');document.getElementById('offsetActive').textContent=`${INPUT_OFFSET_MS} ms`;}
+function updateHUD(){
+  document.getElementById('score').textContent=score;
+  document.getElementById('combo').textContent=combo;
+  document.getElementById('judgement').textContent=lastJudgementText;
+  document.getElementById('missCount').textContent=missCount;
+  document.getElementById('songTitle').textContent=currentSongTitle;
+  document.getElementById('diffLabel').textContent=currentDifficulty.toUpperCase();
+  document.getElementById('dirLabel').textContent=(currentDirection==='up'?'上升':'下落');
+  document.getElementById('judgeLabel').textContent=(currentJudgeMode==='old'?'Old':'New');
+  document.getElementById('offsetActive').textContent=`${INPUT_OFFSET_MS} ms`;
+}
 
-/* ===== 新箭頭（藍色多層 >>）+ 故障效果 ===== */
+/* ===== 箭頭 + 故障效果（加強版） ===== */
 function lighten(c,a){const p=parseInt(c.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`}
 
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   const ang=dirToAngle(dir);
   const L=size*2.05, Hh=size*0.95, inner=0.62, cut=Hh*0.32;
-  const tip=L*0.52, tail=-L*0.53;
+  const tip=L*0.52, tail=-L*TAIL_FACTOR;   // ← 尾翼縮短
 
   ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
 
-  // 速度殘影
-  const trailLen=L*0.85, bands=6;
+  // 殘影帶（加強透明交錯）
+  const trailLen=L*0.9, bands=7;
   for(let i=0;i<bands;i++){
-    const p=i/(bands-1), w=(1-p)*trailLen, a=0.14*(1-p)*(isReceptor?.55:1);
-    ctx.save(); ctx.globalAlpha=a*(0.8+0.2*Math.sin(t*6+i));
-    ctx.fillStyle = (i%2)? lighten(baseColor,.15):lighten(baseColor,.35);
+    const pp=i/(bands-1), w=(1-pp)*trailLen;
+    const a=(0.14*(1-pp))*(isReceptor?.55:1)*GLITCH_AMPLIFY;
+    ctx.save(); ctx.globalAlpha=a*(0.85+0.25*Math.sin(t*7+i));
+    ctx.fillStyle = (i%2)? lighten(baseColor,.18):lighten(baseColor,.38);
     ctx.beginPath();
-    ctx.moveTo(tail-w*0.9,-Hh*0.34*(1-p*0.25));
-    ctx.lineTo(tip-w*0.1,-Hh*0.16*(1-p*0.25));
-    ctx.lineTo(tip-w*0.1, Hh*0.16*(1-p*0.25));
-    ctx.lineTo(tail-w*0.9, Hh*0.34*(1-p*0.25));
+    ctx.moveTo(tail-w*0.95,-Hh*0.34*(1-pp*0.25));
+    ctx.lineTo(tip-w*0.1,-Hh*0.16*(1-pp*0.25));
+    ctx.lineTo(tip-w*0.1, Hh*0.16*(1-pp*0.25));
+    ctx.lineTo(tail-w*0.95, Hh*0.34*(1-pp*0.25));
     ctx.closePath(); ctx.fill();
     ctx.restore();
   }
@@ -282,53 +318,69 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   };
 
   if(isReceptor){
+    // 暗底 + 白色細邊
     ctx.fillStyle='#050607';
     ctx.beginPath();
     ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();
     ctx.lineWidth=6;ctx.strokeStyle='#000';ctx.stroke();
     ctx.lineWidth=2.1;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.stroke();
 
+    // 命中發光填充
     if(pulse>0){
-      ctx.save();ctx.globalAlpha=0.40+0.50*pulse;ctx.fillStyle=lighten(baseColor,.25);
+      ctx.save();ctx.globalAlpha=(0.40+0.50*pulse)*GLITCH_AMPLIFY;ctx.fillStyle=lighten(baseColor,.28);
       ctx.beginPath();ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();ctx.restore();
     }
   }else{
-    drawChevron(Hh,  5.0, lighten(baseColor,.45));
-    drawChevron(Hh*inner, 3.0, '#ffffff');
+    drawChevron(Hh,        5.0, lighten(baseColor,.48));
+    drawChevron(Hh*inner,  3.0, '#ffffff');
   }
 
-  // Glitch：色道偏移 + 切片抖動 + 掃描條
-  const gAmp=isReceptor? size*0.06 : size*0.10;
-  for(let k=0;k<3;k++){
-    const ox=Math.sin(t*18 + k*1.7)*gAmp;
-    const oy=Math.cos(t*22 + k*2.3)*gAmp*0.4;
+  // 故障：色道偏移 + 切片抖動（加強）
+  const gAmp=(isReceptor? size*0.06 : size*0.10) * GLITCH_AMPLIFY;
+  for(let k=0;k<4;k++){
+    const ox=Math.sin(t*20 + k*1.9)*gAmp;
+    const oy=Math.cos(t*26 + k*2.1)*gAmp*0.45;
     ctx.save();
     ctx.translate(ox,oy);
-    ctx.globalAlpha=isReceptor?0.25:0.35;
+    ctx.globalAlpha=isReceptor?0.28:0.40;
     ctx.globalCompositeOperation='lighter';
-    drawChevron(Hh*(0.98-k*0.05), 1.6, k%2? 'rgba(0,255,255,.85)':'rgba(255,0,160,.85)');
+    drawChevron(Hh*(0.98-k*0.06), 1.6, (k%2)?'rgba(0,255,255,.9)':'rgba(255,0,160,.9)');
     ctx.restore();
   }
-  ctx.globalAlpha=0.10;ctx.fillStyle='#fff';
+
+  // 斷層切片（在箭頭中段做水平 slice 抖動）
+  const slices=5;
+  for(let s=0;s<slices;s++){
+    const yy=( (s/(slices-1))-0.5 )*Hh*1.0;
+    const jitter=(Math.sin(t*30+s*2.3)*gAmp*0.6);
+    ctx.save(); ctx.beginPath();
+    ctx.rect(tail, yy-2, L*1.05, 4);
+    ctx.clip(); ctx.translate(jitter,0);
+    drawChevron(Hh*0.96, 1.2, 'rgba(255,255,255,0.25)');
+    ctx.restore();
+  }
+
+  // 掃描線
+  ctx.globalAlpha=0.12;ctx.fillStyle='#fff';
   const stripeH=Math.max(1,Math.round(size*0.10));
-  const shift=((t*120)%stripeH);
+  const shift=((t*140)%stripeH);
   for(let sy=-Hh; sy<=Hh; sy+=stripeH*3){ ctx.fillRect(tail, sy+shift, L*1.05, 1); }
 
   ctx.restore();
 }
 
-/* 背景 */
+/* 背景（略強化） */
 function drawPlayfieldBackground(t){
   ctx.save(); ctx.fillStyle='#0e1522'; ctx.fillRect(0,0,W,H);
-  ctx.globalAlpha=0.22; ctx.strokeStyle='rgba(120,213,255,0.35)'; ctx.lineWidth=1;
+  ctx.globalAlpha=0.24; ctx.strokeStyle='rgba(120,213,255,0.35)'; ctx.lineWidth=1;
   const step=22,ox=(t*26)%step,oy=(t*18)%step;
   for(let x=-ox;x<=W;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
   for(let y=-oy;y<=H;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-  ctx.globalAlpha=0.24; const g=ctx.createLinearGradient(0,0,W,0);
-  g.addColorStop(0,'rgba(0,255,255,0.28)');g.addColorStop(0.5,'rgba(255,0,160,0.24)');g.addColorStop(1,'rgba(255,255,0,0.18)');ctx.fillStyle=g;
-  const diagH=20,drift=(t*60)%80; ctx.save();ctx.translate(-drift,0);ctx.rotate(-Math.PI/12);
+  ctx.globalAlpha=0.26; const g=ctx.createLinearGradient(0,0,W,0);
+  g.addColorStop(0,'rgba(0,255,255,0.32)');g.addColorStop(0.5,'rgba(255,0,160,0.26)');g.addColorStop(1,'rgba(255,255,0,0.20)');ctx.fillStyle=g;
+  const diagH=20,drift=(t*64)%80; ctx.save();ctx.translate(-drift,0);ctx.rotate(-Math.PI/12);
   for(let y=-H;y<H*2;y+=diagH*4){ctx.fillRect(-W,y,W*3,diagH);} ctx.restore();
-  for(let i=0;i<14;i++){const ww=30+Math.random()*120,hh=2+Math.random()*4,xx=Math.random()*(W-ww),yy=Math.random()*H;ctx.globalAlpha=0.16+Math.random()*0.16;ctx.fillStyle=(i%3===0)?'rgba(0,255,255,0.6)':(i%3===1)?'rgba(255,0,160,0.5)':'rgba(255,255,0,0.45)';ctx.fillRect(xx,yy,ww,hh);}
+  for(let i=0;i<16;i++){const ww=30+Math.random()*120,hh=2+Math.random()*4,xx=Math.random()*(W-ww),yy=Math.random()*H;ctx.globalAlpha=0.16+Math.random()*0.18;ctx.fillStyle=(i%3===0)?'rgba(0,255,255,0.6)':(i%3===1)?'rgba(255,0,160,0.5)':'rgba(255,255,0,0.45)';ctx.fillRect(xx,yy,ww,hh);}
   ctx.restore();
 }
 
@@ -371,7 +423,7 @@ function judge(dtMs,lane){
 }
 
 /* —— 譜生成 & 更新 —— */
-const FIRST_NOTE_LEAD=1.6; // 開局把第一顆音符放到螢幕外
+const FIRST_NOTE_LEAD=1.6;
 function generateChart(dur){
   chart=[]; const d=currentDifficulty;
   let doubleChance=0.35, tmin=0.20, tmax=0.45;
@@ -387,8 +439,21 @@ function generateChart(dur){
       t+=Math.random()*(tmax-tmin)+tmin;
     }
   }else{
-    const beat=0.5;let t=FIRST_NOTE_LEAD,cur=0;const n=()=>{cur=(cur+1)%4;return cur;},push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50}),rnd=()=>Math.floor(Math.random()*4);
-    while(t<dur){ if(d==='ex'){push(t,n());if(Math.random()<0.60)push(t,(cur+2)%4);if(Math.random()<0.35)push(t+beat/2,(cur+1)%4);if(Math.random()<0.18){push(t+beat/3,rnd());push(t+2*beat/3,rnd());}t+=Math.random()<0.5?beat/2:beat;} else {push(t,n());if(Math.random()<0.85)push(t,(cur+2)%4);push(t+beat/2,(cur+1)%4);if(Math.random()<0.4){push(t+beat/4,rnd());push(t+3*beat/4,rnd());}t+=beat/2;} }
+    const beat=0.5;let t=FIRST_NOTE_LEAD,cur=0;
+    const n=()=>{cur=(cur+1)%4;return cur;},push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50}),rnd=()=>Math.floor(Math.random()*4);
+    while(t<dur){
+      if(d==='ex'){
+        push(t,n()); if(Math.random()<0.60)push(t,(cur+2)%4);
+        if(Math.random()<0.35)push(t+beat/2,(cur+1)%4);
+        if(Math.random()<0.18){push(t+beat/3,rnd());push(t+2*beat/3,rnd());}
+        t+=Math.random()<0.5?beat/2:beat;
+      }else{
+        push(t,n()); if(Math.random()<0.85)push(t,(cur+2)%4);
+        push(t+beat/2,(cur+1)%4);
+        if(Math.random()<0.4){push(t+beat/4,rnd());push(t+3*beat/4,rnd());}
+        t+=beat/2;
+      }
+    }
   }
   __remainNotes=chart.length;
 }
@@ -413,15 +478,15 @@ function render(){
 
   // Receptors（左、下、上、右）
   for(let i=0;i<4;i++){
-    const x=i*laneWidth+laneWidth/2;
+    const x=laneCenterX(i);
     drawBlueStreakArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:laneColors[i],isReceptor:true,pulse:receptorPulse[i],t});
   }
 
-  // Notes（加大裁切，避免開局小箭頭）
+  // Notes
   const top=-140,bottom=H+140;
   for(let i=0;i<chart.length;i++){
     const n=chart[i]; if(n.hit)continue; if(n.y<top||n.y>bottom)continue;
-    const x=n.lane*laneWidth+laneWidth/2;
+    const x=laneCenterX(n.lane);
     drawBlueStreakArrow({x,y:n.y,size:NOTE_BASE,dir:laneDirs[n.lane],baseColor:laneColors[n.lane],isReceptor:false,pulse:0,t:t+i*0.02});
   }
 
@@ -461,6 +526,18 @@ function onLanePress(lane){
   }
 }
 
+/* 觸控位置 → 就近 lane（考慮內縮後的中心） */
+function laneFromPointer(xCss){
+  const rect=canvas.getBoundingClientRect();
+  const xInternal = xCss/rect.width * W;
+  let best=0, bestd=1e9;
+  for(let i=0;i<4;i++){
+    const d=Math.abs(xInternal - laneCenterX(i));
+    if(d<bestd){bestd=d;best=i;}
+  }
+  return best;
+}
+
 /* —— 倒數 —— */
 let isCountingDown=false, countdownTimers=[], countdownRAF=null;
 function showCountdown(startCallback){
@@ -481,10 +558,35 @@ function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
 /* —— 音量/校正/曲庫 UI —— */
-function initVolumeUI(){const s=document.getElementById('volumeSlider'),l=document.getElementById('volumeLabel');const saved=+localStorage.getItem('dfjk.volume')||80;s.value=String(saved);l.textContent=`${saved}%`;setVolumes(saved);s.addEventListener('input',()=>{const v=+s.value;l.text內容=`${v}%`;setVolumes(v);localStorage.setItem('dfjk.volume',String(v));});}
-function initOffsetUI(){const s=document.getElementById('offsetSlider'),lab=document.getElementById('offsetLabel');const saved=+(localStorage.getItem('dfjk.offsetMs')||0);s.value=String(saved);lab.textContent=`${saved} ms`;setGlobalOffset(saved);document.getElementById('offsetCalibBtn').addEventListener('click',()=>alert('快速校正已保留；要更兇的自動校正我再幫你升級。'));}
+function initVolumeUI(){
+  const s=document.getElementById('volumeSlider');
+  const l=document.getElementById('volumeLabel');
+  const saved=+localStorage.getItem('dfjk.volume')||80;
+  s.value=String(saved);
+  l.textContent=`${saved}%`;       // ← 修正：避免 text內容 打錯
+  setVolumes(saved);
+  s.addEventListener('input',()=>{
+    const v=+s.value;
+    l.textContent=`${v}%`;
+    setVolumes(v);
+    localStorage.setItem('dfjk.volume',String(v));
+  });
+}
+function initOffsetUI(){
+  const s=document.getElementById('offsetSlider'),lab=document.getElementById('offsetLabel');
+  const saved=+(localStorage.getItem('dfjk.offsetMs')||0);
+  s.value=String(saved); lab.textContent=`${saved} ms`; setGlobalOffset(saved);
+  document.getElementById('offsetCalibBtn').addEventListener('click',()=>alert('快速校正已保留；需要完整自動校正我再幫你升級。'));
+}
 
-function fillSongList(){const sel=document.getElementById('songSelect');if(sel.dataset.filled)return;sel.innerHTML='';const ph=document.createElement('option');ph.value='';ph.textContent='— 請選擇曲目 —';ph.disabled=true;ph.selected=!selectedSongFile;sel.appendChild(ph);SONGS.forEach(f=>{const opt=document.createElement('option');opt.value=f;opt.textContent=f.replace(/\.mp3$/i,'');if(selectedSongFile===f)opt.selected=true;sel.appendChild(opt);});sel.addEventListener('change',()=>{document.getElementById('chosenSongLabel').textContent=sel.value?sel.options[sel.selectedIndex].textContent:'尚未選擇';});sel.dataset.filled='1';}
+function fillSongList(){
+  const sel=document.getElementById('songSelect'); if(sel.dataset.filled)return;
+  sel.innerHTML='';
+  const ph=document.createElement('option'); ph.value=''; ph.textContent='— 請選擇曲目 —'; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph);
+  SONGS.forEach(f=>{const opt=document.createElement('option');opt.value=f;opt.textContent=f.replace(/\.mp3$/i,'');if(selectedSongFile===f)opt.selected=true;sel.appendChild(opt);});
+  sel.addEventListener('change',()=>{document.getElementById('chosenSongLabel').textContent=sel.value?sel.options[sel.selectedIndex].textContent:'尚未選擇';});
+  sel.dataset.filled='1';
+}
 function confirmSong(){const sel=document.getElementById('songSelect');if(!sel.value){alert('請先選擇音樂');return;}selectedSongFile=sel.value;document.getElementById('chosenSongLabel').textContent=sel.options[sel.selectedIndex].textContent;document.getElementById('menuChosenSong').textContent=sel.options[sel.selectedIndex].textContent;goToMenu();}
 
 /* —— 流程 —— */
@@ -502,18 +604,43 @@ function startGame(){
   const url='music/'+encodeURIComponent(selectedSongFile);
   showOnly('gameScreen');phase='countdown';setupDPR();applyDesktopScale();recomputeLayout();render();renderUI();
 
-  loadSongBuffer(url).then(()=>{const dur=songBuffer&&isFinite(songBuffer.duration)?songBuffer.duration:120;generateChart(dur);showCountdown(()=>{running=true;prevT=getClockSec();playFrom(0);loopId=requestAnimationFrame(gameLoop);});}).catch(e=>{console.warn(e);const b=document.getElementById('warnBanner');b.style.display='block';setTimeout(()=>b.style.display='none',3000);goToMenu();});
+  loadSongBuffer(url).then(()=>{
+    const dur=songBuffer&&isFinite(songBuffer.duration)?songBuffer.duration:120;
+    generateChart(dur);
+    showCountdown(()=>{
+      running=true;prevT=getClockSec();playFrom(0);loopId=requestAnimationFrame(gameLoop);
+    });
+  }).catch(e=>{
+    console.warn(e);const b=document.getElementById('warnBanner');
+    b.style.display='block';setTimeout(()=>b.style.display='none',3000);goToMenu();
+  });
 }
 function pauseGame(){if(!running||paused)return;paused=true;showOnly('pauseScreen');document.getElementById('gameScreen').classList.add('blur');try{if(srcNode){srcNode.onended=null;srcNode.stop(0)}}catch{}srcNode=null;}
 function resumeGame(){if(!paused)return;paused=false;showOnly('gameScreen');document.getElementById('gameScreen').classList.remove('blur');playFrom(getClockSec());prevT=getClockSec();loopId=requestAnimationFrame(gameLoop);}
 function gameLoop(){if(paused)return;const t=getClockSec();const dt=Math.max(0,t-prevT);prevT=t;update(t,dt);render();renderUI();if(songEnded||__remainNotes<=0){running=false;stopGameLoop();stopAndResetAudio();document.getElementById('finalSong').textContent=currentSongTitle;document.getElementById('finalDiff').textContent=currentDifficulty.toUpperCase();document.getElementById('finalDir').textContent=(currentDirection==='up'?'上升':'下落');document.getElementById('finalJudge').textContent=(currentJudgeMode==='old'?'Old':'New');document.getElementById('finalScore').textContent=score;document.getElementById('statSick').textContent=stats.sick;document.getElementById('statGood').textContent=stats.good;document.getElementById('statBad').textContent=stats.bad;document.getElementById('statShit').textContent=stats.shit;document.getElementById('statMiss').textContent=stats.miss;showOnly('endScreen');return;}loopId=requestAnimationFrame(gameLoop);}
 function stopGameLoop(){try{cancelAnimationFrame(loopId)}catch{}loopId=null;}
 
-window.addEventListener('keydown',e=>{if(e.repeat)return;const lane=laneFromKey(e.key.toLowerCase());if(lane!==null){if(running&&!paused)onLanePress(lane);e.preventDefault();return;}if(e.key==='Escape'){if(phase==='countdown'){cancelCountdown();goToMenu();}else if(running&&!paused){pauseGame();}else if(paused){resumeGame();}}});
-canvas.addEventListener('pointerdown',e=>{if(!running||paused)return;const rect=canvas.getBoundingClientRect();const x=e.clientX-rect.left;const cssLaneWidth=rect.width/4;const lane=Math.min(3,Math.max(0,Math.floor(x/cssLaneWidth)));onLanePress(lane);});
+window.addEventListener('keydown',e=>{
+  if(e.repeat)return;
+  const lane=laneFromKey(e.key.toLowerCase());
+  if(lane!==null){if(running&&!paused)onLanePress(lane);e.preventDefault();return;}
+  if(e.key==='Escape'){
+    if(phase==='countdown'){cancelCountdown();goToMenu();}
+    else if(running&&!paused){pauseGame();}
+    else if(paused){resumeGame();}
+  }
+});
+canvas.addEventListener('pointerdown',e=>{
+  if(!running||paused)return;
+  const rect=canvas.getBoundingClientRect();
+  const x=e.clientX-rect.left;
+  const lane=laneFromPointer(x);
+  onLanePress(lane);
+});
 
 function init(){applyDesktopScale();initVolumeUI();initOffsetUI();fillSongList();}
-init(); window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout();render();renderUI();});
+init();
+window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout();render();renderUI();});
 
 /* 導出 */
 Object.assign(window,{startGame,showMusic,showOptions,goToMenu,pauseGame,resumeGame,confirmSong});
