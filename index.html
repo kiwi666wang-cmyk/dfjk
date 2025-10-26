@@ -186,12 +186,13 @@
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
 
 <script>
-/* ====== 可調參數 ====== */
-const CENTER_TUCK_PX = 10;   // 讓中間兩鍵彼此靠近的像素（F 往右、J 往左）
-const GLITCH_AMPLIFY = 1.35; // 故障強度倍率（>1 更狂）
-const TAIL_FACTOR    = 0.44; // 箭尾長度比例（越小越短，原本約 0.53）
+/* ===== 可調參數 ===== */
+const CENTER_TUCK_PX = 12;    // 讓 F/J 靠近一些（F 向右 +12px、J 向左 -12px）
+const GLITCH_AMPLIFY = 1.45;  // 故障強度倍率
+const TAIL_FACTOR    = 0.42;  // 箭尾長度比例（越小越短）
+const COUNTDOWN_MS   = 3400;  // 倒數總時長（Ready + 3 2 1 Go）
 
-/* ===== 基本參數 ===== */
+/* ===== 基本設定 ===== */
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
 const uiCanvas=document.getElementById('uiCanvas');
@@ -203,22 +204,22 @@ setupDPR();
 const IS_MOBILE=window.matchMedia('(pointer: coarse)').matches;
 const SUPPORTS_VIB=IS_MOBILE&&'vibrate' in navigator;
 
-const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666'];
-// 視覺順序固定：左、下、上、右（D/F/J/K）
+const laneColors=['#b266ff','#66ccff','#66ff66','#ff6666']; // 左下上右
 const laneDirs=['left','down','up','right'];
 const HITKEY_BASE=90;
 const NOTE_BASE=44;
 let uiScale=1;
 
-/* 中心位置（含中間內縮） */
+/* lane 中心：考慮 F/J 內縮 */
 function laneCenterX(index){
   const laneWidth = W/4;
   let x = index*laneWidth + laneWidth/2;
-  if(index===1) x += CENTER_TUCK_PX;     // F 往右
-  if(index===2) x -= CENTER_TUCK_PX;     // J 往左
+  if(index===1) x += CENTER_TUCK_PX; // F 右移
+  if(index===2) x -= CENTER_TUCK_PX; // J 左移
   return x;
 }
 
+/* 狀態 */
 let phase='menu',running=false,paused=false,loopId=null,prevT=0;
 let selectedSongFile=null;
 let score=0,combo=0,lastJudgementText='-'; let missCount=0,gameOver=false;
@@ -226,6 +227,7 @@ let stats={sick:0,good:0,bad:0,shit:0,miss:0};
 let chart=[],__remainNotes=0;
 let currentSongTitle='-',currentDifficulty='normal',currentDirection='down',currentJudgeMode='old';
 
+/* 版面位置/打擊線 */
 let cachedRectH=canvas.getBoundingClientRect().height;
 let cachedScaleY=cachedRectH/H;
 let cachedJudgeCss=(HITKEY_BASE*uiScale/2);
@@ -247,49 +249,23 @@ function applyDesktopScale(){
 }
 function getJudgeLineYInternal(){return cachedJudgeInternal;}
 
-const receptorPulse=[0,0,0,0];
-const dtHistory=[];const DT_HIST_MAX=240;
-function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
-function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory.length;const avg=dtHistory.reduce((a,c)=>a+c,0)/n;const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;return{avg,std:Math.sqrt(va)};}
-
-/* 基礎圖形朝右 → 修正各方向角度 */
-function dirToAngle(dir){
-  switch(dir){
-    case 'up':    return -Math.PI/2;
-    case 'down':  return  Math.PI/2;
-    case 'left':  return  Math.PI;
-    case 'right': return  0;
-  }
-  return 0;
-}
+/* 工具 */
+function dirToAngle(dir){switch(dir){case 'up':return -Math.PI/2;case 'down':return Math.PI/2;case 'left':return Math.PI;case 'right':return 0;}return 0}
 function laneFromKey(k){switch(k){case'd':case'arrowleft':return 0;case'f':case'arrowdown':return 1;case'j':case'arrowup':return 2;case'k':case'arrowright':return 3;default:return null}}
-
 const SONGS=[ "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3","Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3","Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3","Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collaboration Music Video #BBBBダンス - Creepy Nuts.mp3","KANA-BOON - Silhouette - KANABOONVEVO.mp3","Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3","Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3","ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3","Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3","Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3","OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3","YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3","yung kai - blue (official music video) - yung kai.mp3","【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3","【MV】隙_ゆーり【オリジナル】 - ゆーり🍎🐥〔24〕・yuri (1).mp3","【imase】NIGHT DANCER（MV） - imase.mp3","なとり - Overdose - なとり _ natori.mp3","好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3","廻廻奇譚 - Eve MV - Eve.mp3","青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3","Toge Toge Sadistic - Enormita (youtube).mp3","My dream girls - NACHERRY (youtube).mp3","PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3","YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3","YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3","YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3","【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3","Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3","ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"];
+function updateHUD(){document.getElementById('score').textContent=score;document.getElementById('combo').textContent=combo;document.getElementById('judgement').textContent=lastJudgementText;document.getElementById('missCount').textContent=missCount;document.getElementById('songTitle').textContent=currentSongTitle;document.getElementById('diffLabel').textContent=currentDifficulty.toUpperCase();document.getElementById('dirLabel').textContent=(currentDirection==='up'?'上升':'下落');document.getElementById('judgeLabel').textContent=(currentJudgeMode==='old'?'Old':'New');document.getElementById('offsetActive').textContent=`${INPUT_OFFSET_MS} ms`;}
 
-function updateHUD(){
-  document.getElementById('score').textContent=score;
-  document.getElementById('combo').textContent=combo;
-  document.getElementById('judgement').textContent=lastJudgementText;
-  document.getElementById('missCount').textContent=missCount;
-  document.getElementById('songTitle').textContent=currentSongTitle;
-  document.getElementById('diffLabel').textContent=currentDifficulty.toUpperCase();
-  document.getElementById('dirLabel').textContent=(currentDirection==='up'?'上升':'下落');
-  document.getElementById('judgeLabel').textContent=(currentJudgeMode==='old'?'Old':'New');
-  document.getElementById('offsetActive').textContent=`${INPUT_OFFSET_MS} ms`;
-}
-
-/* ===== 箭頭 + 故障效果（加強版） ===== */
+/* ===== 箭頭繪製（強化版 + 故障） ===== */
 function lighten(c,a){const p=parseInt(c.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`}
-
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   const ang=dirToAngle(dir);
   const L=size*2.05, Hh=size*0.95, inner=0.62, cut=Hh*0.32;
-  const tip=L*0.52, tail=-L*TAIL_FACTOR;   // ← 尾翼縮短
+  const tip=L*0.52, tail=-L*TAIL_FACTOR;
 
   ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
 
-  // 殘影帶（加強透明交錯）
-  const trailLen=L*0.9, bands=7;
+  // 殘影帶
+  const trailLen=L*0.92, bands=7;
   for(let i=0;i<bands;i++){
     const pp=i/(bands-1), w=(1-pp)*trailLen;
     const a=(0.14*(1-pp))*(isReceptor?.55:1)*GLITCH_AMPLIFY;
@@ -304,7 +280,8 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse,t}){
     ctx.restore();
   }
 
-  const drawChevron=(hh, lw, strokeStyle)=>{
+  // 主體邊線
+  const drawChevron=(hh,lw,strokeStyle)=>{
     ctx.beginPath();
     ctx.moveTo(tail, -hh*0.52);
     ctx.lineTo(0,   -hh*0.52);
@@ -316,60 +293,46 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse,t}){
     ctx.lineJoin='round'; ctx.lineCap='round';
     ctx.lineWidth=lw; ctx.strokeStyle=strokeStyle; ctx.stroke();
   };
-
   if(isReceptor){
-    // 暗底 + 白色細邊
     ctx.fillStyle='#050607';
     ctx.beginPath();
     ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();
     ctx.lineWidth=6;ctx.strokeStyle='#000';ctx.stroke();
     ctx.lineWidth=2.1;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.stroke();
-
-    // 命中發光填充
     if(pulse>0){
       ctx.save();ctx.globalAlpha=(0.40+0.50*pulse)*GLITCH_AMPLIFY;ctx.fillStyle=lighten(baseColor,.28);
       ctx.beginPath();ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();ctx.restore();
     }
   }else{
-    drawChevron(Hh,        5.0, lighten(baseColor,.48));
-    drawChevron(Hh*inner,  3.0, '#ffffff');
+    drawChevron(Hh,       5.0, lighten(baseColor,.48));
+    drawChevron(Hh*inner, 3.0, '#ffffff');
   }
 
-  // 故障：色道偏移 + 切片抖動（加強）
-  const gAmp=(isReceptor? size*0.06 : size*0.10) * GLITCH_AMPLIFY;
+  // 故障：色道偏移 + 切片抖動 + 掃描線
+  const gAmp=(isReceptor? size*0.06 : size*0.10)*GLITCH_AMPLIFY;
   for(let k=0;k<4;k++){
     const ox=Math.sin(t*20 + k*1.9)*gAmp;
     const oy=Math.cos(t*26 + k*2.1)*gAmp*0.45;
-    ctx.save();
-    ctx.translate(ox,oy);
-    ctx.globalAlpha=isReceptor?0.28:0.40;
-    ctx.globalCompositeOperation='lighter';
+    ctx.save(); ctx.translate(ox,oy);
+    ctx.globalAlpha=isReceptor?0.28:0.40; ctx.globalCompositeOperation='lighter';
     drawChevron(Hh*(0.98-k*0.06), 1.6, (k%2)?'rgba(0,255,255,.9)':'rgba(255,0,160,.9)');
     ctx.restore();
   }
-
-  // 斷層切片（在箭頭中段做水平 slice 抖動）
   const slices=5;
   for(let s=0;s<slices;s++){
-    const yy=( (s/(slices-1))-0.5 )*Hh*1.0;
+    const yy=((s/(slices-1))-0.5)*Hh*1.0;
     const jitter=(Math.sin(t*30+s*2.3)*gAmp*0.6);
-    ctx.save(); ctx.beginPath();
-    ctx.rect(tail, yy-2, L*1.05, 4);
-    ctx.clip(); ctx.translate(jitter,0);
-    drawChevron(Hh*0.96, 1.2, 'rgba(255,255,255,0.25)');
-    ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.rect(tail,yy-2,L*1.05,4); ctx.clip(); ctx.translate(jitter,0);
+    drawChevron(Hh*0.96, 1.2, 'rgba(255,255,255,0.25)'); ctx.restore();
   }
-
-  // 掃描線
-  ctx.globalAlpha=0.12;ctx.fillStyle='#fff';
-  const stripeH=Math.max(1,Math.round(size*0.10));
-  const shift=((t*140)%stripeH);
+  ctx.globalAlpha=0.12; ctx.fillStyle='#fff';
+  const stripeH=Math.max(1,Math.round(size*0.10)), shift=((t*140)%stripeH);
   for(let sy=-Hh; sy<=Hh; sy+=stripeH*3){ ctx.fillRect(tail, sy+shift, L*1.05, 1); }
 
   ctx.restore();
 }
 
-/* 背景（略強化） */
+/* 背景 */
 function drawPlayfieldBackground(t){
   ctx.save(); ctx.fillStyle='#0e1522'; ctx.fillRect(0,0,W,H);
   ctx.globalAlpha=0.24; ctx.strokeStyle='rgba(120,213,255,0.35)'; ctx.lineWidth=1;
@@ -384,7 +347,7 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* —— WebAudio 時鐘 + 偏移 —— */
+/* ===== WebAudio 時鐘 + 偏移 ===== */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 let audioCtx=null,songBuffer=null,gainNode=null,srcNode=null,startAtCtx=0,startAtSong=0,songEnded=false;
 let softBaseSong=0,softStartPerf=0;
@@ -397,15 +360,18 @@ function getClockSec(){const ta=getSongClockSecAudio();if(ta!==null&&audioCtx.st
 function getJudgeClockSec(){return getClockSec()+(INPUT_OFFSET_MS/1000)}
 function setGlobalOffset(ms){const v=Math.max(-600,Math.min(600,(ms|0)));INPUT_OFFSET_MS=v;localStorage.setItem('dfjk.offsetMs',String(v));document.getElementById('offsetLabel').textContent=`${v} ms`;document.getElementById('offsetActive').textContent=`${v} ms`}
 
-/* —— SFX —— */
+/* ===== SFX ===== */
 const hitSound=document.getElementById('hitSound');const SFX_GAIN=1.6;
 class TapSoundPool{constructor(src,size=10){this.pool=[];this.idx=0;for(let i=0;i<size;i++){const a=new Audio(src);a.preload='auto';a.volume=1.0;this.pool.push(a)}}setVolume(v){const vol=Math.max(0,Math.min(1,v));for(const a of this.pool)a.volume=vol}play(){const a=this.pool[this.idx];this.idx=(this.idx+1)%this.pool.length;try{a.currentTime=0;a.play().catch(()=>{})}catch{}}}
 let tapPool=null;function setVolumes(percent){const v=Math.max(0,Math.min(100,percent))/100;if(gainNode)gainNode.gain.value=v;if(!tapPool)tapPool=new TapSoundPool(hitSound.src,12);const sfxVol=Math.min(1,v*SFX_GAIN);tapPool.setVolume(sfxVol);hitSound.volume=sfxVol}
 function playTapSound(){if(!tapPool)tapPool=new TapSoundPool(hitSound.src,12);tapPool.play()}
 
-/* —— 判定 —— */
+/* ===== 判定 ===== */
 const WINDOWS={sick:80,good:130,bad:150,shit:170}, SCORES={sick:350,good:200,bad:100,shit:-50,miss:-300,ghost:-150};
 let baseNoteSpeed=550, noteSpeed=baseNoteSpeed;
+const dtHistory=[];const DT_HIST_MAX=240;
+function recordDt(d){dtHistory.push(d);if(dtHistory.length>DT_HIST_MAX)dtHistory.shift();}
+function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory.length;const avg=dtHistory.reduce((a,c)=>a+c,0)/n;const va=dtHistory.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;return{avg,std:Math.sqrt(va)};}
 
 function judge(dtMs,lane){
   const adt=Math.abs(dtMs); let rating='',base=0,incCombo=true;
@@ -422,7 +388,7 @@ function judge(dtMs,lane){
   updateHUD();
 }
 
-/* —— 譜生成 & 更新 —— */
+/* ===== 譜生成 & 更新 ===== */
 const FIRST_NOTE_LEAD=1.6;
 function generateChart(dur){
   chart=[]; const d=currentDifficulty;
@@ -471,7 +437,7 @@ function update(songT,dt){
   for(let i=0;i<4;i++){receptorPulse[i]=Math.max(0,receptorPulse[i]-dt*3.2);}
 }
 
-/* —— 繪製 —— */
+/* ===== 繪製 ===== */
 function render(){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
@@ -493,7 +459,7 @@ function render(){
   if(lastJudgementText!=='-'){ctx.fillStyle='#fff';ctx.font='bold 32px sans-serif';ctx.textAlign='center';const off=(currentDirection==='up')?120:-40;ctx.fillText(lastJudgementText,W/2,judge+off);}
 }
 
-/* —— 左上熱圖（上升模式置底） —— */
+/* ===== 左上熱圖（上升模式置底） ===== */
 function renderUI(){
   const bins=36,min=-300,max=300,step=(max-min)/bins,hist=new Array(bins).fill(0);
   for(const v of dtHistory){const i=Math.floor((v-min)/step);if(i>=0&&i<bins)hist[i]++}
@@ -508,7 +474,7 @@ function renderUI(){
   uictx.strokeStyle='#ffd966';uictx.beginPath();const midx=x0+(-min)/step*bw;uictx.moveTo(midx,y0);uictx.lineTo(midx,y0+h);uictx.stroke();uictx.restore();
 }
 
-/* —— 輸入 —— */
+/* ===== 輸入 ===== */
 function onLanePress(lane){
   if(!running)return;
   playTapSound();
@@ -525,8 +491,6 @@ function onLanePress(lane){
     lastJudgementText='MISS'; combo=0; score=Math.max(0,score+SCORES.ghost); updateHUD();
   }
 }
-
-/* 觸控位置 → 就近 lane（考慮內縮後的中心） */
 function laneFromPointer(xCss){
   const rect=canvas.getBoundingClientRect();
   const xInternal = xCss/rect.width * W;
@@ -538,32 +502,54 @@ function laneFromPointer(xCss){
   return best;
 }
 
-/* —— 倒數 —— */
-let isCountingDown=false, countdownTimers=[], countdownRAF=null;
+/* ===== 倒數（RAF 時基，可靠） ===== */
+let isCountingDown=false, countdownRAF=null;
 function showCountdown(startCallback){
-  cancelCountdown(); isCountingDown=true;
-  const el=document.getElementById('countdownText'); el.style.display='block';
-  const steps=['Ready','3','2','1','Go!'], stepDur=700;
-  const renderCount=()=>{ if(!isCountingDown)return; render(); renderUI(); countdownRAF=requestAnimationFrame(renderCount); }; renderCount();
-  const playStep=i=>{ if(!isCountingDown)return; el.textContent=steps[i]; el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out'; };
-  for(let i=0;i<steps.length;i++) countdownTimers.push(setTimeout(()=>playStep(i), i*stepDur));
-  countdownTimers.push(setTimeout(()=>{ if(!isCountingDown)return; el.style.display='none'; isCountingDown=false; cancelAnimationFrame(countdownRAF); startCallback(); }, steps.length*stepDur));
-}
-function cancelCountdown(){ if(!isCountingDown&&countdownTimers.length===0&&!countdownRAF)return; isCountingDown=false; countdownTimers.forEach(id=>clearTimeout(id)); countdownTimers=[]; try{cancelAnimationFrame(countdownRAF)}catch{} countdownRAF=null; const el=document.getElementById('countdownText'); el.style.animation='none'; el.style.display='none'; }
+  cancelCountdown();
+  isCountingDown=true;
+  const el=document.getElementById('countdownText');
+  el.style.display='block';
 
-/* —— UI 切換 —— */
+  const t0=performance.now();
+  const seg=[700,700,700,700,600]; // Ready,3,2,1,Go
+  const labels=['Ready','3','2','1','Go!'];
+  const total=seg.reduce((a,b)=>a+b,0);
+  function step(now){
+    if(!isCountingDown) return;
+    const elapsed=now - t0;
+    // 哪一段
+    let acc=0, idx=seg.length-1;
+    for(let i=0;i<seg.length;i++){acc+=seg[i]; if(elapsed<acc){idx=i; break;}}
+    el.textContent=labels[idx];
+    el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
+
+    render(); renderUI();
+
+    if(elapsed>=total || elapsed>=COUNTDOWN_MS){
+      el.style.display='none';
+      isCountingDown=false;
+      startCallback();
+      return;
+    }
+    countdownRAF=requestAnimationFrame(step);
+  }
+  countdownRAF=requestAnimationFrame(step);
+}
+function cancelCountdown(){ if(!isCountingDown && !countdownRAF) return; isCountingDown=false; try{cancelAnimationFrame(countdownRAF)}catch{} countdownRAF=null; const el=document.getElementById('countdownText'); el.style.animation='none'; el.style.display='none'; }
+
+/* ===== UI 切換 ===== */
 function showOnly(id){['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>document.getElementById(x).style.display=(x===id?'block':'none')); if(id!=='gameScreen')document.getElementById('gameScreen').classList.remove('blur');}
 function goToMenu(){cancelCountdown();stopGameLoop();stopAndResetAudio();showOnly('menuScreen');phase='menu';document.getElementById('menuChosenSong').textContent=selectedSongFile?selectedSongFile.replace(/\.mp3$/i,''):'尚未選擇';}
 function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
-/* —— 音量/校正/曲庫 UI —— */
+/* ===== 音量/校正/曲庫 UI ===== */
 function initVolumeUI(){
   const s=document.getElementById('volumeSlider');
   const l=document.getElementById('volumeLabel');
   const saved=+localStorage.getItem('dfjk.volume')||80;
   s.value=String(saved);
-  l.textContent=`${saved}%`;       // ← 修正：避免 text內容 打錯
+  l.textContent=`${saved}%`;
   setVolumes(saved);
   s.addEventListener('input',()=>{
     const v=+s.value;
@@ -576,9 +562,8 @@ function initOffsetUI(){
   const s=document.getElementById('offsetSlider'),lab=document.getElementById('offsetLabel');
   const saved=+(localStorage.getItem('dfjk.offsetMs')||0);
   s.value=String(saved); lab.textContent=`${saved} ms`; setGlobalOffset(saved);
-  document.getElementById('offsetCalibBtn').addEventListener('click',()=>alert('快速校正已保留；需要完整自動校正我再幫你升級。'));
+  document.getElementById('offsetCalibBtn').addEventListener('click',()=>alert('快速校正保留；要全自動我再升級。'));
 }
-
 function fillSongList(){
   const sel=document.getElementById('songSelect'); if(sel.dataset.filled)return;
   sel.innerHTML='';
@@ -589,14 +574,25 @@ function fillSongList(){
 }
 function confirmSong(){const sel=document.getElementById('songSelect');if(!sel.value){alert('請先選擇音樂');return;}selectedSongFile=sel.value;document.getElementById('chosenSongLabel').textContent=sel.options[sel.selectedIndex].textContent;document.getElementById('menuChosenSong').textContent=sel.options[sel.selectedIndex].textContent;goToMenu();}
 
-/* —— 流程 —— */
-function startGame(){
+/* ===== 流程 ===== */
+async function startGame(){
+  try{
+    // 先解鎖音訊（行動端很重要）
+    await ensureAudio();
+    try{ await audioCtx.resume(); }catch{}
+  }catch{}
+
   if(!selectedSongFile){alert('請先選擇音樂');showMusic();return;}
-  const diff=document.getElementById('difficultySelect').value, sp=document.getElementById('speedMultiplier'), dir=document.getElementById('noteDirection').value, jmode=document.getElementById('judgeMode').value;
+  const diff=document.getElementById('difficultySelect').value,
+        sp=document.getElementById('speedMultiplier'),
+        dir=document.getElementById('noteDirection').value,
+        jmode=document.getElementById('judgeMode').value;
   currentDifficulty=diff; currentDirection=dir; currentJudgeMode=jmode;
+
   let mul=parseFloat(sp.value); if(diff==='beginner')mul=0.8; else if(diff==='easy')mul=0.9; else if(diff==='ex')mul=1.8;
   noteSpeed=baseNoteSpeed*mul;
 
+  // 重置
   score=0;combo=0;lastJudgementText='-';missCount=0;gameOver=false;stats={sick:0,good:0,bad:0,shit:0,miss:0};
   chart=[];__remainNotes=0;dtHistory.length=0;for(let i=0;i<4;i++)receptorPulse[i]=0;updateHUD();
 
@@ -604,22 +600,31 @@ function startGame(){
   const url='music/'+encodeURIComponent(selectedSongFile);
   showOnly('gameScreen');phase='countdown';setupDPR();applyDesktopScale();recomputeLayout();render();renderUI();
 
-  loadSongBuffer(url).then(()=>{
+  try{
+    await loadSongBuffer(url);
     const dur=songBuffer&&isFinite(songBuffer.duration)?songBuffer.duration:120;
     generateChart(dur);
+
     showCountdown(()=>{
-      running=true;prevT=getClockSec();playFrom(0);loopId=requestAnimationFrame(gameLoop);
+      running=true; paused=false;
+      prevT=getClockSec();
+      playFrom(0);
+      loopId=requestAnimationFrame(gameLoop);
     });
-  }).catch(e=>{
-    console.warn(e);const b=document.getElementById('warnBanner');
-    b.style.display='block';setTimeout(()=>b.style.display='none',3000);goToMenu();
-  });
+
+  }catch(e){
+    console.warn(e);
+    const b=document.getElementById('warnBanner');
+    b.style.display='block';setTimeout(()=>b.style.display='none',3000);
+    goToMenu();
+  }
 }
 function pauseGame(){if(!running||paused)return;paused=true;showOnly('pauseScreen');document.getElementById('gameScreen').classList.add('blur');try{if(srcNode){srcNode.onended=null;srcNode.stop(0)}}catch{}srcNode=null;}
 function resumeGame(){if(!paused)return;paused=false;showOnly('gameScreen');document.getElementById('gameScreen').classList.remove('blur');playFrom(getClockSec());prevT=getClockSec();loopId=requestAnimationFrame(gameLoop);}
 function gameLoop(){if(paused)return;const t=getClockSec();const dt=Math.max(0,t-prevT);prevT=t;update(t,dt);render();renderUI();if(songEnded||__remainNotes<=0){running=false;stopGameLoop();stopAndResetAudio();document.getElementById('finalSong').textContent=currentSongTitle;document.getElementById('finalDiff').textContent=currentDifficulty.toUpperCase();document.getElementById('finalDir').textContent=(currentDirection==='up'?'上升':'下落');document.getElementById('finalJudge').textContent=(currentJudgeMode==='old'?'Old':'New');document.getElementById('finalScore').textContent=score;document.getElementById('statSick').textContent=stats.sick;document.getElementById('statGood').textContent=stats.good;document.getElementById('statBad').textContent=stats.bad;document.getElementById('statShit').textContent=stats.shit;document.getElementById('statMiss').textContent=stats.miss;showOnly('endScreen');return;}loopId=requestAnimationFrame(gameLoop);}
 function stopGameLoop(){try{cancelAnimationFrame(loopId)}catch{}loopId=null;}
 
+/* ===== 事件 ===== */
 window.addEventListener('keydown',e=>{
   if(e.repeat)return;
   const lane=laneFromKey(e.key.toLowerCase());
@@ -636,13 +641,13 @@ canvas.addEventListener('pointerdown',e=>{
   const x=e.clientX-rect.left;
   const lane=laneFromPointer(x);
   onLanePress(lane);
-});
+},{passive:true});
 
 function init(){applyDesktopScale();initVolumeUI();initOffsetUI();fillSongList();}
 init();
 window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout();render();renderUI();});
 
-/* 導出 */
+/* 導出（給 HTML 按鈕用） */
 Object.assign(window,{startGame,showMusic,showOptions,goToMenu,pauseGame,resumeGame,confirmSong});
 </script>
 </body>
