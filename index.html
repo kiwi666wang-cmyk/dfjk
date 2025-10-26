@@ -27,7 +27,6 @@
   @keyframes noiseShift{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(0,-70px,0)}}
   #stage{position:relative;width:95%;max-width:420px;margin:20px auto;--u:1;z-index:1}
   canvas{display:block;background:#0f1727;width:100%;height:auto}
-  /* 防止手機雙擊/拖動造成捲動與縮放 */
   canvas#gameCanvas{touch-action:none}
   canvas.ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;background:transparent;border:none;z-index:5}
   #edgeFade{position:absolute;inset:0;pointer-events:none;opacity:1;border-radius:10px;
@@ -44,7 +43,6 @@
   #menuScreen,#musicScreen,#endScreen,#optionsScreen,#pauseScreen{padding-top:120px}
   .blur{filter:blur(6px);pointer-events:none;user-select:none}
   #pauseButton{position:absolute;top:10px;right:10px;z-index:3}
-  /* 倒數 */
   #countdownText{
     position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);
     font-family:'Fredoka One',sans-serif;font-size:72px;color:#fff;text-shadow:2px 2px 8px #000;z-index:9;pointer-events:none;display:none}
@@ -188,7 +186,7 @@ const MUSIC_DIR = 'music/';
 const CENTER_TUCK_PX = 10;
 const GLITCH_AMPLIFY = 1.5;
 const TAIL_FACTOR    = 0.44;
-const COUNTDOWN_MS   = 3200;      // 更俐落的 3-2-1
+const COUNTDOWN_MS   = 3200;
 
 /* ========= 畫布與尺寸 ========= */
 const canvas=document.getElementById('gameCanvas');
@@ -347,8 +345,8 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     const oy=Math.cos(t*26 + k*2.1)*gAmp*0.45;
     ctx.save(); ctx.translate(ox,oy);
     ctx.globalAlpha=(isReceptor?(0.15+0.25*p):0.40); ctx.globalCompositeOperation='lighter';
-    [ 'rgba(0,255,255,.9)','rgba(255,0,160,.9)' ].forEach((col,idx)=>{
-      drawChevron(Hh*(0.98-k*0.06), 1.6, (k%2)?col:col);
+    [ 'rgba(0,255,255,.9)','rgba(255,0,160,.9)' ].forEach((col)=>{
+      drawChevron(Hh*(0.98-k*0.06), 1.6, col);
     });
     ctx.restore();
   }
@@ -386,13 +384,13 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* ========= 音訊：載入與播放控制（倒數完才允許播放） ========= */
+/* ========= 音訊：倒數完才允許播放 ========= */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 const bgmEl=document.getElementById('bgm');
 let audioCtx=null,gainNode=null,buffer=null,srcNode=null,mode='silent';
 let startAtCtx=0,startAtSong=0,softBaseSong=0,softStartPerf=0;
 let durationSec=120,songEnded=false;
-let waReady=false, htmlReady=false, canStartMusic=false; // ★ 倒數前禁播
+let waReady=false, htmlReady=false, canStartMusic=false;
 
 async function ensureAudio(){ if(!audioCtx){ audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});} if(!gainNode){ gainNode=audioCtx.createGain();gainNode.connect(audioCtx.destination);} }
 function setDebug(mode, err){debugEl.textContent=`mode: ${mode} | err: ${err||'-'}`}
@@ -407,7 +405,7 @@ async function loadViaWebAudio(url){
     durationSec=buffer.duration||120;
     waReady=true;
     if(canStartMusic && mode!=='webaudio'){ startWebAudio(getClockSec()); }
-  }catch(e){ /* ignore */ }
+  }catch(e){}
 }
 function startWebAudio(offsetSec){
   if(!buffer) return;
@@ -572,6 +570,28 @@ function render(opts={skipNotes:false}){
   if(lastJudgementText!=='-'){ctx.fillStyle='#fff';ctx.font='bold 32px sans-serif';ctx.textAlign='center';const off=(currentDirection==='up')?120:-40;ctx.fillText(lastJudgementText,W/2,judge+off);}
 }
 
+/* === 倒數專用：預覽剩餘音符（不改狀態、不計判定、不記 MISS） === */
+function renderPreviewAt(previewSongTimeSec){
+  const t=performance.now()/1000, judge=getJudgeLineYInternal();
+  ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
+
+  // receptor 保留現有 pulse
+  for(let i=0;i<4;i++){
+    const x=laneCenterX(i);
+    drawBlueStreakArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:laneColors[i],isReceptor:true,pulse:receptorPulse[i],t});
+  }
+
+  // 將「未命中」音符用預覽時間算位置（不改 chart[].y）
+  const top=-140,bottom=H+140;
+  for(let i=0;i<chart.length;i++){
+    const n=chart[i]; if(n.hit)continue;
+    const y=noteYAtTimeFor(n.t, previewSongTimeSec);
+    if(y<top||y>bottom)continue;
+    const x=laneCenterX(n.lane);
+    drawBlueStreakArrow({x,y,size:NOTE_BASE,dir:laneDirs[n.lane],baseColor:laneColors[n.lane],isReceptor:false,pulse:0,t:t+i*0.02});
+  }
+}
+
 /* ========= UI：熱圖 + 左上徽章 ========= */
 function drawCornerBadge(){
   const x=14,y=14;
@@ -604,7 +624,7 @@ function renderUI(){
 /* ========= 輸入 ========= */
 function onLanePress(lane){
   if(!running)return;
-  playTapSound(); // 空打也有聲音
+  playTapSound();
   const tNow=getJudgeClockSec();
   let bestIdx=-1, bestAbs=Infinity;
   for(let i=0;i<chart.length;i++){
@@ -617,20 +637,24 @@ function onLanePress(lane){
   }else{
     if(currentJudgeMode==='old'){
       lastJudgementText='MISS'; combo=0; score=Math.max(0,score+SCORES.ghost);
-      receptorPulse[lane]=Math.max(receptorPulse[lane],0.7); // 空打也亮
+      receptorPulse[lane]=Math.max(receptorPulse[lane],0.7);
       addHitFx(lane);
       updateHUD();
     }
   }
 }
 
-/* ========= 倒數（倒數期間禁止開聲） ========= */
+/* ========= 倒數（支援顯示剩餘音符） ========= */
 let isCountingDown=false, countdownRAF=null;
-function showCountdown(startCallback){
+function showCountdown(startCallback, opts={}){
+  const showNotes = !!opts.showNotes;
+  const previewTimeSec = (typeof opts.previewTime === 'number') ? opts.previewTime : 0;
+
   cancelCountdown(); isCountingDown=true;
   const el=document.getElementById('countdownText'); el.style.display='block';
   const labels=['3','2','1','Go!']; const dur=[800,800,800,800];
   const t0=performance.now();
+
   function step(now){
     if(!isCountingDown)return;
     const elapsed=now-t0;
@@ -638,8 +662,16 @@ function showCountdown(startCallback){
     for(let i=0;i<labels.length;i++){acc+=dur[i]; if(elapsed<acc){idx=i; break;}}
     el.textContent = (idx<labels.length? labels[idx] : 'Go!');
     el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
-    render({skipNotes:true}); renderUI();
-    if(elapsed>=COUNTDOWN_MS){ el.style.display='none'; isCountingDown=false; startCallback(); return; }
+
+    // 倒數畫面：可選擇顯示剩餘音符（不改狀態）
+    if(showNotes){ renderPreviewAt(previewTimeSec); }
+    else{ render({skipNotes:true}); }
+    renderUI();
+
+    if(elapsed>=COUNTDOWN_MS){
+      el.style.display='none'; isCountingDown=false;
+      startCallback(); return;
+    }
     countdownRAF=requestAnimationFrame(step);
   }
   countdownRAF=requestAnimationFrame(step);
@@ -741,21 +773,20 @@ async function startGame(){
 
     // 預先載音，但禁止開聲
     waReady=htmlReady=false; canStartMusic=false; stopAllAudio(); mode='silent';
+    loadViaWebAudio(url);
+    loadViaHTML5(url).catch(()=>{});
 
-    loadViaWebAudio(url); // 不會開聲，等 canStartMusic=true
-    loadViaHTML5(url).catch(()=>{}); // 同上
-
+    // 初次倒數不顯示音符
     showCountdown(()=>{
-      // 倒數結束才允許播放
+      // 倒數結束：啟動 → 立刻設為 playing（修 ESC）
       canStartMusic=true;
+      phase='playing';
       running=true; paused=false; prevT=0;
-      playSilent(0); // 先用 silent clock 啟動
-      // 若音源已備妥，立即切換
+      playSilent(0);
       if(waReady)      startWebAudio(getClockSec());
       else if(htmlReady) startHTML5(getClockSec());
       loopId=requestAnimationFrame(gameLoop);
-    });
-
+    }, { showNotes:false });
   }catch(e){
     console.error(e);
     banner('⚠️ 發生錯誤，請檢查音樂路徑或 Console');
@@ -776,16 +807,17 @@ function resumeGame(){
   paused=false; phase='countdown';
   showOnly('gameScreen'); document.getElementById('gameScreen').classList.remove('blur');
 
-  // 重新倒數，結束後從暫停時間點接續，並在此時才允許播放
+  // 倒數：顯示「暫停當下」的剩餘音符
   canStartMusic=false;
   showCountdown(()=>{
     canStartMusic=true;
+    phase='playing';         // ★ 恢復後立即設定 playing（修 ESC）
     running=true; prevT=pausedAt;
     playSilent(pausedAt);
     if(waReady)      startWebAudio(getClockSec());
     else if(htmlReady) startHTML5(getClockSec());
     loopId=requestAnimationFrame(gameLoop);
-  });
+  }, { showNotes:true, previewTime: pausedAt });
 }
 
 function gameLoop(){
@@ -826,15 +858,14 @@ window.addEventListener('keydown',e=>{
   const key=e.key.toLowerCase();
   const lane=laneFromKey(key);
   if(lane!==null){ if(running&&!paused) onLanePress(lane); e.preventDefault(); return; }
-  // ESC 邏輯：只在 playing<->paused 切換；不再回主選單
   if(key==='escape'){
+    // 只有在 playing ↔ paused 間切換
     if(phase==='playing'){ pauseGame(); }
     else if(phase==='paused'){ resumeGame(); }
     e.preventDefault();
   }
 });
 
-// 觸控／指標：遊玩時阻止捲動與雙擊縮放
 canvas.addEventListener('pointerdown',e=>{
   if(!running||paused)return;
   e.preventDefault();
@@ -861,7 +892,7 @@ function init(){
     console.error(err); banner('⚠️ 初始化出錯，請重整（詳見 Console）');
   }
 }
-window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout();render({skipNotes:phase==='countdown'});renderUI();});
+window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout(); if(phase==='countdown'){ /* 保留倒數畫面渲染 */ } renderUI();});
 init();
 </script>
 </body>
