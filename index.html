@@ -25,10 +25,12 @@
   }
   @keyframes scanY{from{background-position:0 0,0 0}to{background-position:0 360px,0 0}}
   @keyframes noiseShift{0%{transform:translate3d(0,0,0)}100%{transform:translate3d(0,-70px,0)}}
+
   #stage{position:relative;width:95%;max-width:420px;margin:20px auto;--u:1;z-index:1}
   canvas{display:block;background:#0f1727;width:100%;height:auto}
   #gameCanvas{touch-action:none}
   canvas.ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;background:transparent;border:none;z-index:5}
+
   #edgeFade{position:absolute;inset:0;pointer-events:none;opacity:1;border-radius:10px;
     background:
       linear-gradient(to right, rgba(255,255,255,.16), rgba(255,255,255,0) 40%) left/16px 100% no-repeat,
@@ -36,6 +38,7 @@
       linear-gradient(to bottom,rgba(255,255,255,.16), rgba(255,255,255,0) 40%) top/100% 16px no-repeat,
       linear-gradient(to top,   rgba(255,255,255,.16), rgba(255,255,255,0) 40%) bottom/100% 16px no-repeat;
   }
+
   .hitbar{position:absolute;left:0;width:100%;display:flex;justify-content:space-between;align-items:center;height:calc(90px * var(--u));z-index:2;opacity:0;pointer-events:none}
   .hud{font-size:18px;margin-top:10px;line-height:1.6}
   .songline{font-size:14px;opacity:.9}
@@ -47,6 +50,7 @@
     position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);
     font-family:'Fredoka One',sans-serif;font-size:72px;color:#fff;text-shadow:2px 2px 8px #000;z-index:9;pointer-events:none;display:none}
   @keyframes popScale{0%{transform:translate(-50%,-50%) scale(.85)}50%{transform:translate(-50%,-50%) scale(1.12)}100%{transform:translate(-50%,-50%) scale(1)}}
+
   #warnBanner{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:rgba(255,80,80,.95);padding:10px 14px;border-radius:8px;font-size:14px;display:none;z-index:20}
   #debug{position:fixed;left:8px;bottom:8px;background:rgba(0,0,0,.55);padding:6px 10px;border-radius:6px;font:12px/1.4 monospace;z-index:25}
 
@@ -55,8 +59,8 @@
   #calibWrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92vw);padding:18px 16px;border-radius:12px;background:rgba(10,16,30,.9);box-shadow:0 10px 40px rgba(0,0,0,.4);border:1px solid rgba(120,213,255,.3)}
   #calibTitle{font-size:22px;margin:6px 0 4px}
   #calibInfo{opacity:.85;font-size:14px;margin-bottom:8px}
-  #calibBeatDot{width:24px;height:24px;border-radius:50%;margin:10px auto;background:#78d5ff;box-shadow:0 0 28px rgba(120,213,255,.9)}
-  #calibBig{font:700 42px/1.2 'Fredoka One',sans-serif;margin:8px 0 2px}
+  #calibBeatDot{width:26px;height:26px;border-radius:50%;margin:12px auto;background:#78d5ff;box-shadow:0 0 28px rgba(120,213,255,.95)}
+  #calibBig{font:700 44px/1.2 'Fredoka One',sans-serif;margin:8px 0 2px}
   #calibStat{font:14px/1.4 monospace;opacity:.95;margin:2px 0 10px}
   .calibBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
   .calibBtn{flex:1 1 140px;padding:14px 12px;font-size:18px;border-radius:10px;border:none;cursor:pointer}
@@ -70,9 +74,9 @@
   <div id="menuScreen">
     <h1>🎵 DFJK 高精度 Cyberpunk 版</h1>
     <div class="row">
-      <button onclick="window.startGame && window.startGame()">開始遊戲</button>
-      <button onclick="window.showMusic && window.showMusic()">音樂</button>
-      <button onclick="window.showOptions && window.showOptions()">選項</button>
+      <button onclick="window.startGame()">開始遊戲</button>
+      <button onclick="window.showMusic()">音樂</button>
+      <button onclick="window.showOptions()">選項</button>
     </div>
     <div class="row">已選曲目：<span id="menuChosenSong">尚未選擇</span></div>
   </div>
@@ -85,8 +89,8 @@
       <div class="hint">必須選擇曲目才可開始。</div>
     </div>
     <div class="row">
-      <button onclick="window.confirmSong && window.confirmSong()">確定</button>
-      <button onclick="window.goToMenu && window.goToMenu()">回主選單</button>
+      <button onclick="window.confirmSong()">確定</button>
+      <button onclick="window.goToMenu()">回主選單</button>
     </div>
     <div class="row">已選：<span id="chosenSongLabel">尚未選擇</span></div>
   </div>
@@ -133,12 +137,11 @@
 
     <!-- 主音量 -->
     <div class="row">
-      <label for="volumeSlider">主音量：</label>
+      <label for="volumeSlider">主音量（BGM）：</label>
       <input id="volumeSlider" type="range" min="0" max="100" value="80" />
       <span id="volumeLabel">80%</span>
     </div>
-
-    <!-- ★ 新增：敲擊聲音量（只控制金屬敲擊與校正 beep） -->
+    <!-- 敲擊聲音量 -->
     <div class="row">
       <label for="sfxSlider">敲擊聲音量：</label>
       <input id="sfxSlider" type="range" min="0" max="100" value="70" />
@@ -153,17 +156,17 @@
       <span id="offsetLabel">0 ms</span>
       <button id="offsetCalibBtn" type="button">快速校正</button>
     </div>
-    <div class="row"><button onclick="window.goToMenu && window.goToMenu()">回主選單</button></div>
+    <div class="row"><button onclick="window.goToMenu()">回主選單</button></div>
   </div>
 
   <!-- 遊戲畫面 -->
   <div id="gameScreen" style="display:none; position:relative;">
-    <button id="pauseButton" onclick="window.pauseGame && window.pauseGame()">⏸️</button>
+    <button id="pauseButton" onclick="window.pauseGame()">⏸️</button>
     <div id="stage">
       <canvas id="gameCanvas" width="420" height="640"></canvas>
       <canvas id="uiCanvas" class="ui" width="420" height="640"></canvas>
       <div id="edgeFade" aria-hidden="true"></div>
-      <div class="hitbar"><div class="hitkey"></div><div class="hitkey"></div><div class="hitkey"></div><div class="hitkey"></div></div>
+      <div class="hitbar"><div class="hitkey"></div><div class="hitkey"></div><div class="hitkey"></div><div class="hitkey"></div>
       <div id="countdownText">Ready</div>
     </div>
     <div class="hud">
@@ -177,8 +180,8 @@
   <!-- 暫停 -->
   <div id="pauseScreen" style="display:none;">
     <h2>⏸️ 遊戲暫停</h2>
-    <button onclick="window.resumeGame && window.resumeGame()">▶️ 繼續</button>
-    <button onclick="window.goToMenu && window.goToMenu()">回主選單</button>
+    <button onclick="window.resumeGame()">▶️ 繼續</button>
+    <button onclick="window.goToMenu()">回主選單</button>
   </div>
 
   <!-- 結算 -->
@@ -194,15 +197,15 @@
     <p>BAD：<span id="statBad">0</span></p>
     <p>SHIT：<span id="statShit">0</span></p>
     <p>MISS：<span id="statMiss">0</span></p>
-    <button onclick="window.startGame && window.startGame()">再玩一次</button>
-    <button onclick="window.goToMenu && window.goToMenu()">回主選單</button>
+    <button onclick="window.startGame()">再玩一次</button>
+    <button onclick="window.goToMenu()">回主選單</button>
   </div>
 
   <!-- 校正覆蓋層 -->
   <div id="calibOverlay">
     <div id="calibWrap">
       <div id="calibTitle">🎯 快速校正</div>
-      <div id="calibInfo">跟著節拍（每拍 800ms）按 DFJK 或點擊畫面，10 次後自動給建議偏移。</div>
+      <div id="calibInfo">跟著節拍（每拍 1000ms）按 DFJK 或點擊畫面，至少 10 次後可完成。採中位數 + MAD 去極值。</div>
       <div id="calibBeatDot"></div>
       <div id="calibBig">待機</div>
       <div id="calibStat">0/10　建議偏移：—</div>
@@ -221,20 +224,12 @@
   <div id="debug">mode: - | err: -</div>
 
 <script>
-/* ========= 可調參數 ========= */
-const MUSIC_DIR = 'music/';
-const CENTER_TUCK_PX = 10;
-const GLITCH_AMPLIFY = 1.5;
-const TAIL_FACTOR    = 0.36;
-const COUNTDOWN_MS   = 3200;
-
-/* ========= 畫布與尺寸 ========= */
+/* ========= 基礎尺寸 ========= */
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
 const uiCanvas=document.getElementById('uiCanvas');
 const uictx=uiCanvas.getContext('2d',{alpha:true});
 const debugEl=document.getElementById('debug');
-
 let W=420,H=640;
 function setupDPR(){
   const dpr=Math.min(window.devicePixelRatio||1,2);
@@ -264,6 +259,7 @@ const dtHistory=[];const DT_HIST_MAX=240;
 const hitFx=[];
 function addHitFx(lane){hitFx.push({lane,t0:performance.now()/1000,life:0.25});}
 
+/* ========= 版面 ========= */
 let cachedRectH=canvas.getBoundingClientRect().height;
 let cachedScaleY=cachedRectH/H;
 let cachedJudgeCss=(HITKEY_BASE*uiScale/2);
@@ -287,8 +283,8 @@ function getJudgeLineYInternal(){return cachedJudgeInternal;}
 function laneCenterX(index){
   const laneWidth=W/4;
   let x=index*laneWidth + laneWidth/2;
-  if(index===1) x+=CENTER_TUCK_PX;
-  if(index===2) x-=CENTER_TUCK_PX;
+  if(index===1) x+=10;
+  if(index===2) x-=10;
   return x;
 }
 
@@ -300,9 +296,8 @@ function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory
 function banner(msg){const b=document.getElementById('warnBanner'); b.textContent=msg; b.style.display='block'; setTimeout(()=>b.style.display='none',3000);}
 function setDebug(mode, err){debugEl.textContent=`mode: ${mode} | err: ${err||'-'}`}
 
-/* ========= Cyberpunk 箭頭 ========= */
+/* ========= 視覺：箭頭 ========= */
 function lighten(c,a){const p=parseInt(c.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`}
-
 function glitchAura(x,y,r,t,intensity=1){
   if(intensity<=0) return;
   ctx.save();
@@ -323,8 +318,8 @@ function glitchAura(x,y,r,t,intensity=1){
   ctx.strokeStyle='rgba(255,0,160,.45)'; ctx.beginPath(); ctx.arc(x-1.1,y+1.1,r*0.98,0,Math.PI*2); ctx.stroke();
   ctx.restore();
 }
-
 function dirToAngle(dir){switch(dir){case 'up':return -Math.PI/2;case 'down':return Math.PI/2;case 'left':return Math.PI;case 'right':return 0;}return 0}
+const TAIL_FACTOR=0.34;
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
   const p = Math.max(0, Math.min(1, pulse||0));
   const ang=dirToAngle(dir);
@@ -346,31 +341,13 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     ctx.lineWidth=lw; ctx.strokeStyle=strokeStyle; ctx.stroke();
   };
 
-  const drawTrail = (!isReceptor || p>0);
-  if(drawTrail){
-    const trailLen=L*0.92, bands=7;
-    for(let i=0;i<bands;i++){
-      const pp=i/(bands-1), w=(1-pp)*trailLen;
-      const a=(0.12*(1-pp))*1.5*((isReceptor)? p:1);
-      ctx.save(); ctx.globalAlpha=a*(0.85+0.25*Math.sin(t*7+i));
-      ctx.fillStyle = (i%2)? lighten(baseColor,.18):lighten(baseColor,.38);
-      ctx.beginPath();
-      ctx.moveTo(tail-w*0.95,-Hh*0.34*(1-pp*0.25));
-      ctx.lineTo(tip-w*0.1,-Hh*0.16*(1-pp*0.25));
-      ctx.lineTo(tip-w*0.1, Hh*0.16*(1-pp*0.25));
-      ctx.lineTo(tail-w*0.95, Hh*0.34*(1-pp*0.25));
-      ctx.closePath(); ctx.fill();
-      ctx.restore();
-    }
-  }
-
   if(isReceptor){
     ctx.fillStyle='#050607';
     ctx.beginPath();
     ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();
     ctx.lineWidth=2.1;ctx.strokeStyle='rgba(255,255,255,.95)';ctx.stroke();
     if(p>0){
-      ctx.save();ctx.globalAlpha=(0.30+0.45*p)*1.5;ctx.fillStyle=lighten(baseColor,.28);
+      ctx.save();ctx.globalAlpha=(0.30+0.45*p)*1.4;ctx.fillStyle=lighten(baseColor,.28);
       ctx.beginPath();ctx.moveTo(tail,-Hh*0.55);ctx.lineTo(0,-Hh*0.55);ctx.lineTo(tip,0);ctx.lineTo(0,Hh*0.55);ctx.lineTo(tail,Hh*0.55);ctx.lineTo(tail+cut,0);ctx.closePath();ctx.fill();ctx.restore();
     }
   }else{
@@ -378,7 +355,7 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     drawChevron(Hh*inner, 3.0, '#ffffff');
   }
 
-  const gAmp=(isReceptor? size*0.05 : size*0.10)*1.5*((isReceptor)? (0.3+0.7*p):1);
+  const gAmp=(isReceptor? size*0.05 : size*0.10)*((isReceptor)? (0.3+0.7*p):1);
   for(let k=0;k<4;k++){
     const ox=Math.sin(t*20 + k*1.9)*gAmp;
     const oy=Math.cos(t*26 + k*2.1)*gAmp*0.45;
@@ -397,15 +374,10 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     ctx.globalAlpha=(isReceptor?(0.10+0.15*p):0.25);
     drawChevron(Hh*0.96, 1.2, 'rgba(255,255,255,1)'); ctx.restore();
   }
-  const stripeH=Math.max(1,Math.round(size*0.10));
-  const shift=((t*140)%stripeH);
-  ctx.globalAlpha=(isReceptor?(0.05+0.10*p):0.12); ctx.fillStyle='#fff';
-  for(let sy=-Hh; sy<=Hh; sy+=stripeH*3){ ctx.fillRect(tail, sy+shift, L*1.05, 1); }
-
   ctx.restore();
 
   const R = isReceptor ? size*0.95 : size*0.75;
-  glitchAura(x,y,R,t,(isReceptor? p : 0.55));
+  glitchAura(x,y,R,performance.now()/1000,(isReceptor? p : 0.55));
 }
 
 /* ========= 背景 ========= */
@@ -419,11 +391,10 @@ function drawPlayfieldBackground(t){
   g.addColorStop(0,'rgba(0,255,255,0.32)');g.addColorStop(0.5,'rgba(255,0,160,0.26)');g.addColorStop(1,'rgba(255,255,0,0.20)');ctx.fillStyle=g;
   const diagH=20,drift=(t*64)%80; ctx.save();ctx.translate(-drift,0);ctx.rotate(-Math.PI/12);
   for(let y=-H;y<H*2;y+=diagH*4){ctx.fillRect(-W,y,W*3,diagH);} ctx.restore();
-  for(let i=0;i<18;i++){const ww=30+Math.random()*120,hh=2+Math.random()*4,xx=Math.random()*(W-ww),yy=Math.random()*H;ctx.globalAlpha=0.16+Math.random()*0.18;ctx.fillStyle=(i%3===0)?'rgba(0,255,255,0.6)':(i%3===1)?'rgba(255,0,160,0.5)':'rgba(255,255,0,0.45)';ctx.fillRect(xx,yy,ww,hh);}
   ctx.restore();
 }
 
-/* ========= 音訊（含 SFX 獨立音量） ========= */
+/* ========= 音訊 ========= */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 const bgmEl=document.getElementById('bgm');
 let audioCtx=null,gainNode=null,buffer=null,srcNode=null,mode='silent';
@@ -431,48 +402,34 @@ let startAtCtx=0,startAtSong=0,softBaseSong=0,softStartPerf=0;
 let durationSec=120,songEnded=false;
 let waReady=false, htmlReady=false, canStartMusic=false;
 
-/* 主音量（0..1）與 SFX 使用者音量（0..1） */
-let MASTER_VOL_N = 0.8;
-let SFX_LEVEL = (+(localStorage.getItem('dfjk.sfxVol')||70))/100;
-
-/* 混音節點：主 => destination；SFX => sfxGain => 主 */
-let sfxGain = null;
+/* volume */
+let MASTER_VOL = 0.8; // 0..1
+let SFX_VOL    = 0.7; // 0..1
+let sfxGain=null;
 
 async function ensureAudio(){
-  if(!audioCtx){
-    audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});
-  }
-  if(!gainNode){
-    gainNode=audioCtx.createGain();
-    gainNode.connect(audioCtx.destination);
-  }
-  if(!sfxGain){
-    sfxGain=audioCtx.createGain();
-    sfxGain.connect(gainNode);
-    applySfxGain(); // 初始化一次
-  }
+  if(!audioCtx){audioCtx=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'interactive'});}
+  if(!gainNode){gainNode=audioCtx.createGain();gainNode.connect(audioCtx.destination);}
+  if(!sfxGain){sfxGain=audioCtx.createGain();sfxGain.gain.value=SFX_VOL;sfxGain.connect(gainNode);}
 }
-
-function setDebug(mode, err){debugEl.textContent=`mode: ${mode} | err: ${err||'-'}`}
+function applyAllVolumes(){
+  if(gainNode) gainNode.gain.value = MASTER_VOL;
+  if(bgmEl)    bgmEl.volume       = MASTER_VOL;
+  if(sfxGain)  sfxGain.gain.value = SFX_VOL;
+  if(!tapPool) tapPool = new TapSoundPool(hitSound.src, 12);
+  const poolVol = Math.min(1, MASTER_VOL * SFX_VOL * SFX_GAIN);
+  tapPool.setVolume(poolVol);
+  hitSound.volume = poolVol;
+}
 
 async function loadViaWebAudio(url){
   try{
     await ensureAudio();
-    const res=await fetch(url,{mode:'cors'});
-    if(!res.ok) throw new Error(`fetch ${res.status}`);
-    const arr=await res.arrayBuffer();
-    buffer=await audioCtx.decodeAudioData(arr);
-    durationSec=buffer.duration||120;
-    waReady=true;
-    if(canStartMusic){
-      if(mode==='html5'){
-        const cur=getClockSec(); try{bgmEl.pause();}catch{}
-        startWebAudio(cur);
-      }else if(mode==='silent'){
-        startWebAudio(getClockSec());
-      }
-    }
-  }catch(e){/* 忽略，HTML5 會接手 */}
+    const res=await fetch(url,{mode:'cors'}); if(!res.ok) throw new Error(`fetch ${res.status}`);
+    const arr=await res.arrayBuffer(); buffer=await audioCtx.decodeAudioData(arr);
+    durationSec=buffer.duration||120; waReady=true;
+    if(canStartMusic){ if(mode==='html5'){try{bgmEl.pause();}catch{} startWebAudio(getClockSec());} else if(mode==='silent'){ startWebAudio(getClockSec()); } }
+  }catch(e){}
 }
 function startWebAudio(offsetSec){
   if(!buffer) return;
@@ -490,8 +447,7 @@ function loadViaHTML5(url){
   return new Promise((resolve,reject)=>{
     bgmEl.src=url; bgmEl.preload='auto';
     const ok=()=>{cleanup(); durationSec=isFinite(bgmEl.duration)?bgmEl.duration:durationSec; htmlReady=true;
-      if(canStartMusic && mode==='silent'){ startHTML5(getClockSec()); }
-      resolve(); };
+      if(canStartMusic && mode==='silent'){ startHTML5(getClockSec()); } resolve(); };
     const err=()=>{cleanup(); reject(new Error('html5 error'));};
     const cleanup=()=>{ bgmEl.removeEventListener('canplay',ok); bgmEl.removeEventListener('error',err); };
     bgmEl.addEventListener('canplay',ok,{once:true});
@@ -512,90 +468,69 @@ function getClockSec(){
   if(mode==='webaudio' && audioCtx && buffer && srcNode){
     return Math.max(0,Math.min(durationSec,(audioCtx.currentTime-startAtCtx)+startAtSong));
   }
-  if(mode==='html5'){ return Math.max(0,Math.min(durationSec,(performance.now()/1000-softStartPerf)+softBaseSong)); }
+  if(mode==='html5'){
+    const t = (bgmEl && !isNaN(bgmEl.currentTime)) ? bgmEl.currentTime : (performance.now()/1000-softStartPerf)+softBaseSong;
+    return Math.max(0,Math.min(durationSec,t));
+  }
   return Math.max(0,Math.min(durationSec,(performance.now()/1000-softStartPerf)+softBaseSong));
 }
 function getJudgeClockSec(){return getClockSec()+(INPUT_OFFSET_MS/1000)}
-function setVolumes(percent){
-  const v=Math.max(0,Math.min(100,percent))/100;
-  MASTER_VOL_N = v;
-  if(gainNode) gainNode.gain.value=v;
-  if(bgmEl)    bgmEl.volume=v;
-  applySfxGain();
-}
 
-/* ★ 套用 SFX 音量（主音量 * 使用者 SFX 係數），並同步 mp3 池後備音量 */
-const SFX_GAIN = 1.6; // 後備 mp3 的額外增益上限
-let tapPool=null;
-const hitSound=document.getElementById('hitSound');
-
-function applySfxGain(){
-  if(sfxGain) sfxGain.gain.value = Math.min(1, MASTER_VOL_N * SFX_LEVEL);
-  // 後備 mp3 與池
-  if(!tapPool) tapPool = new TapSoundPool(hitSound.src, 12);
-  const poolVol = Math.min(1, MASTER_VOL_N * SFX_GAIN * SFX_LEVEL);
-  tapPool.setVolume(poolVol);
-  hitSound.volume = poolVol;
-}
-function setSfxLevelUI(percent){
-  SFX_LEVEL = Math.max(0, Math.min(100, percent)) / 100;
-  localStorage.setItem('dfjk.sfxVol', String(percent));
-  applySfxGain();
-}
-
+/* ========= SFX 敲擊聲 ========= */
+const hitSound=document.getElementById('hitSound');const SFX_GAIN=1.6;
 class TapSoundPool{constructor(src,size=10){this.pool=[];this.idx=0;for(let i=0;i<size;i++){const a=new Audio(src);a.preload='auto';a.volume=1.0;this.pool.push(a)}}setVolume(v){const vol=Math.max(0,Math.min(1,v));for(const a of this.pool)a.volume=vol}play(){const a=this.pool[this.idx];this.idx=(this.idx+1)%this.pool.length;try{a.currentTime=0;a.play().catch(()=>{})}catch{}}}
+let tapPool=null;
 
-/* ★ 更清脆的金屬 Ping（頻率更高、衰減更短、加短促噪聲） */
 function playMetalPing(){
-  if(!audioCtx){ // 無 WebAudio 退回 mp3 池
+  if(!audioCtx){
     if(!tapPool) tapPool = new TapSoundPool(hitSound.src, 12);
     tapPool.play();
     return;
   }
   const t0 = audioCtx.currentTime + 0.001;
-  const dur = 0.09; // 短一點
+  const dur = 0.09;
+
   const mix = audioCtx.createGain();
   mix.connect(sfxGain || gainNode);
 
-  // 主體：triangle 高頻下滑
   const osc = audioCtx.createOscillator();
   osc.type = 'triangle';
-  osc.frequency.setValueAtTime(2600, t0);           // ↑ 調高起始頻率
+  osc.frequency.setValueAtTime(2600, t0);
   osc.frequency.exponentialRampToValueAtTime(1800, t0 + dur);
   const g1 = audioCtx.createGain();
   g1.gain.setValueAtTime(0.0001, t0);
-  g1.gain.exponentialRampToValueAtTime(0.55, t0 + 0.004);
+  g1.gain.exponentialRampToValueAtTime(0.50, t0 + 0.004);
   g1.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
   osc.connect(g1); g1.connect(mix);
 
-  // 輔助：超高頻方波短閃
   const osc2 = audioCtx.createOscillator();
   osc2.type = 'square';
-  osc2.frequency.setValueAtTime(5200, t0);          // ↑ 更高，帶亮邊
+  osc2.frequency.setValueAtTime(5200, t0);
+  osc2.frequency.exponentialRampToValueAtTime(2600, t0 + 0.07);
   const g2 = audioCtx.createGain();
-  g2.gain.setValueAtTime(0.12, t0);
-  g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur*0.8);
+  g2.gain.setValueAtTime(0.16, t0);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
   osc2.connect(g2); g2.connect(mix);
 
-  // 亮點：短促高頻噪聲（bandpass）
   const noiseBuf = audioCtx.createBuffer(1, 256, audioCtx.sampleRate);
   const data = noiseBuf.getChannelData(0);
   for(let i=0;i<data.length;i++) data[i] = Math.random()*2-1;
   const noise = audioCtx.createBufferSource();
   noise.buffer = noiseBuf;
-  const bp = audioCtx.createBiquadFilter();
-  bp.type = 'bandpass'; bp.frequency.value = 7000; bp.Q.value = 5;  // ↑ 中心頻率更高
+
+  const bp = audioCtx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=9000; bp.Q.value=6;
+  const hp = audioCtx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1800; hp.Q.value=0.7;
+
   const ng = audioCtx.createGain();
-  ng.gain.setValueAtTime(0.10, t0);
-  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
-  noise.connect(bp); bp.connect(ng); ng.connect(mix);
+  ng.gain.setValueAtTime(0.14, t0);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
 
-  osc.start(t0);  osc.stop(t0 + dur + 0.02);
-  osc2.start(t0); osc2.stop(t0 + dur);
-  noise.start(t0); noise.stop(t0 + 0.05);
+  noise.connect(bp); bp.connect(hp); hp.connect(ng); ng.connect(mix);
+
+  osc.start(t0);  osc.stop(t0 + dur + 0.03);
+  osc2.start(t0); osc2.stop(t0 + 0.08);
+  noise.start(t0); noise.stop(t0 + 0.06);
 }
-
-/* 以 WebAudio 為主；失敗才用 mp3 池 */
 async function playTapSound(){
   try{ await ensureAudio(); if(audioCtx) { playMetalPing(); return; } }catch{}
   if(!tapPool) tapPool = new TapSoundPool(hitSound.src, 12);
@@ -620,7 +555,7 @@ function judge(dtMs,lane){
   updateHUD();
 }
 
-/* ========= 譜生成 & 更新 ========= */
+/* ========= 譜 / 更新 ========= */
 const FIRST_NOTE_LEAD=1.6;
 function generateChart(dur){
   chart=[]; const d=currentDifficulty;
@@ -682,13 +617,11 @@ function updateHUD(){
   document.getElementById('judgeLabel').textContent=(currentJudgeMode==='old'?'Old':'New');
   document.getElementById('offsetActive').textContent=`${INPUT_OFFSET_MS} ms`;
 }
-function drawRing(x,y,r,alpha,color='#ffffff'){
-  ctx.save(); ctx.globalAlpha=alpha; ctx.strokeStyle=color; ctx.lineWidth=3;
-  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke(); ctx.restore();
-}
+function drawRing(x,y,r,alpha,color='#ffffff'){ctx.save(); ctx.globalAlpha=alpha; ctx.strokeStyle=color; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke(); ctx.restore();}
+function drawPlayfield(t){ drawPlayfieldBackground(t); }
 function render(opts={skipNotes:false}){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
-  ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
+  ctx.clearRect(0,0,W,H); drawPlayfield(t);
 
   for(let i=0;i<4;i++){
     const x=laneCenterX(i);
@@ -711,7 +644,7 @@ function render(opts={skipNotes:false}){
 }
 function renderPreviewAt(previewSongTimeSec){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
-  ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
+  ctx.clearRect(0,0,W,H); drawPlayfield(t);
   for(let i=0;i<4;i++){
     const x=laneCenterX(i);
     drawBlueStreakArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:laneColors[i],isReceptor:true,pulse:receptorPulse[i],t});
@@ -726,15 +659,14 @@ function renderPreviewAt(previewSongTimeSec){
   }
 }
 
-/* ========= UI：角落徽章 + 熱圖 ========= */
+/* ========= UI：角落徽章＋熱圖 ========= */
 function drawCornerBadge(){
   const x=14,y=14;
   uictx.save(); uictx.translate(x,y);
   uictx.fillStyle='rgba(0,0,0,.55)'; uictx.fillRect(0,0,92,28);
   const grad=uictx.createLinearGradient(0,0,92,0);
   grad.addColorStop(0,'#00ffff'); grad.addColorStop(0.5,'#ff00a0'); grad.addColorStop(1,'#ffff00');
-  uictx.strokeStyle=grad; uictx.lineWidth=2;
-  uictx.strokeRect(1,1,90,26);
+  uictx.strokeStyle=grad; uictx.lineWidth=2; uictx.strokeRect(1,1,90,26);
   uictx.fillStyle='#fff'; uictx.font='12px sans-serif'; uictx.fillText('DFJK Cyber',8,18);
   uictx.restore();
 }
@@ -758,8 +690,7 @@ function renderUI(){
 /* ========= 輸入 ========= */
 function onLanePress(lane){
   if(!running)return;
-  playTapSound(); // 命中或空打都會敲
-
+  playTapSound();
   const tNow=getJudgeClockSec();
   let bestIdx=-1, bestAbs=Infinity;
   for(let i=0;i<chart.length;i++){
@@ -780,11 +711,11 @@ function onLanePress(lane){
 }
 
 /* ========= 倒數 ========= */
+const COUNTDOWN_MS=3200;
 let isCountingDown=false, countdownRAF=null;
 function showCountdown(startCallback, opts={}){
   const showNotes=!!opts.showNotes;
   const previewTimeSec=(typeof opts.previewTime==='number')?opts.previewTime:0;
-
   cancelCountdown(); isCountingDown=true;
   const el=document.getElementById('countdownText'); el.style.display='block';
   const labels=['3','2','1','Go!']; const dur=[800,800,800,800];
@@ -818,123 +749,32 @@ function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
 /* ========= 音量/校正/曲庫 ========= */
-function setGlobalOffset(ms){const v=Math.max(-600,Math.min(600,(ms|0)));INPUT_OFFSET_MS=v;localStorage.setItem('dfjk.offsetMs',String(v));document.getElementById('offsetLabel').textContent=`${v} ms`;document.getElementById('offsetActive').textContent=`${v} ms`}
+function setGlobalOffset(ms){
+  const v=Math.max(-600,Math.min(600,(ms|0)));
+  INPUT_OFFSET_MS=v; localStorage.setItem('dfjk.offsetMs',String(v));
+  document.getElementById('offsetLabel').textContent=`${v} ms`;
+  document.getElementById('offsetActive').textContent=`${v} ms`;
+}
 function initVolumeUI(){
-  // 主音量
-  const s=document.getElementById('volumeSlider');
-  const l=document.getElementById('volumeLabel');
-  const saved=+localStorage.getItem('dfjk.volume')||80;
-  s.value=String(saved); l.textContent=`${saved}%`; setVolumes(saved);
+  const mS=document.getElementById('volumeSlider'), mL=document.getElementById('volumeLabel');
+  const sS=document.getElementById('sfxSlider'),    sL=document.getElementById('sfxLabel');
 
-  // 敲擊聲音量（獨立）
-  const ss=document.getElementById('sfxSlider');
-  const sl=document.getElementById('sfxLabel');
-  const savedSfx=+localStorage.getItem('dfjk.sfxVol')||70;
-  ss.value=String(savedSfx); sl.textContent=`${savedSfx}%`; setSfxLevelUI(savedSfx);
-
-  s.addEventListener('input',()=>{const v=+s.value; l.textContent=`${v}%`; setVolumes(v); localStorage.setItem('dfjk.volume',String(v));});
-  ss.addEventListener('input',()=>{const v=+ss.value; sl.textContent=`${v}%`; setSfxLevelUI(v);});
-}
-
-function setSfxFromMaster(percent){ // 兼容舊呼叫（留著）
-  setVolumes(percent);
-}
-
-/* ====== 快速校正 Overlay ====== */
-const calibPanel=document.getElementById('calibOverlay');
-const calibStartBtn=document.getElementById('calibStart');
-const calibFinishBtn=document.getElementById('calibFinish');
-const calibCancelBtn=document.getElementById('calibCancel');
-const calibBig=document.getElementById('calibBig');
-const calibDot=document.getElementById('calibBeatDot');
-const calibStat=document.getElementById('calibStat');
-
-let isCalibrating=false, calibT0=0, calibInt=0.8, calibBeats=16, tapSamples=[], tapHandler=null, calibTimer=null, dotTimer=null;
-
-function openCalibrator(){
-  if(phase==='playing'||phase==='countdown') { banner('請先退出遊戲再校正'); return; }
-  calibPanel.style.display='block';
-  calibBig.textContent='待機';
-  calibStat.textContent='0/10　建議偏移：—';
-  tapSamples=[]; calibFinishBtn.disabled=true;
-}
-function closeCalibrator(){ calibPanel.style.display='none'; stopCalibTimers(); isCalibrating=false; if(tapHandler){window.removeEventListener('keydown',tapHandler); calibPanel.removeEventListener('pointerdown',tapHandler); tapHandler=null;} }
-function stopCalibTimers(){ if(calibTimer){clearInterval(calibTimer);calibTimer=null;} if(dotTimer){clearInterval(dotTimer);dotTimer=null;} }
-
-function startCalib(){
-  tapSamples=[]; calibFinishBtn.disabled=true; isCalibrating=true;
-  try{ ensureAudio().then(()=>audioCtx.resume()).catch(()=>{});}catch{}
-  calibT0=performance.now()/1000 + 0.8;
-  const beats=calibBeats; const int=calibInt;
-
-  dotTimer=setInterval(()=>{
-    calibDot.style.transform='scale(1.25)';
-    calibDot.style.boxShadow='0 0 28px rgba(120,213,255,1)';
-    setTimeout(()=>{calibDot.style.transform='scale(1)';calibDot.style.boxShadow='0 0 24px rgba(120,213,255,.9)';},120);
-  }, int*1000);
-
-  // 校正 Beep（走 SFX 音量）
-  const beep = ()=>{
-    if(!audioCtx) return;
-    const t = audioCtx.currentTime;
-    const osc = audioCtx.createOscillator();
-    const g   = audioCtx.createGain();
-    osc.type = 'sine';
-    osc.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.45, t+0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t+0.08);
-    osc.connect(g);
-    g.connect(sfxGain || gainNode);
-    osc.start(t);
-    osc.stop(t+0.09);
-  };
-
-  let beatCount=0;
-  calibTimer=setInterval(()=>{
-    if(beatCount>=beats){ stopCalibTimers(); return; }
-    beep(); beatCount++;
-  }, int*1000);
-
-  tapHandler=(e)=>{
-    if(e.type==='keydown'){
-      const k=e.key.toLowerCase();
-      if(k!=='d'&&k!=='f'&&k!=='j'&&k!=='k') return;
-      e.preventDefault();
-    }
-    const t=performance.now()/1000;
-    let k=Math.round((t - calibT0)/int);
-    const tBeat=calibT0 + k*int;
-    const deltaMs=(t - tBeat)*1000;
-    if (Math.abs(deltaMs)<=400){ tapSamples.push(deltaMs); }
-    const need=10; const nowN=Math.min(tapSamples.length,need);
-    let advise='—';
-    if(nowN>=4){
-      const sorted=[...tapSamples].sort((a,b)=>a-b);
-      const mid=sorted[Math.floor(sorted.length/2)];
-      const rec=Math.max(-600,Math.min(600,Math.round(mid/5)*5));
-      advise = (rec>0?'+':'')+rec+' ms';
-    }
-    calibBig.textContent = nowN+'/'+need;
-    calibStat.textContent = `${nowN}/${need}　建議偏移：${advise}`;
-    if(nowN>=need) calibFinishBtn.disabled=false;
-  };
-  window.addEventListener('keydown',tapHandler);
-  calibPanel.addEventListener('pointerdown',tapHandler);
-}
-function finishCalib(){
-  if(tapSamples.length===0){ closeCalibrator(); return; }
-  const sorted=[...tapSamples].sort((a,b)=>a-b);
-  const mid=sorted[Math.floor(sorted.length/2)];
-  const recommended=Math.max(-600,Math.min(600,Math.round(mid/5)*5));
-  setGlobalOffset(recommended);
-  banner(`已套用偏移：${recommended} ms`);
-  closeCalibrator();
+  const savedMaster = +localStorage.getItem('dfjk.volume') || 80;
+  const savedSfx    = +localStorage.getItem('dfjk.sfxVol') || 70;
+  MASTER_VOL = Math.max(0, Math.min(100, savedMaster))/100;
+  SFX_VOL    = Math.max(0, Math.min(100, savedSfx))/100;
+  mS.value = String(Math.round(MASTER_VOL*100)); mL.textContent = `${Math.round(MASTER_VOL*100)}%`;
+  sS.value = String(Math.round(SFX_VOL*100));    sL.textContent = `${Math.round(SFX_VOL*100)}%`;
+  applyAllVolumes();
+  mS.addEventListener('input',()=>{const v=+mS.value; MASTER_VOL=v/100; mL.textContent=`${v}%`; localStorage.setItem('dfjk.volume', String(v)); applyAllVolumes();});
+  sS.addEventListener('input',()=>{const v=+sS.value; SFX_VOL=v/100; sL.textContent=`${v}%`; localStorage.setItem('dfjk.sfxVol', String(v)); applyAllVolumes();});
 }
 function initOffsetUI(){
-  const s=document.getElementById('offsetSlider'),lab=document.getElementById('offsetLabel');
+  const s=document.getElementById('offsetSlider'), lab=document.getElementById('offsetLabel');
   const saved=+(localStorage.getItem('dfjk.offsetMs')||0);
   s.value=String(saved); lab.textContent=`${saved} ms`; setGlobalOffset(saved);
+  s.addEventListener('input', ()=> setGlobalOffset(+s.value));
+  s.addEventListener('change',()=> setGlobalOffset(+s.value));
   document.getElementById('offsetCalibBtn').addEventListener('click',openCalibrator);
   calibStartBtn.addEventListener('click',()=>{ if(!isCalibrating){ startCalib(); }});
   calibFinishBtn.addEventListener('click',finishCalib);
@@ -990,7 +830,6 @@ let pausedAt=0;
 async function startGame(){
   try{
     if(!selectedSongFile){ showMusic(); alert('請先選擇音樂'); return; }
-
     const diff=document.getElementById('difficultySelect').value,
           sp=document.getElementById('speedMultiplier'),
           dir=document.getElementById('noteDirection').value,
@@ -1004,7 +843,7 @@ async function startGame(){
     chart=[];__remainNotes=0;dtHistory.length=0;receptorPulse=[0,0,0,0]; hitFx.length=0; updateHUD();
 
     currentSongTitle=selectedSongFile.replace(/\.mp3$/i,'');
-    const url = MUSIC_DIR + encodeURIComponent(selectedSongFile);
+    const url = 'music/' + encodeURIComponent(selectedSongFile);
 
     try{ await ensureAudio(); await audioCtx.resume(); }catch{}
     showOnly('gameScreen');phase='countdown';setupDPR();applyDesktopScale();recomputeLayout();
@@ -1012,7 +851,6 @@ async function startGame(){
 
     generateChart(durationSec || 120);
 
-    // 預載，禁止開聲
     waReady=htmlReady=false; canStartMusic=false; stopAllAudio(); mode='silent';
     loadViaWebAudio(url);
     loadViaHTML5(url).catch(()=>{});
@@ -1032,7 +870,6 @@ async function startGame(){
     goToMenu();
   }
 }
-
 function pauseGame(){
   if(!running||paused)return;
   paused=true; phase='paused';
@@ -1057,7 +894,6 @@ function resumeGame(){
     loopId=requestAnimationFrame(gameLoop);
   }, { showNotes:true, previewTime: pausedAt });
 }
-
 function gameLoop(){
   if(paused)return;
   const t=getClockSec(); const dt=Math.max(0,t-prevT); prevT=t;
@@ -1081,6 +917,120 @@ function gameLoop(){
 }
 function stopGameLoop(){try{cancelAnimationFrame(loopId)}catch{}loopId=null;}
 
+/* ========= 校正（精準拍 + 穩健估計） ========= */
+const calibPanel=document.getElementById('calibOverlay');
+const calibStartBtn=document.getElementById('calibStart');
+const calibFinishBtn=document.getElementById('calibFinish');
+const calibCancelBtn=document.getElementById('calibCancel');
+const calibBig=document.getElementById('calibBig');
+const calibDot=document.getElementById('calibBeatDot');
+const calibStat=document.getElementById('calibStat');
+
+let isCalibrating=false;
+let calibInt=1.0;      // 每拍 1000ms
+let calibBeats=16;     // 排程 16 拍
+let tapSamples=[];     // 收集的誤差（ms）
+let calibTimers=[];    // 計時器
+let tapHandler=null;
+let t0Ctx=0, syncPerf0=0, syncCtx0=0;
+let calibRecommendedMs = 0;
+
+function schedule(fn, delayMs){ const id=setTimeout(fn, Math.max(0,delayMs)); calibTimers.push(id); }
+function clearCalibTimers(){ calibTimers.forEach(id=>clearTimeout(id)); calibTimers=[]; }
+
+function robustRecommend(arrMs){
+  if(arrMs.length===0) return 0;
+  const s=[...arrMs].sort((a,b)=>a-b);
+  const median=s[Math.floor(s.length/2)];
+  const absDev=s.map(v=>Math.abs(v-median)).sort((a,b)=>a-b);
+  const MAD = absDev[Math.floor(absDev.length/2)] || 1;
+  const keep = arrMs.filter(v => Math.abs(v-median) <= Math.max(3*MAD, 120));
+  const t = keep.sort((a,b)=>a-b);
+  const lo = Math.floor(t.length*0.2), hi = Math.ceil(t.length*0.8);
+  const core = t.slice(lo, hi);
+  const mean = core.reduce((a,c)=>a+c,0) / Math.max(1,core.length);
+  return Math.max(-600, Math.min(600, Math.round(mean)));
+}
+
+function openCalibrator(){
+  if(phase==='playing'||phase==='countdown') { banner('請先退出遊戲再校正'); return; }
+  calibPanel.style.display='block';
+  calibBig.textContent='待機';
+  calibStat.textContent='0/10　建議偏移：—';
+  tapSamples=[]; calibFinishBtn.disabled=true;
+}
+function closeCalibrator(){
+  calibPanel.style.display='none';
+  clearCalibTimers();
+  isCalibrating=false;
+  if(tapHandler){window.removeEventListener('keydown',tapHandler); calibPanel.removeEventListener('pointerdown',tapHandler); tapHandler=null;}
+}
+function startCalib(){
+  clearCalibTimers();
+  tapSamples=[]; calibFinishBtn.disabled=true; isCalibrating=true;
+  ensureAudio().then(()=>audioCtx.resume()).catch(()=>{});
+  // 對齊兩個時鐘（perf ↔ audioCtx）
+  syncPerf0 = performance.now()/1000;
+  syncCtx0  = audioCtx.currentTime;
+
+  // WebAudio 精準排程：0.7s 後開始，每拍 1.0s，連排 16 拍
+  const lead = 0.70;
+  t0Ctx = audioCtx.currentTime + lead;
+  for(let i=0;i<calibBeats;i++){
+    const t = t0Ctx + i*calibInt;
+    // 音：直接排在 audioCtx 時軸
+    const osc = audioCtx.createOscillator();
+    const g   = audioCtx.createGain();
+    osc.type='sine'; osc.frequency.value=880;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.45, t+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.08);
+    osc.connect(g); g.connect(sfxGain||gainNode);
+    osc.start(t); osc.stop(t+0.09);
+    // 視覺：用「距離現在的實際秒數」換成 setTimeout
+    const delayMs = (t - audioCtx.currentTime) * 1000;
+    schedule(()=>{
+      calibDot.style.transform='scale(1.28)';
+      calibDot.style.boxShadow='0 0 30px rgba(120,213,255,1)';
+      setTimeout(()=>{calibDot.style.transform='scale(1)';calibDot.style.boxShadow='0 0 26px rgba(120,213,255,.9)';},120);
+    }, delayMs);
+  }
+  // 點擊蒐集
+  tapHandler=(e)=>{
+    if(e.type==='keydown'){
+      const k=e.key.toLowerCase();
+      if(k!=='d'&&k!=='f'&&k!=='j'&&k!=='k') return;
+      e.preventDefault();
+    }
+    const tPerf=performance.now()/1000;
+    const tapCtx = syncCtx0 + (tPerf - syncPerf0);   // 換算到 audioCtx 時軸
+    if (tapCtx < t0Ctx - 0.15) return;               // 過早雜訊不要
+    const k = Math.round((tapCtx - t0Ctx)/calibInt);
+    const tBeat = t0Ctx + k*calibInt;
+    const deltaMs = (tapCtx - tBeat)*1000;
+    if (Math.abs(deltaMs)<=450){ tapSamples.push(deltaMs); }
+
+    const need=10; const nowN=Math.min(tapSamples.length,need);
+    let advise='—';
+    if(nowN>=4){
+      calibRecommendedMs = robustRecommend(tapSamples);
+      advise = (calibRecommendedMs>0?'+':'')+calibRecommendedMs+' ms';
+    }
+    calibBig.textContent = nowN+'/'+need;
+    calibStat.textContent = `${nowN}/${need}　建議偏移：${advise}`;
+    if(nowN>=need) calibFinishBtn.disabled=false;
+  };
+  window.addEventListener('keydown',tapHandler);
+  calibPanel.addEventListener('pointerdown',tapHandler);
+}
+function finishCalib(){
+  if(tapSamples.length===0){ closeCalibrator(); return; }
+  const rec = robustRecommend(tapSamples);
+  setGlobalOffset(rec);
+  banner(`已套用偏移：${rec} ms`);
+  closeCalibrator();
+}
+
 /* ========= 綁全域 ========= */
 window.startGame = startGame;
 window.pauseGame  = pauseGame;
@@ -1090,7 +1040,7 @@ window.showMusic  = showMusic;
 window.goToMenu   = goToMenu;
 window.confirmSong= confirmSong;
 
-/* ========= 事件 & 初始化 ========= */
+/* ========= 事件 ========= */
 window.addEventListener('keydown',e=>{
   if(e.repeat)return;
   const key=e.key.toLowerCase();
@@ -1110,10 +1060,11 @@ canvas.addEventListener('pointerdown',e=>{
   onLanePress(lane);
 },{passive:false});
 canvas.addEventListener('touchstart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
-canvas.addEventListener('touchmove',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
+canvas.addEventListener('touchmove',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false}); /* ← 修正 typo */
 window.addEventListener('dblclick',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 window.addEventListener('gesturestart',e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); },{passive:false});
 
+/* ========= 初始化 ========= */
 function init(){
   try{
     applyDesktopScale(); setupDPR(); recomputeLayout();
