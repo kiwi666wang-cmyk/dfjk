@@ -8,11 +8,13 @@
 />
 <meta
   name="viewport"
-  content="width=device-width,initial-scale=1.0,
-           maximum-scale=1.0,user-scalable=no"
+  content="width=device-width,
+           initial-scale=1.0,
+           maximum-scale=1.0,
+           user-scalable=no"
 />
 <title>
-  DFJK — RGB/校正/EX 即敗
+  DFJK — EX 紅背景 + 熱圖切換
 </title>
 <link
   href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap"
@@ -34,6 +36,16 @@
         #101b33 0%,
         #0a1226 55%,
         #07111f 100%
+      );
+    transition:background .4s ease;
+  }
+  body.ex-mode{
+    background:
+      linear-gradient(
+        to bottom,
+        #ff3300 0%,
+        #990000 50%,
+        #000000 100%
       );
   }
   #stage{
@@ -90,7 +102,8 @@
   }
   .hitbar{
     position:absolute;
-    left:0; width:100%;
+    left:0;
+    width:100%;
     display:flex;
     justify-content:space-between;
     align-items:center;
@@ -133,7 +146,20 @@
     position:absolute;
     top:10px;
     right:10px;
-    z-index:4;
+    z-index:8;
+  }
+  #toggleHeatBtn{
+    position:absolute;
+    top:10px;
+    left:10px;
+    z-index:8;
+    padding:6px 10px;
+    font-size:12px;
+    background:#1c293e;
+    border:1px solid rgba(255,255,255,.35);
+    border-radius:8px;
+    color:#fff;
+    opacity:.9;
   }
   #countdownText{
     position:absolute;
@@ -167,7 +193,8 @@
   }
   .row{ margin:8px 0; }
   label{ margin-right:6px; }
-  select,input[type=range]{
+  select,
+  input[type=range]{
     padding:6px 10px;
     border-radius:6px;
     border:1px solid #445;
@@ -309,6 +336,7 @@
   style="display:none;position:relative;"
 >
   <button id="pauseButton">⏸️</button>
+  <button id="toggleHeatBtn">HEAT</button>
   <div id="stage">
     <canvas
       id="gameCanvas"
@@ -412,14 +440,14 @@
       "
     >
       跟著節拍（每拍 1000ms）按 DFJK 或點畫面，
-      至少 10 次後可完成。採中位數 + MAD 去極值。
+      至少 10 次後可完成。中位數 + MAD 去極值。
     </div>
     <div
       id="calibBeatDot"
       style="
         width:26px;height:26px;border-radius:50%;
         margin:12px auto;background:#78d5ff;
-        box-shadow:0 0 28px rgba(120,213,255,.95)
+        box-shadow:0 0 30px rgba(120,213,255,.95)
       "
     ></div>
     <div
@@ -478,14 +506,14 @@
 <div id="warnBanner">⚠️ 提示</div>
 
 <script>
-/* 小工具 */
+/* 工具 */
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
 const banner=(m)=>{
   const b=$("#warnBanner");
   b.textContent=m;
   b.style.display="block";
-  setTimeout(()=>b.style.display="none",1800);
+  setTimeout(()=>b.style.display="none",1600);
 };
 
 /* 畫布 / DPR */
@@ -518,7 +546,6 @@ let score=0;
 let combo=0;
 let missCount=0;
 let lastJudge="-";
-let gameOver=false;
 let stats={sick:0,good:0,bad:0,shit:0,miss:0};
 let chart=[];
 let remain=0;
@@ -529,6 +556,11 @@ let diff="normal";
 let dir="down";
 let jmode="old";
 
+/* 熱圖顯示控制 */
+let showHeat=true;
+let heatMode=0;
+/* 0:auto by dir, 1:top, 2:bottom */
+
 /* 佈局 */
 let rectH=c.getBoundingClientRect().height;
 let scaleY=rectH/H;
@@ -538,7 +570,9 @@ function layout(){
   const r=c.getBoundingClientRect();
   rectH=r.height;
   scaleY=rectH/H;
-  judgeCss=(dir==='up')?(HITKEY*uiScale/2):(rectH-HITKEY*uiScale/2);
+  judgeCss=(dir==='up')
+    ? (HITKEY*uiScale/2)
+    : (rectH-HITKEY*uiScale/2);
   judgeY=judgeCss/scaleY;
 }
 function desktopScale(){
@@ -558,7 +592,7 @@ function laneX(i){
   return i*lw + lw/2;
 }
 
-/* 顏色 / RGB 循環 */
+/* 顏色 / RGB */
 const BASE_COL=["#b266ff","#66ccff","#66ff66","#ff6666"];
 let RGB=localStorage.getItem("dfjk.rgbCycle")==="1";
 function h2x(h,s,l){
@@ -583,7 +617,7 @@ function laneCol(i,t){
   return h2x(hue,85,55);
 }
 
-/* 箭頭形狀/繪製 */
+/* 箭頭 */
 const DIRS=["left","down","up","right"];
 function d2a(d){
   if(d==="up") return -Math.PI/2;
@@ -989,7 +1023,7 @@ function fxDraw(){
   ctx.restore();
 }
 
-/* 更新 / 繪製 */
+/* 更新 / 繪圖 */
 function upd(songT,dt){
   for(const n of chart){ n.y=yAt(n.t,songT); }
   for(const n of chart){
@@ -1008,7 +1042,8 @@ function upd(songT,dt){
   }
   fxUpdate(dt);
 }
-function draw(args={skip:false}){
+function draw(args={}){
+  const sk=!!args.skip;
   const t=performance.now()/1000;
   const j=judgeY;
   ctx.clearRect(0,0,W,H);
@@ -1027,7 +1062,7 @@ function draw(args={skip:false}){
       isRec:true,pulse:p,t,scale:sc,rot
     });
   }
-  if(!args.skip){
+  if(!sk){
     const top=-160, bot=H+160;
     for(let i=0;i<chart.length;i++){
       const n=chart[i];
@@ -1105,28 +1140,10 @@ function drawPreview(t){
   }
 }
 
-/* UI：角徽 / 熱圖 */
-function badge(){
-  const x=14,y=14;
-  uix.save();
-  uix.translate(x,y);
-  uix.fillStyle='rgba(0,0,0,.55)';
-  uix.fillRect(0,0,92,28);
-  const g=uix.createLinearGradient(0,0,92,0);
-  g.addColorStop(0,'#00ffff');
-  g.addColorStop(.5,'#ff00a0');
-  g.addColorStop(1,'#ffff00');
-  uix.strokeStyle=g;
-  uix.lineWidth=2;
-  uix.strokeRect(1,1,90,26);
-  uix.fillStyle='#fff';
-  uix.font='12px sans-serif';
-  uix.fillText('DFJK RGB',8,18);
-  uix.restore();
-}
+/* 熱圖（無徽章） */
 function ui(){
   uix.clearRect(0,0,W,H);
-  badge();
+  if(!showHeat) return;
   const bins=36;
   const mn=-300, mx=300;
   const step=(mx-mn)/bins;
@@ -1135,10 +1152,16 @@ function ui(){
     const i=Math.floor((v-mn)/step);
     if(i>=0&&i<bins) hist[i]++;
   }
-  const w=230,h=74;
+  const w=230, h=74;
   const bw=w/bins;
+  let yAuto = (dir==='up')
+    ? (H-h-24)
+    : (24+(IS_MOBILE?6:0));
+  let yPos = yAuto;
+  if(heatMode===1) yPos = 24;
+  if(heatMode===2) yPos = H-h-24;
   const x0=14;
-  const y0=(dir==='up')?(H-h-24):(24+(IS_MOBILE?6:0));
+  const y0=yPos;
   uix.save();
   uix.globalAlpha=.98;
   uix.fillStyle='rgba(0,0,0,.58)';
@@ -1220,6 +1243,21 @@ function onPress(l){
 window.addEventListener("keydown",e=>{
   if(e.repeat) return;
   const k=e.key.toLowerCase();
+  if(k==='h'){
+    showHeat=!showHeat;
+    banner(showHeat?'熱圖：ON':'熱圖：OFF');
+    ui();
+    e.preventDefault();
+    return;
+  }
+  if(k==='r'){
+    heatMode=(heatMode+1)%3;
+    const msg=heatMode===0?'自動':(heatMode===1?'置頂':'置底');
+    banner(`熱圖位置：${msg}`);
+    ui();
+    e.preventDefault();
+    return;
+  }
   const l=laneKey(k);
   if(l!==null){
     if(running && !paused) onPress(l);
@@ -1307,6 +1345,7 @@ function stopAudio(){
   try{ bgm.pause(); }catch{}
   ended=false;
 }
+let softBase=0, softStart=0;
 function startAt(sec){
   try{
     bgm.currentTime=Math.max(0,Math.min((durSec||120)-.001,sec||0));
@@ -1317,7 +1356,6 @@ function startAt(sec){
   softBase=bgm.currentTime||0;
   softStart=performance.now()/1000;
 }
-let softBase=0, softStart=0;
 function hardClock(){
   const t=(bgm && !isNaN(bgm.currentTime))
     ? bgm.currentTime
@@ -1395,7 +1433,6 @@ function initVolUI(){
 }
 function initOffsetUI(){
   const s=$("#offsetSlider");
-  const lab=$("#offsetLabel");
   const sv=+(localStorage.getItem("dfjk.offsetMs")||0);
   s.value=String(sv);
   setOffset(sv);
@@ -1413,7 +1450,7 @@ function initRgbUI(){
   });
 }
 
-/* 曲庫（長字串拆段連接） */
+/* 曲庫（拆行） */
 const S = [
   "Charlie Puth - Light Switch " +
   "[Official Music Video] - " +
@@ -1480,7 +1517,7 @@ const S = [
   "Kei Takahashi (youtube).mp3",
   "YOASOBI - Racing Into The Night Lyrics " +
   "(JPN_ROM_ENG) - rin rin (youtube).mp3",
-  "【Hanser】室内系的TrackMaker _ インドア系なら " +
+  "【Hanser】室内系的TrackMaker _ インドア系なら " +
   "トラックメイカー 【中文翻唱 _ cover】 - " +
   "OtakuLAB (youtube).mp3",
   "Aimer - Brave Shine - " +
@@ -1539,19 +1576,22 @@ function startGame(){
   diff=$("#difficultySelect").value;
   dir =$("#noteDirection").value;
   jmode=$("#judgeMode").value;
+  document.body.classList.toggle(
+    'ex-mode',
+    diff==='ex'
+  );
   let mul=parseFloat($("#speedMultiplier").value);
   if(diff==='beginner') mul=0.8;
   else if(diff==='easy') mul=0.9;
-  spd=baseSpd*mul;
   score=0; combo=0; lastJudge='-';
-  missCount=0; gameOver=false;
-  stats={sick:0,good:0,bad:0,shit:0,miss:0};
+  missCount=0; stats={sick:0,good:0,bad:0,shit:0,miss:0};
   chart=[]; remain=0; dts.length=0;
   recPulse=[0,0,0,0];
   recHitT=[0,0,0,0];
   comboFlash="";
   hits.length=0;
   parts.length=0;
+  spd=baseSpd*mul;
   hud();
   currentSong=selectedSongFile.replace(/\.mp3$/i,'');
   const url='music/'+encodeURIComponent(selectedSongFile);
@@ -1696,7 +1736,7 @@ function startCalib(){
       cbDot.style.boxShadow='0 0 30px rgba(120,213,255,1)';
       setTimeout(()=>{
         cbDot.style.transform='scale(1)';
-        cbDot.style.boxShadow='0 0 26px rgba(120,213,255,.9)';
+        cbDot.style.boxShadow='0 0 30px rgba(120,213,255,.9)';
       },120);
     }, d);
     timers.push(id);
@@ -1755,6 +1795,11 @@ function bind(){
   });
   $("#calibFinish").addEventListener("click",finishCalib);
   $("#calibCancel").addEventListener("click",closeCalib);
+  $("#toggleHeatBtn").addEventListener("click",()=>{
+    showHeat=!showHeat;
+    banner(showHeat?'熱圖：ON':'熱圖：OFF');
+    ui();
+  });
 }
 function init(){
   desktopScale();
