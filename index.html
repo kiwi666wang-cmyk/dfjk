@@ -3,33 +3,33 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<title>DFJK — 血條＋RGB＋校正（鍵數可選）</title>
+<title>DFJK — 血條＋RGB＋校正（鍵數可選｜手機全高＋橫板β）</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 /* ===== 基礎 ===== */
-html,body{ margin:0; touch-action:manipulation; overscroll-behavior:none; }
-body{
-  color:#fff; font-family:sans-serif; text-align:center;
-  background:radial-gradient(1200px 780px at 50% 0%, #101b33 0%, #0a1226 55%, #07111f 100%);
-  transition:background .3s ease;
-}
+html,body{ margin:0; touch-action:manipulation; overscroll-behavior:none; background:#0a1226; }
+body{ color:#fff; font-family:sans-serif; text-align:center; transition:background .3s ease; }
 body.ex-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #000 100%); }
 
-/* ===== 舞台 ===== */
-#stage{
-  position:relative;
-  width:95%;
-  max-width:420px; /* 會被 JS 依鍵數覆寫 */
-  margin:20px auto;
-  --u:1;
-  z-index:1;
+/* ===== 舞台包裹：可切換尺寸/旋轉 ===== */
+#stageWrap{
+  position:relative; margin:20px auto; width:min(95vw, 840px); /* 預設桌機/寬螢幕用 */
+  /* 不在這裡固定高度，桌機走 canvas 高度自動比率；行動端由 JS 設定 inline height */
+  border-radius:12px; overflow:hidden; z-index:1; will-change:transform;
 }
+/* 橫板（β）：旋轉整個舞台包裹 */
+#stageWrap.landscape{
+  position:fixed; inset:0; margin:0; width:100svh; height:100svw; /* 讓長邊當寬度 */
+  left:50%; top:50%; transform-origin:center center; transform:translate(-50%,-50%) rotate(90deg);
+}
+
+/* 真正的舞台容器 */
+#stage{ position:relative; width:100%; height:100%; }
 canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 #uiCanvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; background:transparent; border:none; z-index:6; }
 
 /* 漸層偽邊界 */
-#edgeFade{
-  position:absolute; inset:0; pointer-events:none; border-radius:10px; z-index:5;
+#edgeFade{ position:absolute; inset:0; pointer-events:none; border-radius:10px; z-index:5;
   background:
     linear-gradient(to right, rgba(255,255,255,.16), rgba(255,255,255,0) 40%) left/16px 100% no-repeat,
     linear-gradient(to left,  rgba(255,255,255,.16), rgba(255,255,255,0) 40%) right/16px 100% no-repeat,
@@ -38,14 +38,8 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 }
 
 /* ===== 上方列：HEAT / HP / 暫停 ===== */
-.topbar{
-  position:absolute; top:10px; left:0; right:0; z-index:8;
-  display:flex; align-items:center; gap:8px; padding:0 10px;
-}
-#toggleHeatBtn{
-  padding:6px 10px; font-size:12px; background:#1c293e;
-  border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; opacity:.95; cursor:pointer;
-}
+.topbar{ position:absolute; top:10px; left:0; right:0; z-index:8; display:flex; align-items:center; gap:8px; padding:0 10px; }
+#toggleHeatBtn{ padding:6px 10px; font-size:12px; background:#1c293e; border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; opacity:.95; cursor:pointer; }
 #pauseButton{ padding:6px 10px; font-size:14px; border:none; border-radius:8px; background:#78d5ff; cursor:pointer; }
 
 /* 血條 */
@@ -54,28 +48,29 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 #hpText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
 
 /* 其他 UI */
-.hitbar{ position:absolute; left:0; width:100%; display:flex; justify-content:space-between; align-items:center; height:calc(90px * var(--u)); z-index:2; opacity:0; pointer-events:none; }
+.hitbar{ position:absolute; left:0; width:100%; display:flex; justify-content:space-between; align-items:center; height:90px; z-index:2; opacity:0; pointer-events:none; }
 .hud{ font-size:18px; margin-top:10px; line-height:1.6; }
 .songline{ font-size:14px; opacity:.9; }
 button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; border:none; border-radius:8px; cursor:pointer; }
-#menuScreen,#musicScreen,#endScreen,#optionsScreen,#pauseScreen{ padding-top:120px; }
+#menuScreen,#musicScreen,#endScreen,#optionsScreen,#pauseScreen{ padding-top:100px; }
 .blur{ filter:blur(6px); pointer-events:none; user-select:none; }
 
 /* 倒數 */
-#countdownText{
-  position:absolute; top:40%; left:50%; transform:translate(-50%,-50%);
-  font-family:'Fredoka One',sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000; z-index:9; pointer-events:none; display:none;
-}
+#countdownText{ position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-family:'Fredoka One',sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000; z-index:9; pointer-events:none; display:none; }
 @keyframes popScale{ 0%{transform:translate(-50%,-50%) scale(.85)} 50%{transform:translate(-50%,-50%) scale(1.12)} 100%{transform:translate(-50%,-50%) scale(1)} }
 
 /* 其他 */
-#warnBanner{
-  position:fixed; left:50%; bottom:20px; transform:translateX(-50%);
-  background:rgba(255,80,80,.95); padding:10px 14px; border-radius:8px; font-size:14px; display:none; z-index:20;
-}
+#warnBanner{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:rgba(255,80,80,.95); padding:10px 14px; border-radius:8px; font-size:14px; display:none; z-index:20; }
 .row{margin:8px 0} label{margin-right:6px}
 select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid #445; background:#12152a; color:#fff; }
 #songSelect{ width:90%; max-width:420px; height:280px; }
+
+/* 手機全高模式下，舞台優先吃滿高度 */
+@media (pointer:coarse){
+  body{ background:radial-gradient(1200px 780px at 50% 0%, #101b33 0%, #0a1226 55%, #07111f 100%); }
+  /* 行動端：canvas 隨舞台高度吃滿，避免>4鍵變小 */
+  #stage canvas{ height:100%; }
+}
 </style>
 </head>
 <body>
@@ -187,6 +182,16 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
     <input id="hpToggle" type="checkbox"/>
   </div>
 
+  <div class="row">
+    <label for="mobileFullHeight">手機全高（>4鍵推薦）：</label>
+    <input id="mobileFullHeight" type="checkbox"/>
+  </div>
+
+  <div class="row">
+    <label for="mobileLandscape">手機橫板模式（β）：</label>
+    <input id="mobileLandscape" type="checkbox"/>
+  </div>
+
   <div class="row"><button class="btnBackMenu">回主選單</button></div>
 </div>
 
@@ -198,12 +203,14 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
     <button id="pauseButton">⏸️</button>
   </div>
 
-  <div id="stage">
-    <canvas id="gameCanvas" width="420" height="640"></canvas>
-    <canvas id="uiCanvas"   width="420" height="640"></canvas>
-    <div id="edgeFade"></div>
-    <div class="hitbar"><div></div><div></div><div></div><div></div></div>
-    <div id="countdownText">Ready</div>
+  <div id="stageWrap">
+    <div id="stage">
+      <canvas id="gameCanvas" width="420" height="640"></canvas>
+      <canvas id="uiCanvas"   width="420" height="640"></canvas>
+      <div id="edgeFade"></div>
+      <div class="hitbar"><div></div><div></div><div></div><div></div></div>
+      <div id="countdownText">Ready</div>
+    </div>
   </div>
 
   <div class="hud">
@@ -268,17 +275,23 @@ const $  = (s,r=document)=>r.querySelector(s);
 const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
 const banner = (m)=>{ const b=$("#warnBanner"); b.textContent=m; b.style.display="block"; setTimeout(()=>b.style.display="none",1600); };
 
-/* ===== 畫布 / DPR & 鍵數動態寬度 ===== */
+/* ===== 尺寸常數／動態狀態 ===== */
 const H = 640;
 const baseLaneW = 105;              // 每鍵基準寬度（維持 4 鍵時 420）
 let LANES = [4,6,8].includes(+localStorage.getItem("dfjk.lanes")) ? +localStorage.getItem("dfjk.lanes") : 4;
-let W = baseLaneW * LANES;
+let W = baseLaneW * LANES;          // 幾何運算用的畫布邏輯寬度
 
 const c  = $("#gameCanvas");
 const ctx= c.getContext("2d",{ alpha:false, desynchronized:true });
 const uc = $("#uiCanvas");
 const uix= uc.getContext("2d",{ alpha:true });
 
+/* 手機版介面開關 */
+const IS_MOBILE = matchMedia("(pointer: coarse)").matches;
+let MOBILE_FULL = localStorage.getItem('dfjk.mobileFull') === '1';
+let LANDSCAPE   = localStorage.getItem('dfjk.landscape')   === '1';
+
+/* DPR 尺寸設定：邏輯尺寸 W x H，顯示尺寸交給 #stageWrap 控制 */
 function fitDPR(){
   const d = Math.min(devicePixelRatio||1, 2);
   c.width  = W * d; c.height = H * d;
@@ -287,13 +300,49 @@ function fitDPR(){
   uix.setTransform(d,0,0,d,0,0);
 }
 
+/* 依裝置與選項設定舞台盒大小（解決 >4 鍵在手機高度不足） */
+function applyStageLayout(){
+  const wrap = $("#stageWrap");
+  const vw = Math.min(window.innerWidth, document.documentElement.clientWidth||window.innerWidth);
+  const vh = window.innerHeight || document.documentElement.clientHeight || 640;
+
+  if (!IS_MOBILE){
+    // ★ 桌機：維持原比例與原寬度邏輯，只根據鍵數與桌機放大倍數決定寬度，高度自動由 canvas 比例撐出
+    wrap.classList.remove('landscape');
+    wrap.style.width  = Math.round(Math.min(vw*0.95, baseLaneW*LANES*uiScale)) + 'px';
+    wrap.style.height = '';
+  } else if (LANDSCAPE){
+    // 行動端橫板（β）：吃滿長邊
+    wrap.classList.add('landscape');
+    wrap.style.width  = '';
+    wrap.style.height = '';
+    $$('.hitbar').forEach(el=> el.style.height = '90px');
+  } else if (MOBILE_FULL && LANES>4){
+    // 行動端全高：高度優先，用高算寬
+    wrap.classList.remove('landscape');
+    const targetH = Math.max(360, Math.round(vh * 0.86));
+    const targetW = Math.round(targetH * (W / H));
+    wrap.style.width  = Math.min(targetW, Math.round(vw*0.98)) + 'px';
+    wrap.style.height = targetH + 'px';
+  } else {
+    // 行動端一般：寬度優先，高度自動
+    wrap.classList.remove('landscape');
+    const targetW = Math.min(vw*0.98, baseLaneW*LANES);
+    wrap.style.width  = Math.round(targetW) + 'px';
+    wrap.style.height = '';
+  }
+
+  // 重新計算佈局尺度並預繪
+  layout();
+  draw({skip:true}); ui();
+}
+
 /* ===== 狀態 ===== */
-const IS_MOBILE = matchMedia("(pointer: coarse)").matches;
 const VIB = IS_MOBILE && ("vibrate" in navigator);
 const HITKEY = 90;
 const NOTE_SZ = 46;
 
-let uiScale = 1;
+let uiScale = 1;         // 桌機放大倍數（手機維持 1）
 let phase = "menu";
 let running=false, paused=false, loopId=null;
 
@@ -335,10 +384,7 @@ function desktopScale(){
   let u = 1;
   if(!coarse && (wide || wider)) u = wider ? 1.8 : 1.5;
   uiScale = u;
-  const st = $("#stage");
-  st.style.setProperty("--u", String(u));
-  st.style.maxWidth = `${Math.round(baseLaneW*LANES*u)}px`;
-  layout();
+  // 桌機放大改由 stageWrap 寬度優先控制，這裡不再寫死 maxWidth
 }
 
 function laneX(i){ const lw = W/LANES; return i*lw + lw/2; }
@@ -347,90 +393,24 @@ function laneX(i){ const lw = W/LANES; return i*lw + lw/2; }
 const BASE_COL = ['#b266ff','#66ccff','#66ff66','#ff6666','#ffc857','#ff9bd3','#78d5ff','#ffd966'];
 let RGB = localStorage.getItem("dfjk.rgbCycle")==="1";
 
-function h2x(h,s,l){
-  s/=100; l/=100;
-  const k=n=>(n+h/30)%12; const a=s*Math.min(l,1-l);
-  const f=n=>l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1)));
-  const to=x=>("0"+Math.round(x*255).toString(16)).slice(-2);
-  return `#${to(f(0))}${to(f(8))}${to(f(4))}`;
-}
-function light(hex,a){
-  const p=parseInt(hex.slice(1),16);
-  let r=(p>>16)&255,g=(p>>8)&255,b=p&255;
-  r=Math.min(255,Math.round(r+(255-r)*a));
-  g=Math.min(255,Math.round(g+(255-g)*a));
-  b=Math.min(255,Math.round(b+(255-b)*a));
-  return `rgb(${r},${g},${b})`;
-}
-function laneCol(i,t){
-  if(RGB){ const hue=((t*60)+i*(360/LANES))%360; return h2x(hue,85,55); }
-  return BASE_COL[i % BASE_COL.length];
-}
+function h2x(h,s,l){ s/=100; l/=100; const k=n=>(n+h/30)%12; const a=s*Math.min(l,1-l); const f=n=>l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1))); const to=x=>("0"+Math.round(x*255).toString(16)).slice(-2); return `#${to(f(0))}${to(f(8))}${to(f(4))}`; }
+function light(hex,a){ const p=parseInt(hex.slice(1),16); let r=(p>>16)&255,g=(p>>8)&255,b=p&255; r=Math.min(255,Math.round(r+(255-r)*a)); g=Math.min(255,Math.round(g+(255-g)*a)); b=Math.min(255,Math.round(b+(255-b)*a)); return `rgb(${r},${g},${b})`; }
+function laneCol(i,t){ if(RGB){ const hue=((t*60)+i*(360/LANES))%360; return h2x(hue,85,55); } return BASE_COL[i % BASE_COL.length]; }
 
 /* ===== 箭頭繪製（cyber 風） ===== */
 function d2a(d){ if(d==="up")return -Math.PI/2; if(d==="down")return Math.PI/2; if(d==="left")return Math.PI; return 0; }
-function arrowPath(xc,s){
-  const L=s*2.05,Hh=s*0.92,cut=Hh*0.30,tip=L*0.50,tail=-L*0.22;
-  xc.beginPath();
-  xc.moveTo(tail,-Hh*0.55); xc.lineTo(0,-Hh*0.55); xc.lineTo(tip,0);
-  xc.lineTo(0,Hh*0.55); xc.lineTo(tail,Hh*0.55); xc.lineTo(tail+cut,0); xc.closePath();
-}
+function arrowPath(xc,s){ const L=s*2.05,Hh=s*0.92,cut=Hh*0.30,tip=L*0.50,tail=-L*0.22; xc.beginPath(); xc.moveTo(tail,-Hh*0.55); xc.lineTo(0,-Hh*0.55); xc.lineTo(tip,0); xc.lineTo(0,Hh*0.55); xc.lineTo(tail,Hh*0.55); xc.lineTo(tail+cut,0); xc.closePath(); }
 
 /* 依鍵數產生 lane 方向（兩端左右，中間上下交錯） */
 let LANE_DIRS = [];
-function recomputeLaneDirs(){
-  LANE_DIRS = [];
-  for(let i=0;i<LANES;i++){
-    if(i===0){ LANE_DIRS.push('left'); continue; }
-    if(i===LANES-1){ LANE_DIRS.push('right'); continue; }
-    LANE_DIRS.push(i%2===0 ? 'up' : 'down');
-  }
-}
+function recomputeLaneDirs(){ LANE_DIRS = []; for(let i=0;i<LANES;i++){ if(i===0){ LANE_DIRS.push('left'); continue; } if(i===LANES-1){ LANE_DIRS.push('right'); continue; } LANE_DIRS.push(i%2===0 ? 'up' : 'down'); } }
 recomputeLaneDirs();
 
-function drawArrow(o){
-  const {x,y,size,dir,base,isRec,pulse=0,t=0,scale=1,rot=0} = o;
-  const ang = d2a(dir);
-  ctx.save(); ctx.translate(x,y); ctx.rotate(ang+rot); ctx.scale(scale,scale);
-  arrowPath(ctx,size);
-  ctx.fillStyle = isRec? "#050607" : light(base,.12); ctx.fill();
-  ctx.lineWidth = isRec? 2 : 2.2; ctx.strokeStyle="rgba(255,255,255,.95)"; ctx.stroke();
-
-  const k=6; ctx.save(); ctx.clip();
-  for(let i=0;i<k;i++){
-    const u=i/(k-1)-.5, yy=u*size*.95;
-    ctx.globalAlpha = isRec ? (0.12+0.22*pulse) : 0.20;
-    ctx.strokeStyle = "#ffffff"; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(-size,yy); ctx.lineTo(size*1.1,yy); ctx.stroke();
-  }
-  const sw=(Math.sin(t*2.2)+1)/2, w=size*0.65, sx=-size+(size*2.2)*sw;
-  const g=ctx.createLinearGradient(sx-w,0,sx+w,0);
-  g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,.28)'); g.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=g; ctx.fillRect(-size*1.2,-size*1.2,size*2.4,size*2.4);
-  ctx.restore(); ctx.restore();
-}
-function drawTrail(o){
-  const {x,y,size,dir,base,t} = o;
-  const step=3,gap=10,a=d2a(dir);
-  for(let i=1;i<=step;i++){
-    const off=i*gap, ax=x-Math.cos(a)*off, ay=y-Math.sin(a)*off;
-    ctx.save(); ctx.globalAlpha=.16*(1-i/(step+1));
-    drawArrow({x:ax,y:ay,size,dir,base,isRec:false,t}); ctx.restore();
-  }
-}
+function drawArrow(o){ const {x,y,size,dir,base,isRec,pulse=0,t=0,scale=1,rot=0} = o; const ang = d2a(dir); ctx.save(); ctx.translate(x,y); ctx.rotate(ang+rot); ctx.scale(scale,scale); arrowPath(ctx,size); ctx.fillStyle = isRec? "#050607" : light(base,.12); ctx.fill(); ctx.lineWidth = isRec? 2 : 2.2; ctx.strokeStyle="rgba(255,255,255,.95)"; ctx.stroke(); const k=6; ctx.save(); ctx.clip(); for(let i=0;i<k;i++){ const u=i/(k-1)-.5, yy=u*size*.95; ctx.globalAlpha = isRec ? (0.12+0.22*pulse) : 0.20; ctx.strokeStyle = "#ffffff"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-size,yy); ctx.lineTo(size*1.1,yy); ctx.stroke(); } const sw=(Math.sin(t*2.2)+1)/2, w=size*0.65, sx=-size+(size*2.2)*sw; const g=ctx.createLinearGradient(sx-w,0,sx+w,0); g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,.28)'); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.fillStyle=g; ctx.fillRect(-size*1.2,-size*1.2,size*2.4,size*2.4); ctx.restore(); ctx.restore(); }
+function drawTrail(o){ const {x,y,size,dir,base,t} = o; const step=3,gap=10,a=d2a(dir); for(let i=1;i<=step;i++){ const off=i*gap, ax=x-Math.cos(a)*off, ay=y-Math.sin(a)*off; ctx.save(); ctx.globalAlpha=.16*(1-i/(step+1)); drawArrow({x:ax,y:ay,size,dir,base,isRec:false,t}); ctx.restore(); } }
 
 /* ===== 背景特效 ===== */
-function bg(t){
-  ctx.save(); ctx.fillStyle="#0c1322"; ctx.fillRect(0,0,W,H);
-  const Ls=[ {step:26,s:28,a:.18,c:'rgba(120,213,255,0.35)'},{step:18,s:50,a:.14,c:'rgba(255,0,160,0.28)'},{step:34,s:18,a:.12,c:'rgba(255,255,0,0.22)'} ];
-  for(const L of Ls){
-    ctx.globalAlpha=L.a; ctx.strokeStyle=L.c; ctx.lineWidth=1;
-    const ox=(t*L.s)%L.step, oy=(t*L.s*0.7)%L.step;
-    for(let x=-ox;x<=W;x+=L.step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-    for(let y=-oy;y<=H;y+=L.step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(0+y,H+y); ctx.stroke(); }
-  }
-  ctx.restore();
-}
+function bg(t){ ctx.save(); ctx.fillStyle="#0c1322"; ctx.fillRect(0,0,W,H); const Ls=[ {step:26,s:28,a:.18,c:'rgba(120,213,255,0.35)'},{step:18,s:50,a:.14,c:'rgba(255,0,160,0.28)'},{step:34,s:18,a:.12,c:'rgba(255,255,0,0.22)'} ]; for(const L of Ls){ ctx.globalAlpha=L.a; ctx.strokeStyle=L.c; ctx.lineWidth=1; const ox=(t*L.s)%L.step, oy=(t*L.s*0.7)%L.step; for(let x=-ox;x<=W;x+=L.step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); } for(let y=-oy;y<=H;y+=L.step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(0+y,H+y); ctx.stroke(); } } ctx.restore(); }
 
 /* ===== 音訊 / SFX ===== */
 let OFFSET = +(localStorage.getItem("dfjk.offsetMs")||0);
@@ -477,18 +457,7 @@ let comboFlash=""; let comboT0=0;
 function comboFlashNow(){ comboFlash=`COMBO x${combo}!!`; comboT0=performance.now()/1000; }
 
 /* Game Over / EX MISS 限制 */
-function endWith(msg){
-  running=false; stopLoop(); stopAudio();
-  $("#finalSong").textContent=currentSong;
-  $("#finalDiff").textContent=diff.toUpperCase();
-  $("#finalDir").textContent=(dir==='up'?'上升':'下落');
-  $("#finalJudge").textContent=(jmode==='old'?'Old':'New');
-  $("#finalScore").textContent=score;
-  $("#statSick").textContent=stats.sick; $("#statGood").textContent=stats.good;
-  $("#statBad").textContent=stats.bad;   $("#statShit").textContent=stats.shit;
-  $("#statMiss").textContent=missCount;
-  showOnly('endScreen'); phase='menu'; if(msg) banner(msg);
-}
+function endWith(msg){ running=false; stopLoop(); stopAudio(); $("#finalSong").textContent=currentSong; $("#finalDiff").textContent=diff.toUpperCase(); $("#finalDir").textContent=(dir==='up'?'上升':'下落'); $("#finalJudge").textContent=(jmode==='old'?'Old':'New'); $("#finalScore").textContent=score; $("#statSick").textContent=stats.sick; $("#statGood").textContent=stats.good; $("#statBad").textContent=stats.bad; $("#statShit").textContent=stats.shit; $("#statMiss").textContent=missCount; showOnly('endScreen'); phase='menu'; if(msg) banner(msg); }
 function exCheck(){ if(diff==='ex' && missCount>15){ endWith("你輸了！EX MISS > 15"); } }
 
 /* 幾何 */
@@ -500,221 +469,51 @@ function hpShow(b){ $("#hpBar").style.display=b?"block":"none"; }
 function hpUpdate(){ const fill=$("#hpFill"), txt=$("#hpText"); const w=Math.max(0,Math.min(100, HP/HP_MAX*100)); fill.style.width=w.toFixed(1)+"%"; txt.textContent=`${HP}/${HP_MAX}`; }
 function hpSet(v){ HP=Math.max(0,Math.min(HP_MAX,Math.round(v))); hpUpdate(); if(HP<=0 && running){ endWith("HP 耗盡"); } }
 function hpAdd(d){ if(!HP_ON) return; hpSet(HP+d); }
-function hpDelta(j){
-  if(j==="SICK") return +15; if(j==="GOOD") return +12; if(j==="BAD") return +6;
-  let missV=0, shitV=0;
-  if(diff==='beginner'||diff==='easy'){ missV=-5;  shitV=-3; }
-  else if(diff==='normal'){ missV=-8;  shitV=-6; }
-  else if(diff==='hard'){   missV=-10; shitV=-8; }
-  else if(diff==='ex'){     missV=-25; shitV=-20; }
-  else { /* hell */         missV=-28; shitV=-22; }
-  if(j==="MISS") return missV; if(j==="SHIT") return shitV; return 0;
-}
+function hpDelta(j){ if(j==="SICK") return +15; if(j==="GOOD") return +12; if(j==="BAD") return +6; let missV=0, shitV=0; if(diff==='beginner'||diff==='easy'){ missV=-5;  shitV=-3; } else if(diff==='normal'){ missV=-8;  shitV=-6; } else if(diff==='hard'){   missV=-10; shitV=-8; } else if(diff==='ex'){     missV=-25; shitV=-20; } else { /* hell */         missV=-28; shitV=-22; } if(j==="MISS") return missV; if(j==="SHIT") return shitV; return 0; }
 
 /* ===== HUD / 特效 ===== */
-function hud(){
-  $("#score").textContent=score;
-  $("#combo").textContent=combo;
-  $("#judgement").textContent=lastJudge;
-  $("#missCount").textContent=missCount;
-  $("#songTitle").textContent=currentSong;
-  $("#laneLabel").textContent=String(LANES);
-  $("#diffLabel").textContent=diff.toUpperCase();
-  $("#dirLabel").textContent=(dir==='up'?'上升':'下落');
-  $("#judgeLabel").textContent=(jmode==='old'?'Old':'New');
-  $("#offsetActive").textContent=`${OFFSET} ms`;
-}
+function hud(){ $("#score").textContent=score; $("#combo").textContent=combo; $("#judgement").textContent=lastJudge; $("#missCount").textContent=missCount; $("#songTitle").textContent=currentSong; $("#laneLabel").textContent=String(LANES); $("#diffLabel").textContent=diff.toUpperCase(); $("#dirLabel").textContent=(dir==='up'?'上升':'下落'); $("#judgeLabel").textContent=(jmode==='old'?'Old':'New'); $("#offsetActive").textContent=`${OFFSET} ms`; }
 
 /* 命中特效 */
 const hits=[], parts=[];
-function addHit(l){
-  const t=performance.now()/1000, j=judgeY, x=laneX(l);
-  hits.push({lane:l,t0:t,life:.40});
-  const N=26, col=laneCol(l,t);
-  for(let i=0;i<N;i++){
-    const a=Math.random()*Math.PI*2, sp=80+Math.random()*220;
-    const vx=Math.cos(a)*sp, vy=Math.sin(a)*sp, life=.28+Math.random()*.22, th=.8+Math.random()*1.6;
-    parts.push({x,y:j,vx,vy,life,t0:t,col,th});
-  }
-}
+function addHit(l){ const t=performance.now()/1000, j=judgeY, x=laneX(l); hits.push({lane:l,t0:t,life:.40}); const N=26, col=laneCol(l,t); for(let i=0;i<N;i++){ const a=Math.random()*Math.PI*2, sp=80+Math.random()*220; const vx=Math.cos(a)*sp, vy=Math.sin(a)*sp, life=.28+Math.random()*.22, th=.8+Math.random()*1.6; parts.push({x,y:j,vx,vy,life,t0:t,col,th}); } }
 function impact(l){ recPulse[l]=1.2; recHitT[l]=performance.now()/1000; }
-function fxUpdate(dt){
-  const now=performance.now()/1000;
-  for(let i=hits.length-1;i>=0;i--) if((now-hits[i].t0)>hits[i].life) hits.splice(i,1);
-  for(let i=parts.length-1;i>=0;i--){
-    const p=parts[i], age=now-p.t0; if(age>p.life){ parts.splice(i,1); continue; }
-    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=(1-1.6*dt); p.vy*=(1-1.6*dt);
-  }
-}
-function fxDraw(){
-  const t=performance.now()/1000, j=judgeY;
-  ctx.save();
-  for(const fx of hits){
-    const age=t-fx.t0, p=Math.min(1,age/fx.life), x=laneX(fx.lane), r=28+90*p;
-    ctx.globalCompositeOperation='lighter';
-    const g=ctx.createRadialGradient(x,j,r*.2, x,j,r);
-    g.addColorStop(0,'rgba(255,255,255,.35)'); g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,j,r,0,Math.PI*2); ctx.fill();
-    ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1-p;
-  }
-  ctx.restore();
-
-  ctx.save(); ctx.globalCompositeOperation='lighter';
-  for(const p of parts){
-    const now=performance.now()/1000, age=now-p.t0, q=Math.max(0,1-age/p.life);
-    ctx.strokeStyle=p.col; ctx.globalAlpha=Math.pow(q,1.6); ctx.lineWidth=p.th;
-    ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x - p.vx*0.025, p.y - p.vy*0.025); ctx.stroke();
-  }
-  ctx.restore();
-}
+function fxUpdate(dt){ const now=performance.now()/1000; for(let i=hits.length-1;i>=0;i--) if((now-hits[i].t0)>hits[i].life) hits.splice(i,1); for(let i=parts.length-1;i>=0;i--){ const p=parts[i], age=now-p.t0; if(age>p.life){ parts.splice(i,1); continue; } p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=(1-1.6*dt); p.vy*=(1-1.6*dt); } }
+function fxDraw(){ const t=performance.now()/1000, j=judgeY; ctx.save(); for(const fx of hits){ const age=t-fx.t0, p=Math.min(1,age/fx.life), x=laneX(fx.lane), r=28+90*p; ctx.globalCompositeOperation='lighter'; const g=ctx.createRadialGradient(x,j,r*.2, x,j,r); g.addColorStop(0,'rgba(255,255,255,.35)'); g.addColorStop(1,'rgba(255,255,255,0)'); ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,j,r,0,Math.PI*2); ctx.fill(); ctx.globalCompositeOperation='source-over'; ctx.globalAlpha=1-p; } ctx.restore(); ctx.save(); ctx.globalCompositeOperation='lighter'; for(const p of parts){ const now=performance.now()/1000, age=now-p.t0, q=Math.max(0,1-age/p.life); ctx.strokeStyle=p.col; ctx.globalAlpha=Math.pow(q,1.6); ctx.lineWidth=p.th; ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x - p.vx*0.025, p.y - p.vy*0.025); ctx.stroke(); } ctx.restore(); }
 
 /* ===== 更新 / 繪圖 ===== */
-function upd(songT,dt){
-  for(const n of chart) n.y = yAt(n.t, songT);
-  for(const n of chart){
-    if(n.hit) continue;
-    const late=(songT-n.t)*1000, over=WIN.shit+160;
-    if(late>over){
-      n.hit=true; remain--; lastJudge='MISS'; combo=0; missCount++; stats.miss++; score=Math.max(0,score+SC.miss); hpAdd(hpDelta('MISS')); hud(); exCheck();
-    }
-  }
-  for(let i=0;i<LANES;i++) recPulse[i]=Math.max(0, recPulse[i]-dt*3.2);
-  fxUpdate(dt);
-}
-function draw(opt={}){
-  const sk=!!opt.skip, t=performance.now()/1000, j=judgeY;
-  ctx.clearRect(0,0,W,H); bg(t);
-
-  for(let i=0;i<LANES;i++){
-    const x=laneX(i), col=laneCol(i,t), since=Math.max(0,t-recHitT[i]), wave=Math.max(0,1-since/0.22);
-    const p=Math.max(recPulse[i],wave), sc=1+0.42*p+0.08*Math.sin((1-p)*Math.PI), rot=(Math.sin(since*60)*0.05)*p;
-    drawArrow({x,y:j,size:NOTE_SZ,dir:LANE_DIRS[i],base:col,isRec:true,pulse:p,t,scale:sc,rot});
-  }
-
-  if(!sk){
-    const top=-160, bot=H+160;
-    for(let i=0;i<chart.length;i++){
-      const n=chart[i]; if(n.hit) continue; if(n.y<top||n.y>bot) continue;
-      const x=laneX(n.lane), col=laneCol(n.lane, t+i*0.02);
-      drawTrail({x,y:n.y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,t:t+i*0.02});
-      drawArrow({x,y:n.y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,isRec:false,t:t+i*0.02});
-    }
-  }
-
-  fxDraw();
-
-  if(lastJudge!=='-'){
-    ctx.fillStyle='#fff'; ctx.font='bold 32px sans-serif'; ctx.textAlign='center';
-    const off=(dir==='up') ? 120 : -40; ctx.fillText(lastJudge, W/2, j+off);
-  }
-
-  if(comboFlash){
-    const life=.9, age=(performance.now()/1000 - comboT0);
-    if(age<life){
-      const s=1+0.18*Math.sin(age*9);
-      ctx.save(); ctx.translate(W/2,H*0.22); ctx.scale(s,s);
-      ctx.fillStyle='rgba(255,255,255,.95)'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center'; ctx.fillText(comboFlash,0,0);
-      ctx.restore();
-    }else comboFlash='';
-  }
-}
-function drawPreview(t){
-  ctx.clearRect(0,0,W,H); bg(performance.now()/1000);
-  const j=judgeY;
-  for(let i=0;i<LANES;i++){
-    const x=laneX(i), col=laneCol(i, performance.now()/1000);
-    drawArrow({x,y:j,size:NOTE_SZ,dir:LANE_DIRS[i],base:col,isRec:true,pulse:0,t:0,scale:1,rot:0});
-  }
-  const top=-160, bot=H+160;
-  for(let i=0;i<chart.length;i++){
-    const n=chart[i]; if(n.hit) continue;
-    const y=yAt(n.t,t); if(y<top||y>bot) continue;
-    const x=laneX(n.lane), col=laneCol(n.lane, performance.now()/1000+i*0.02);
-    drawTrail({x,y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,t:0});
-    drawArrow({x,y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,isRec:false,t:0});
-  }
-}
+function upd(songT,dt){ for(const n of chart) n.y = yAt(n.t, songT); for(const n of chart){ if(n.hit) continue; const late=(songT-n.t)*1000, over=WIN.shit+160; if(late>over){ n.hit=true; remain--; lastJudge='MISS'; combo=0; missCount++; stats.miss++; score=Math.max(0,score+SC.miss); hpAdd(hpDelta('MISS')); hud(); exCheck(); } } for(let i=0;i<LANES;i++) recPulse[i]=Math.max(0, recPulse[i]-dt*3.2); fxUpdate(dt); }
+function draw(opt={}){ const sk=!!opt.skip, t=performance.now()/1000, j=judgeY; ctx.clearRect(0,0,W,H); bg(t); for(let i=0;i<LANES;i++){ const x=laneX(i), col=laneCol(i,t), since=Math.max(0,t-recHitT[i]), wave=Math.max(0,1-since/0.22); const p=Math.max(recPulse[i],wave), sc=1+0.42*p+0.08*Math.sin((1-p)*Math.PI), rot=(Math.sin(since*60)*0.05)*p; drawArrow({x,y:j,size:NOTE_SZ,dir:LANE_DIRS[i],base:col,isRec:true,pulse:p,t,scale:sc,rot}); } if(!sk){ const top=-160, bot=H+160; for(let i=0;i<chart.length;i++){ const n=chart[i]; if(n.hit) continue; if(n.y<top||n.y>bot) continue; const x=laneX(n.lane), col=laneCol(n.lane, t+i*0.02); drawTrail({x,y:n.y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,t:t+i*0.02}); drawArrow({x,y:n.y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,isRec:false,t:t+i*0.02}); } } fxDraw(); if(lastJudge!=='-'){ ctx.fillStyle='#fff'; ctx.font='bold 32px sans-serif'; ctx.textAlign='center'; const off=(dir==='up') ? 120 : -40; ctx.fillText(lastJudge, W/2, j+off); } if(comboFlash){ const life=.9, age=(performance.now()/1000 - comboT0); if(age<life){ const s=1+0.18*Math.sin(age*9); ctx.save(); ctx.translate(W/2,H*0.22); ctx.scale(s,s); ctx.fillStyle='rgba(255,255,255,.95)'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center'; ctx.fillText(comboFlash,0,0); ctx.restore(); }else comboFlash=''; } }
+function drawPreview(t){ ctx.clearRect(0,0,W,H); bg(performance.now()/1000); const j=judgeY; for(let i=0;i<LANES;i++){ const x=laneX(i), col=laneCol(i, performance.now()/1000); drawArrow({x,y:j,size:NOTE_SZ,dir:LANE_DIRS[i],base:col,isRec:true,pulse:0,t:0,scale:1,rot:0}); } const top=-160, bot=H+160; for(let i=0;i<chart.length;i++){ const n=chart[i]; if(n.hit) continue; const y=yAt(n.t,t); if(y<top||y>bot) continue; const x=laneX(n.lane), col=laneCol(n.lane, performance.now()/1000+i*0.02); drawTrail({x,y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,t:0}); drawArrow({x,y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,isRec:false,t:0}); } }
 
 /* ===== 熱圖（UI Canvas） ===== */
-function ui(){
-  uix.clearRect(0,0,W,H); if(!showHeat) return;
-  const bins=36, mn=-300, mx=300, step=(mx-mn)/bins, hist=new Array(bins).fill(0);
-  for(const v of dts){ const i=Math.floor((v-mn)/step); if(i>=0&&i<bins) hist[i]++; }
-  const w=230, h=74, bw=w/bins;
-  let yAuto=(dir==='up') ? (H-h-24) : (24 + (IS_MOBILE?6:0));
-  let yPos = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto);
-  const x0=14,y0=yPos;
-  uix.save(); uix.globalAlpha=.98; uix.fillStyle='rgba(0,0,0,.58)'; uix.fillRect(x0-8,y0-10,w+16,h+46);
-  uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
-  const maxc=Math.max(1,...hist);
-  for(let i=0;i<bins;i++){
-    const v=hist[i], bh=(v/maxc)*h, xx=Math.floor(x0+i*bw);
-    uix.fillStyle='#78d5ff'; uix.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh);
-  }
-  const {avg,std}=dtStats();
-  uix.fillStyle='#fff'; uix.fillText(`avg:${avg.toFixed(1)} σ:${std.toFixed(1)} 偏移:${OFFSET}ms`, x0, y0+h+16);
-  uix.strokeStyle='#ffd966'; uix.beginPath(); const mid=x0 + (-mn)/step * bw; uix.moveTo(mid,y0); uix.lineTo(mid,y0+h); uix.stroke();
-  uix.restore();
-}
+function ui(){ uix.clearRect(0,0,W,H); if(!showHeat) return; const bins=36, mn=-300, mx=300, step=(mx-mn)/bins, hist=new Array(bins).fill(0); for(const v of dts){ const i=Math.floor((v-mn)/step); if(i>=0&&i<bins) hist[i]++; } const w=230, h=74, bw=w/bins; let yAuto=(dir==='up') ? (H-h-24) : (24 + (IS_MOBILE?6:0)); let yPos = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto); const x0=14,y0=yPos; uix.save(); uix.globalAlpha=.98; uix.fillStyle='rgba(0,0,0,.58)'; uix.fillRect(x0-8,y0-10,w+16,h+46); uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText('Hit 偏移熱圖 (ms)', x0, y0-12); const maxc=Math.max(1,...hist); for(let i=0;i<bins;i++){ const v=hist[i], bh=(v/maxc)*h, xx=Math.floor(x0+i*bw); uix.fillStyle='#78d5ff'; uix.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); } const {avg,std}=dtStats(); uix.fillStyle='#fff'; uix.fillText(`avg:${avg.toFixed(1)} σ:${std.toFixed(1)} 偏移:${OFFSET}ms`, x0, y0+h+16); uix.strokeStyle='#ffd966'; uix.beginPath(); const mid=x0 + (-mn)/step * bw; uix.moveTo(mid,y0); uix.lineTo(mid,y0+h); uix.stroke(); uix.restore(); }
 
-/* ===== 鍵位映射（依鍵數） ===== */
-function laneKeyFromChar(k){
-  k=k.toLowerCase();
-  if(LANES===4){
-    if(k==='d')return 0; if(k==='f')return 1; if(k==='j')return 2; if(k==='k')return 3;
-    // 4 鍵允許方向鍵
-    if(k==='arrowleft')return 0; if(k==='arrowdown')return 1; if(k==='arrowup')return 2; if(k==='arrowright')return 3;
-    return null;
+/* ===== 鍵位映射（依鍵數＋橫板β調整點擊對應） ===== */
+function laneKeyFromChar(k){ k=k.toLowerCase(); if(LANES===4){ if(k==='d')return 0; if(k==='f')return 1; if(k==='j')return 2; if(k==='k')return 3; if(k==='arrowleft')return 0; if(k==='arrowdown')return 1; if(k==='arrowup')return 2; if(k==='arrowright')return 3; return null; } if(LANES===6){ if(k==='s')return 0; if(k==='d')return 1; if(k==='f')return 2; if(k==='j')return 3; if(k==='k')return 4; if(k==='l')return 5; return null; } if(k==='a')return 0; if(k==='s')return 1; if(k==='d')return 2; if(k==='f')return 3; if(k==='j')return 4; if(k==='k')return 5; if(k==='l')return 6; if(k===';')return 7; return null; }
+
+function lanePtrFromClient(clientX, clientY){
+  // 非旋轉：用 X 軸；橫板β：用 Y 軸對應到原本 X（因為視覺上轉 90deg）
+  const r = c.getBoundingClientRect();
+  let xCss, denom;
+  if (!LANDSCAPE){
+    xCss = clientX - r.left;
+    denom = r.width;
+  } else {
+    xCss = clientY - r.top;       // 90° 旋轉下：畫面 Y 映到原本的 X
+    denom = r.height;             // 分母要用旋轉前的寬度（= 旋轉後的高度）
   }
-  if(LANES===6){
-    if(k==='s')return 0; if(k==='d')return 1; if(k==='f')return 2; if(k==='j')return 3; if(k==='k')return 4; if(k==='l')return 5;
-    return null; // 停用方向鍵
-  }
-  // 8 鍵：A S D F J K L ;
-  if(k==='a')return 0; if(k==='s')return 1; if(k==='d')return 2; if(k==='f')return 3;
-  if(k==='j')return 4; if(k==='k')return 5; if(k==='l')return 6; if(k===';')return 7;
-  return null;
+  const x = xCss / denom * W;     // 映射到畫布邏輯寬度
+  let best=0, bd=1e9; for(let i=0;i<LANES;i++){ const d=Math.abs(x-laneX(i)); if(d<bd){ bd=d; best=i; } } return best;
 }
-function lanePtr(xCss){ const r=c.getBoundingClientRect(); const x=xCss/r.width*W; let b=0,bd=1e9;
-  for(let i=0;i<LANES;i++){ const d=Math.abs(x-laneX(i)); if(d<bd){ bd=d; b=i; } } return b; }
 
 /* ===== 輸入處理 ===== */
-function onPress(l){
-  if(!running) return;
-  tapSfx();
-  const t=judgeClock(); let bi=-1, ba=1e9;
-  for(let i=0;i<chart.length;i++){
-    const n=chart[i]; if(n.hit||n.lane!==l) continue;
-    const dt=(t-n.t)*1000, ad=Math.abs(dt);
-    if(ad<=WIN.shit && ad<ba){ ba=ad; bi=i; }
-  }
-  if(bi>=0){
-    const n=chart[bi]; n.hit=true; remain--;
-    const dt=(t-n.t)*1000;
-    let r="";
-    if(Math.abs(dt)<=WIN.sick){ r='SICK!'; score=Math.max(0,score+SC.sick); stats.sick++; combo++; }
-    else if(Math.abs(dt)<=WIN.good){ r='GOOD'; score=Math.max(0,score+SC.good); stats.good++; combo++; }
-    else if(Math.abs(dt)<=WIN.bad){ r='BAD'; score=Math.max(0,score+SC.bad); stats.bad++; combo++; }
-    else { r='SHIT'; score=Math.max(0,score+SC.shit); stats.shit++; combo=Math.max(0,combo-1); }
-    lastJudge=r; recDt(dt); hud();
-    const key=r.replace('!',''); if(['SICK','GOOD','BAD','SHIT'].includes(key)) hpAdd(hpDelta(key));
-    if(combo>0 && combo%10===0) comboFlashNow();
-    addHit(l); impact(l); if(VIB){ try{ navigator.vibrate(10);}catch{} }
-  }else{
-    if(jmode==='old'){ lastJudge='WRONG'; wrongCount++; hpAdd(-2); } else lastJudge='-';
-    hud(); recPulse[l]=Math.max(recPulse[l],1.0); addHit(l); impact(l);
-  }
-}
-window.addEventListener("keydown", e=>{
-  if(e.repeat) return; const k=e.key.toLowerCase();
-  if(k==='h'){ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); e.preventDefault(); return; }
-  if(k==='r'){ heatMode=(heatMode+1)%3; banner(`熱圖位置：${heatMode===0?'自動':(heatMode===1?'置頂':'置底')}`); ui(); e.preventDefault(); return; }
-  const l=laneKeyFromChar(k);
-  if(l!==null){ if(running&&!paused){ onPress(l); } e.preventDefault(); return; }
-  if(k==='escape'){ if(phase==='playing') pauseGame(); else if(phase==='paused') resumeGame();
-    else if(phase==='countdown'){ cancelCountdown(); pauseGame(true); } e.preventDefault(); }
-});
-c.addEventListener("pointerdown", e=>{ if(!running||paused) return; e.preventDefault(); const r=c.getBoundingClientRect(); const l=lanePtr(e.clientX-r.left); onPress(l); }, {passive:false});
+function onPress(l){ if(!running) return; tapSfx(); const t=judgeClock(); let bi=-1, ba=1e9; for(let i=0;i<chart.length;i++){ const n=chart[i]; if(n.hit||n.lane!==l) continue; const dt=(t-n.t)*1000, ad=Math.abs(dt); if(ad<=WIN.shit && ad<ba){ ba=ad; bi=i; } } if(bi>=0){ const n=chart[bi]; n.hit=true; remain--; const dt=(t-n.t)*1000; let r=""; if(Math.abs(dt)<=WIN.sick){ r='SICK!'; score=Math.max(0,score+SC.sick); stats.sick++; combo++; } else if(Math.abs(dt)<=WIN.good){ r='GOOD'; score=Math.max(0,score+SC.good); stats.good++; combo++; } else if(Math.abs(dt)<=WIN.bad){ r='BAD'; score=Math.max(0,score+SC.bad); stats.bad++; combo++; } else { r='SHIT'; score=Math.max(0,score+SC.shit); stats.shit++; combo=Math.max(0,combo-1); } lastJudge=r; recDt(dt); hud(); const key=r.replace('!',''); if(['SICK','GOOD','BAD','SHIT'].includes(key)) hpAdd(hpDelta(key)); if(combo>0 && combo%10===0) comboFlashNow(); addHit(l); impact(l); if(VIB){ try{ navigator.vibrate(10);}catch{} } } else { if(jmode==='old'){ lastJudge='WRONG'; wrongCount++; hpAdd(-2); } else lastJudge='-'; hud(); recPulse[l]=Math.max(recPulse[l],1.0); addHit(l); impact(l); } }
+
+window.addEventListener("keydown", e=>{ if(e.repeat) return; const k=e.key.toLowerCase(); if(k==='h'){ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); e.preventDefault(); return; } if(k==='r'){ heatMode=(heatMode+1)%3; banner(`熱圖位置：${heatMode===0?'自動':(heatMode===1?'置頂':'置底')}`); ui(); e.preventDefault(); return; } const l=laneKeyFromChar(k); if(l!==null){ if(running&&!paused){ onPress(l); } e.preventDefault(); return; } if(k==='escape'){ if(phase==='playing') pauseGame(); else if(phase==='paused') resumeGame(); else if(phase==='countdown'){ cancelCountdown(); pauseGame(true); } e.preventDefault(); } });
+
+c.addEventListener("pointerdown", e=>{ if(!running||paused) return; e.preventDefault(); const l=lanePtrFromClient(e.clientX, e.clientY); onPress(l); }, {passive:false});
+// 防止觸控手勢影響節奏
 c.addEventListener("touchstart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
 c.addEventListener("touchmove",  e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
 window.addEventListener("dblclick",     e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
@@ -722,45 +521,25 @@ window.addEventListener("gesturestart", e=>{ if(phase==='playing'||phase==='coun
 
 /* ===== 倒數 ===== */
 let counting=false, cRAF=null;
-function countdown(startCb,opt={}){ const show=!!opt.show, pv=(typeof opt.t==='number')?opt.t:0;
-  cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block';
-  const lab=['Ready','3','2','1','Go!'], dur=[600,800,800,800,600], t0=performance.now();
-  function step(now){
-    if(!counting) return; const e=now-t0; let acc=0, idx=lab.length-1;
-    for(let i=0;i<lab.length;i++){ acc+=dur[i]; if(e<acc){ idx=i; break; } }
-    el.textContent=(idx<lab.length?lab[idx]:'Go!'); el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
-    if(show){ drawPreview(pv); } else { draw({skip:true}); } ui();
-    const total=dur.reduce((a,b)=>a+b,0);
-    if(e>=total){ el.style.display='none'; counting=false; startCb(); return; }
-    cRAF=requestAnimationFrame(step);
-  }
-  cRAF=requestAnimationFrame(step);
-}
+function countdown(startCb,opt={}){ const show=!!opt.show, pv=(typeof opt.t==='number')?opt.t:0; cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block'; const lab=['Ready','3','2','1','Go!'], dur=[600,800,800,800,600], t0=performance.now(); function step(now){ if(!counting) return; const e=now-t0; let acc=0, idx=lab.length-1; for(let i=0;i<lab.length;i++){ acc+=dur[i]; if(e<acc){ idx=i; break; } } el.textContent=(idx<lab.length?lab[idx]:'Go!'); el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out'; if(show){ drawPreview(pv); } else { draw({skip:true}); } ui(); const total=dur.reduce((a,b)=>a+b,0); if(e>=total){ el.style.display='none'; counting=false; startCb(); return; } cRAF=requestAnimationFrame(step); } cRAF=requestAnimationFrame(step); }
 function cancelCountdown(){ if(!counting && !cRAF) return; counting=false; try{ cancelAnimationFrame(cRAF);}catch{} cRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; }
 
 /* ===== 音樂時鐘 ===== */
 let durSec=120, ended=false;
 function stopAudio(){ try{ bgm.pause(); }catch{} ended=false; }
 let softBase=0, softStart=0;
-function startAt(sec){ try{ const to=Math.max(0,Math.min((durSec||120)-.001,sec||0)); bgm.currentTime=to; }catch{} bgm.play().catch(()=>{}); ended=false; bgm.onended=()=>{ ended=true; };
-  softBase=bgm.currentTime||0; softStart=performance.now()/1000; }
+function startAt(sec){ try{ const to=Math.max(0,Math.min((durSec||120)-.001,sec||0)); bgm.currentTime=to; }catch{} bgm.play().catch(()=>{}); ended=false; bgm.onended=()=>{ ended=true; }; softBase=bgm.currentTime||0; softStart=performance.now()/1000; }
 function hardClock(){ const t=(bgm && !isNaN(bgm.currentTime)) ? bgm.currentTime : (performance.now()/1000 - softStart) + softBase; return Math.max(0,Math.min(durSec,t)); }
 function judgeClock(){ return hardClock() + (OFFSET/1000); }
 
 /* ===== 畫面切換 ===== */
-function showOnly(id){
-  ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>{
-    const el=$("#"+x); if(!el) return; el.style.display=(x===id?'block':'none');
-  });
-  if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); }
-}
-function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen');
-  $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; }
+function showOnly(id){ ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>{ const el=$("#"+x); if(!el) return; el.style.display=(x===id?'block':'none'); }); if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); } }
+function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; }
 function toOpt(){ showOnly('optionsScreen'); }
 function toMusic(){ showOnly('musicScreen'); }
 
 /* ===== 曲庫 ===== */
-const S=[ /* 你的檔名列表原封不動 */ 
+const S=[
 "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3",
 "Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3",
 "Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3",
@@ -793,256 +572,66 @@ const S=[ /* 你的檔名列表原封不動 */
 "Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3",
 "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
 ];
-function fillSongs(){
-  const sel=$("#songSelect"); if(sel.dataset.filled) return; sel.innerHTML="";
-  const ph=document.createElement("option"); ph.value=""; ph.textContent="— 請選擇曲目 —"; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph);
-  S.forEach(f=>{ const o=document.createElement("option"); o.value=f; o.textContent=f.replace(/\.mp3$/i,""); if(selectedSongFile===f) o.selected=true; sel.appendChild(o); });
-  sel.addEventListener("change",()=>{ $("#chosenSongLabel").textContent = sel.value ? sel.options[sel.selectedIndex].textContent : "尚未選擇"; });
-  sel.dataset.filled="1";
-}
-function confirmSong(){
-  const sel=$("#songSelect"); if(!sel.value){ alert("請先選擇音樂"); return; }
-  selectedSongFile=sel.value;
-  $("#chosenSongLabel").textContent = sel.options[sel.selectedIndex].textContent;
-  $("#menuChosenSong").textContent  = sel.options[sel.selectedIndex].textContent;
-  toMenu();
-}
+function fillSongs(){ const sel=$("#songSelect"); if(sel.dataset.filled) return; sel.innerHTML=""; const ph=document.createElement("option"); ph.value=""; ph.textContent="— 請選擇曲目 —"; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph); S.forEach(f=>{ const o=document.createElement("option"); o.value=f; o.textContent=f.replace(/\.mp3$/i,""); if(selectedSongFile===f) o.selected=true; sel.appendChild(o); }); sel.addEventListener("change",()=>{ $("#chosenSongLabel").textContent = sel.value ? sel.options[sel.selectedIndex].textContent : "尚未選擇"; }); sel.dataset.filled="1"; }
+function confirmSong(){ const sel=$("#songSelect"); if(!sel.value){ alert("請先選擇音樂"); return; } selectedSongFile=sel.value; $("#chosenSongLabel").textContent = sel.options[sel.selectedIndex].textContent; $("#menuChosenSong").textContent  = sel.options[sel.selectedIndex].textContent; toMenu(); }
 
 /* ===== 譜面產生（鍵數通用） ===== */
 const LEAD=1.6;
-function genChart(dur){
-  chart=[];
-  let dbl=.35, tmin=.24, tmax=.52;
-  if(diff==='beginner'){ dbl=.15; tmin=.34; tmax=.64; }
-  else if(diff==='easy'){ dbl=.20; tmin=.28; tmax=.54; }
-  else if(diff==='hard'){ dbl=.55; tmin=.18; tmax=.40; }
-
-  if(!(diff==='ex'||diff==='hell')){
-    let t=LEAD;
-    while(t<dur){
-      const used=new Set(); const arr=[];
-      const cnt=Math.random()<dbl?2:1;
-      while(arr.length<cnt){
-        const ln=Math.floor(Math.random()*LANES);
-        if(!used.has(ln)){ used.add(ln); arr.push({t,lane:ln,hit:false,y:-50}); }
-      }
-      chart.push(...arr);
-      t += Math.random()*(tmax-tmin)+tmin;
-    }
-  }else{
-    const beat=0.5; let t=LEAD, cur=0;
-    const n = ()=>{ cur=(cur+1)%LANES; return cur; };
-    const opp= (i)=> (i + Math.floor(LANES/2)) % LANES;
-    const nxt= (i)=> (i + 1) % LANES;
-    const rnd= ()=> Math.floor(Math.random()*LANES);
-    const push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50});
-    while(t<dur){
-      if(diff==='ex'){
-        push(t, n());
-        if(Math.random()<.60) push(t, opp(cur));
-        if(Math.random()<.35) push(t+beat/2, nxt(cur));
-        if(Math.random()<.18){ push(t+beat/3, rnd()); push(t+2*beat/3, rnd()); }
-        t += Math.random()<.5 ? beat/2 : beat;
-      }else{ // hell
-        push(t, n());
-        if(Math.random()<.85) push(t, opp(cur));
-        push(t+beat/2, nxt(cur));
-        if(Math.random()<.4){ push(t+beat/4, rnd()); push(t+3*beat/4, rnd()); }
-        t += beat/2;
-      }
-    }
-  }
-  remain=chart.length;
-}
+function genChart(dur){ chart=[]; let dbl=.35, tmin=.24, tmax=.52; if(diff==='beginner'){ dbl=.15; tmin=.34; tmax=.64; } else if(diff==='easy'){ dbl=.20; tmin=.28; tmax=.54; } else if(diff==='hard'){ dbl=.55; tmin=.18; tmax=.40; }
+  if(!(diff==='ex'||diff==='hell')){ let t=LEAD; while(t<dur){ const used=new Set(); const arr=[]; const cnt=Math.random()<dbl?2:1; while(arr.length<cnt){ const ln=Math.floor(Math.random()*LANES); if(!used.has(ln)){ used.add(ln); arr.push({t,lane:ln,hit:false,y:-50}); } } chart.push(...arr); t += Math.random()*(tmax-tmin)+tmin; } } else { const beat=0.5; let t=LEAD, cur=0; const n = ()=>{ cur=(cur+1)%LANES; return cur; }; const opp= (i)=> (i + Math.floor(LANES/2)) % LANES; const nxt= (i)=> (i + 1) % LANES; const rnd= ()=> Math.floor(Math.random()*LANES); const push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50}); while(t<dur){ if(diff==='ex'){ push(t, n()); if(Math.random()<.60) push(t, opp(cur)); if(Math.random()<.35) push(t+beat/2, nxt(cur)); if(Math.random()<.18){ push(t+beat/3, rnd()); push(t+2*beat/3, rnd()); } t += Math.random()<.5 ? beat/2 : beat; } else { push(t, n()); if(Math.random()<.85) push(t, opp(cur)); push(t+beat/2, nxt(cur)); if(Math.random()<.4){ push(t+beat/4, rnd()); push(t+3*beat/4, rnd()); } t += beat/2; } } } remain=chart.length; }
 
 /* ===== HUD 與流程 ===== */
 function hudOffset(v){ $("#offsetLabel").textContent=`${v} ms`; $("#offsetActive").textContent=`${v} ms`; }
 function setOffset(v){ v=Math.max(-600,Math.min(600,(v|0))); OFFSET=v; localStorage.setItem("dfjk.offsetMs",String(v)); hudOffset(v); }
 
 /* 變更鍵數（核心） */
-function setLanes(n){
-  n = [4,6,8].includes(+n) ? +n : 4;
-  if(n===LANES) return;
-  LANES = n;
-  localStorage.setItem("dfjk.lanes", String(LANES));
-  // 調整畫布寬度與 UI
-  W = baseLaneW * LANES;
-  fitDPR(); desktopScale(); layout();
-  // 重建提示狀態陣列
-  recPulse = new Array(LANES).fill(0);
-  recHitT  = new Array(LANES).fill(0);
-  recomputeLaneDirs();
-  draw({skip:true}); ui(); hud();
-}
+function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; localStorage.setItem("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); // 重要：改成依舞台包裹重算尺寸
+  recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
 
 /* 開始遊戲 */
-function startGame(){
-  if(!selectedSongFile){ toMusic(); alert("請先選擇音樂"); return; }
-  diff=$("#difficultySelect").value; dir=$("#noteDirection").value; jmode=$("#judgeMode").value;
-  document.body.classList.toggle('ex-mode', diff==='ex');
-
-  let mul=parseFloat($("#speedMultiplier").value);
-  if(diff==='beginner') mul=0.8; else if(diff==='easy') mul=0.9;
-
-  score=0; combo=0; lastJudge='-'; missCount=0;
-  stats={sick:0,good:0,bad:0,shit:0,miss:0}; wrongCount=0;
-  chart=[]; remain=0; dts.length=0;
-  recPulse=new Array(LANES).fill(0); recHitT=new Array(LANES).fill(0);
-  comboFlash=""; hits.length=0; parts.length=0;
-
-  spd=baseSpd*mul;
-  currentSong=selectedSongFile.replace(/\.mp3$/i,'');
-  hud();
-
-  HP=HP_MAX; hpShow(HP_ON); hpUpdate();
-
-  showOnly('gameScreen'); phase='countdown';
-  fitDPR(); desktopScale(); layout();
-  draw({skip:true}); ui();
-
-  const url='music/'+encodeURIComponent(selectedSongFile);
-  stopAudio(); bgm.src=url; try{ bgm.load(); }catch{}
-  durSec = isFinite(bgm.duration) ? bgm.duration : 120;
-  genChart(durSec||120);
-
-  countdown(()=>{ phase='playing'; running=true; startAt(0); loopId=requestAnimationFrame(loop); }, {show:false});
-}
+function startGame(){ if(!selectedSongFile){ toMusic(); alert("請先選擇音樂"); return; } diff=$("#difficultySelect").value; dir=$("#noteDirection").value; jmode=$("#judgeMode").value; document.body.classList.toggle('ex-mode', diff==='ex'); let mul=parseFloat($("#speedMultiplier").value); if(diff==='beginner') mul=0.8; else if(diff==='easy') mul=0.9; score=0; combo=0; lastJudge='-'; missCount=0; stats={sick:0,good:0,bad:0,shit:0,miss:0}; wrongCount=0; chart=[]; remain=0; dts.length=0; recPulse=new Array(LANES).fill(0); recHitT=new Array(LANES).fill(0); comboFlash=""; hits.length=0; parts.length=0; spd=baseSpd*mul; currentSong=selectedSongFile.replace(/\.mp3$/i,''); hud(); HP=HP_MAX; hpShow(HP_ON); hpUpdate(); showOnly('gameScreen'); phase='countdown'; fitDPR(); desktopScale(); applyStageLayout(); draw({skip:true}); ui(); const url='music/'+encodeURIComponent(selectedSongFile); stopAudio(); bgm.src=url; try{ bgm.load(); }catch{} durSec = isFinite(bgm.duration) ? bgm.duration : 120; genChart(durSec||120); countdown(()=>{ phase='playing'; running=true; startAt(0); loopId=requestAnimationFrame(loop); }, {show:false}); }
 
 let pausedAt=0;
-function pauseGame(fromC){
-  if(phase==='countdown' && fromC!==true) cancelCountdown();
-  if(!running && phase!=='countdown') return;
-  paused=true; phase='paused'; $("#gameScreen").classList.add('blur'); showOnly('pauseScreen');
-  pausedAt=hardClock(); stopLoop(); stopAudio();
-}
-function resumeGame(){
-  if(!paused) return; paused=false; phase='countdown';
-  showOnly('gameScreen'); $("#gameScreen").classList.remove('blur');
-  const t=pausedAt;
-  countdown(()=>{ phase='playing'; running=true; startAt(t); loopId=requestAnimationFrame(loop); }, {show:true,t});
-}
-function loop(){
-  if(paused) return;
-  const t=hardClock();
-  upd(t,1/60); draw(); ui();
-  if(ended || remain<=0){ endWith(); return; }
-  loopId=requestAnimationFrame(loop);
-}
+function pauseGame(fromC){ if(phase==='countdown' && fromC!==true) cancelCountdown(); if(!running && phase!=='countdown') return; paused=true; phase='paused'; $("#gameScreen").classList.add('blur'); showOnly('pauseScreen'); pausedAt=hardClock(); stopLoop(); stopAudio(); }
+function resumeGame(){ if(!paused) return; paused=false; phase='countdown'; showOnly('gameScreen'); $("#gameScreen").classList.remove('blur'); const t=pausedAt; countdown(()=>{ phase='playing'; running=true; startAt(t); loopId=requestAnimationFrame(loop); }, {show:true,t}); }
+function loop(){ if(paused) return; const t=hardClock(); upd(t,1/60); draw(); ui(); if(ended || remain<=0){ endWith(); return; } loopId=requestAnimationFrame(loop); }
 function stopLoop(){ try{ cancelAnimationFrame(loopId);}catch{} loopId=null; }
 
 /* ===== 校正 ===== */
 const pnl=$("#calibOverlay"), cbStart=$("#calibStart"), cbDone=$("#calibFinish"), cbCancel=$("#calibCancel"), cbBig=$("#calibBig"), cbDot=$("#calibBeatDot"), cbStat=$("#calibStat");
 let cal=false, beatInt=1.0, beats=16, taps=[], timers=[], tapH=null, syncP0=0, syncC0=0, t0C=0;
 
-async function openCalib(){
-  if(phase==='playing' || phase==='countdown'){ banner("請先退出或暫停遊戲再校正"); return; }
-  pnl.style.display='block'; cbBig.textContent='待機'; cbStat.textContent='0/10 建議偏移：—'; taps=[]; cbDone.disabled=true; await ensureAC().catch(()=>{});
-}
-function closeCalib(){ pnl.style.display='none'; timers.forEach(id=>clearTimeout(id)); timers=[]; cal=false;
-  if(tapH){ window.removeEventListener('keydown',tapH); pnl.removeEventListener('pointerdown',tapH); tapH=null; } }
-function robust(arr){
-  if(!arr.length) return 0;
-  const s=[...arr].sort((a,b)=>a-b), m=s[Math.floor(s.length/2)];
-  const dev=s.map(v=>Math.abs(v-m)).sort((a,b)=>a-b), MAD=dev[Math.floor(dev.length/2)]||1;
-  const keep=arr.filter(v=>Math.abs(v-m)<=Math.max(3*MAD,120));
-  const t=keep.sort((a,b)=>a-b), lo=Math.floor(t.length*0.2), hi=Math.ceil(t.length*0.8), core=t.slice(lo,hi);
-  const mean=core.reduce((a,c)=>a+c,0)/Math.max(1,core.length);
-  return Math.max(-600,Math.min(600,Math.round(mean)));
-}
-function startCalib(){
-  timers.forEach(id=>clearTimeout(id)); timers=[]; taps=[]; cbDone.disabled=true; cal=true;
-  try{ AC.resume(); }catch{}
-  syncP0=performance.now()/1000; syncC0=AC.currentTime;
-  const lead=.70; t0C=AC.currentTime+lead;
-  for(let i=0;i<beats;i++){
-    const t=t0C+i*beatInt;
-    const o=AC.createOscillator(), g=AC.createGain();
-    o.type='sine'; o.frequency.value=880;
-    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.45,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.08);
-    o.connect(g); g.connect(Gsfx||Gm); o.start(t); o.stop(t+0.09);
-    const d=(t-AC.currentTime)*1000;
-    const id=setTimeout(()=>{ cbDot.style.transform='scale(1.28)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,1)'; setTimeout(()=>{ cbDot.style.transform='scale(1)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,.9)'; },120); }, d);
-    timers.push(id);
-  }
-  tapH=(e)=>{
-    if(e.type==='keydown'){
-      const k=e.key.toLowerCase();
-      if(!['d','f','j','k','s','a','l',';'].includes(k)) return;
-      e.preventDefault();
-    }
-    const tp=performance.now()/1000, tC=syncC0 + (tp - syncP0);
-    if(tC < t0C - 0.15) return;
-    const k=Math.round((tC - t0C)/beatInt), tB=t0C + k*beatInt, dMs=(tC - tB)*1000;
-    if(Math.abs(dMs)<=600) taps.push(dMs);
-    const need=10, nowN=Math.min(taps.length,need);
-    let adv='—'; if(nowN>=4){ const rec=robust(taps); adv=(rec>0?'+':'')+rec+' ms'; }
-    cbBig.textContent = nowN + '/' + need; cbStat.textContent = `${nowN}/${need} 建議偏移：${adv}`;
-    if(nowN>=need) cbDone.disabled=false;
-  };
-  window.addEventListener('keydown',tapH); pnl.addEventListener('pointerdown',tapH);
-}
+async function openCalib(){ if(phase==='playing' || phase==='countdown'){ banner("請先退出或暫停遊戲再校正"); return; } pnl.style.display='block'; cbBig.textContent='待機'; cbStat.textContent='0/10 建議偏移：—'; taps=[]; cbDone.disabled=true; await ensureAC().catch(()=>{}); }
+function closeCalib(){ pnl.style.display='none'; timers.forEach(id=>clearTimeout(id)); timers=[]; cal=false; if(tapH){ window.removeEventListener('keydown',tapH); pnl.removeEventListener('pointerdown',tapH); tapH=null; } }
+function robust(arr){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b), m=s[Math.floor(s.length/2)]; const dev=s.map(v=>Math.abs(v-m)).sort((a,b)=>a-b), MAD=dev[Math.floor(dev.length/2)]||1; const keep=arr.filter(v=>Math.abs(v-m)<=Math.max(3*MAD,120)); const t=keep.sort((a,b)=>a-b), lo=Math.floor(t.length*0.2), hi=Math.ceil(t.length*0.8), core=t.slice(lo,hi); const mean=core.reduce((a,c)=>a+c,0)/Math.max(1,core.length); return Math.max(-600,Math.min(600,Math.round(mean))); }
+function startCalib(){ timers.forEach(id=>clearTimeout(id)); timers=[]; taps=[]; cbDone.disabled=true; cal=true; try{ AC.resume(); }catch{} syncP0=performance.now()/1000; syncC0=AC.currentTime; const lead=.70; t0C=AC.currentTime+lead; for(let i=0;i<beats;i++){ const t=t0C+i*beatInt; const o=AC.createOscillator(), g=AC.createGain(); o.type='sine'; o.frequency.value=880; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.45,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.08); o.connect(g); g.connect(Gsfx||Gm); o.start(t); o.stop(t+0.09); const d=(t-AC.currentTime)*1000; const id=setTimeout(()=>{ cbDot.style.transform='scale(1.28)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,1)'; setTimeout(()=>{ cbDot.style.transform='scale(1)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,.9)'; },120); }, d); timers.push(id); } tapH=(e)=>{ if(e.type==='keydown'){ const k=e.key.toLowerCase(); if(!['d','f','j','k','s','a','l',';'].includes(k)) return; e.preventDefault(); } const tp=performance.now()/1000, tC=syncC0 + (tp - syncP0); if(tC < t0C - 0.15) return; const k=Math.round((tC - t0C)/beatInt), tB=t0C + k*beatInt, dMs=(tC - tB)*1000; if(Math.abs(dMs)<=600) taps.push(dMs); const need=10, nowN=Math.min(taps.length,need); let adv='—'; if(nowN>=4){ const rec=robust(taps); adv=(rec>0?'+':'')+rec+' ms'; } cbBig.textContent = nowN + '/' + need; cbStat.textContent = `${nowN}/${need} 建議偏移：${adv}`; if(nowN>=need) cbDone.disabled=false; }; window.addEventListener('keydown',tapH); pnl.addEventListener('pointerdown',tapH); }
 function finishCalib(){ if(!taps.length){ closeCalib(); return; } const rec=robust(taps); setOffset(rec); banner(`已套用偏移：${rec} ms`); closeCalib(); }
 
 /* ===== 綁定 / 初始化 ===== */
-function bind(){
-  $("#btnStart").addEventListener("click", startGame);
-  $("#btnMusic").addEventListener("click", toMusic);
-  $("#btnOptions").addEventListener("click", toOpt);
-  $("#btnSongConfirm").addEventListener("click", confirmSong);
-  $$(".btnBackMenu").forEach(b=> b.addEventListener("click", toMenu));
-  $("#pauseButton").addEventListener("click", ()=>{ if(phase==='countdown') cancelCountdown(); pauseGame(); });
-  $("#btnResume").addEventListener("click", resumeGame);
-  $("#btnRestart").addEventListener("click", startGame);
-
+function bind(){ $("#btnStart").addEventListener("click", startGame); $("#btnMusic").addEventListener("click", toMusic); $("#btnOptions").addEventListener("click", toOpt); $("#btnSongConfirm").addEventListener("click", confirmSong); $$(".btnBackMenu").forEach(b=> b.addEventListener("click", toMenu)); $("#pauseButton").addEventListener("click", ()=>{ if(phase==='countdown') cancelCountdown(); pauseGame(); }); $("#btnResume").addEventListener("click", resumeGame); $("#btnRestart").addEventListener("click", startGame);
   /* 音量 */
-  const mS=$("#volumeSlider"), mL=$("#volumeLabel"), sS=$("#sfxSlider"), sL=$("#sfxLabel");
-  const mv=+(localStorage.getItem("dfjk.volume")||80), sv=+(localStorage.getItem("dfjk.sfxVol")||70);
-  mS.value=String(mv); sS.value=String(sv); VOL_M=mv/100; VOL_S=sv/100; applyVol(); mL.textContent=`${mv}%`; sL.textContent=`${sv}%`;
-  mS.addEventListener("input", ()=>{ const v=+mS.value; VOL_M=v/100; mL.textContent=`${v}%`; localStorage.setItem("dfjk.volume",String(v)); applyVol(); });
-  sS.addEventListener("input", ()=>{ const v=+sS.value; VOL_S=v/100; sL.textContent=`${v}%`; localStorage.setItem("dfjk.sfxVol",String(v)); applyVol(); });
-
+  const mS=$("#volumeSlider"), mL=$("#volumeLabel"), sS=$("#sfxSlider"), sL=$("#sfxLabel"); const mv=+(localStorage.getItem("dfjk.volume")||80), sv=+(localStorage.getItem("dfjk.sfxVol")||70); mS.value=String(mv); sS.value=String(sv); VOL_M=mv/100; VOL_S=sv/100; applyVol(); mL.textContent=`${mv}%`; sL.textContent=`${sv}%`; mS.addEventListener("input", ()=>{ const v=+mS.value; VOL_M=v/100; mL.textContent=`${v}%`; localStorage.setItem("dfjk.volume",String(v)); applyVol(); }); sS.addEventListener("input", ()=>{ const v=+sS.value; VOL_S=v/100; sL.textContent=`${v}%`; localStorage.setItem("dfjk.sfxVol",String(v)); applyVol(); });
   /* 偏移 slider + 快速校正 */
-  const oS=$("#offsetSlider"), svOff=+(localStorage.getItem("dfjk.offsetMs")||0);
-  oS.value=String(svOff); setOffset(svOff); oS.addEventListener("input", ()=> setOffset(+oS.value) );
-  $("#offsetCalibBtn").addEventListener("click", openCalib);
-  $("#calibStart").addEventListener("click", ()=>{ if(!cal) startCalib(); });
-  $("#calibFinish").addEventListener("click", finishCalib);
-  $("#calibCancel").addEventListener("click", closeCalib);
-
+  const oS=$("#offsetSlider"), svOff=+(localStorage.getItem("dfjk.offsetMs")||0); oS.value=String(svOff); setOffset(svOff); oS.addEventListener("input", ()=> setOffset(+oS.value) ); $("#offsetCalibBtn").addEventListener("click", openCalib); $("#calibStart").addEventListener("click", ()=>{ if(!cal) startCalib(); }); $("#calibFinish").addEventListener("click", finishCalib); $("#calibCancel").addEventListener("click", closeCalib);
   /* RGB 切換 */
-  const rgb=$("#rgbCycleToggle"); rgb.checked=RGB;
-  rgb.addEventListener("change", ()=>{ RGB=rgb.checked; localStorage.setItem("dfjk.rgbCycle", RGB?'1':'0'); });
-
+  const rgb=$("#rgbCycleToggle"); rgb.checked=RGB; rgb.addEventListener("change", ()=>{ RGB=rgb.checked; localStorage.setItem("dfjk.rgbCycle", RGB?'1':'0'); });
   /* 血條模式 */
-  const hpC=$("#hpToggle"); hpC.checked=HP_ON;
-  hpC.addEventListener("change", ()=>{ HP_ON=hpC.checked; localStorage.setItem("dfjk.hpOn", HP_ON?'1':'0'); hpShow(HP_ON); hpUpdate(); });
-
+  const hpC=$("#hpToggle"); hpC.checked=HP_ON; hpC.addEventListener("change", ()=>{ HP_ON=hpC.checked; localStorage.setItem("dfjk.hpOn", HP_ON?'1':'0'); hpShow(HP_ON); hpUpdate(); });
   /* 熱圖按鈕 */
   $("#toggleHeatBtn").addEventListener("click", ()=>{ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); });
-
   /* 鍵數選擇 */
-  const keySel=$("#keyModeSelect");
-  keySel.value = String(LANES);
-  keySel.addEventListener("change", ()=>{
-    const n=+keySel.value;
-    setLanes(n);
-    // 重新產生快取用的預覽箭頭等
-    draw({skip:true}); ui(); hud();
-  });
+  const keySel=$("#keyModeSelect"); keySel.value = String(LANES); keySel.addEventListener("change", ()=>{ const n=+keySel.value; setLanes(n); banner(`鍵數切換為 ${n}`); });
+  /* 手機全高與橫板 */
+  const full=$("#mobileFullHeight"), land=$("#mobileLandscape"); full.checked=MOBILE_FULL; land.checked=LANDSCAPE; full.addEventListener('change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); full.checked=MOBILE_FULL; return; } MOBILE_FULL=full.checked; localStorage.setItem('dfjk.mobileFull', MOBILE_FULL?'1':'0'); applyStageLayout(); }); land.addEventListener('change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); land.checked=LANDSCAPE; return; } LANDSCAPE=land.checked; localStorage.setItem('dfjk.landscape', LANDSCAPE?'1':'0'); applyStageLayout(); });
 }
 
-function init(){
-  recomputeLaneDirs();
-  fitDPR(); desktopScale(); layout();
-  fillSongs(); bind(); hpShow(HP_ON); hpUpdate(); hud();
-  showOnly("menuScreen");
-}
+function init(){ recomputeLaneDirs(); fitDPR(); desktopScale(); applyStageLayout(); fillSongs(); bind(); hpShow(HP_ON); hpUpdate(); hud(); showOnly("menuScreen"); }
 
 /* 重新計算佈局 */
-window.addEventListener("resize", ()=>{ fitDPR(); desktopScale(); layout(); if(phase==='countdown'){ draw({skip:true}); ui(); } });
+window.addEventListener("resize", ()=>{ fitDPR(); desktopScale(); applyStageLayout(); if(phase==='countdown'){ draw({skip:true}); ui(); } });
 
-/* DOM 就緒 */
 document.addEventListener("DOMContentLoaded", init);
 </script>
 </body>
 </html>
+
