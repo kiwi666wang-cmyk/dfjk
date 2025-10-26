@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, maximum-scale=1.0, initial-scale=1.0, user-scalable=no">
-<title>DFJK — RGB 循環箭頭 + 強化打擊特效（修復選單）</title>
+<title>DFJK — 等距打擊圖示 + 震動特效</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
 <style>
   html,body{margin:0;touch-action:manipulation;overscroll-behavior:none}
@@ -41,7 +41,7 @@
 
   <!-- 主選單 -->
   <div id="menuScreen">
-    <h1>🎵 DFJK — RGB 循環箭頭 + 強化打擊特效（修復選單）</h1>
+    <h1>🎵 DFJK — 等距打擊圖示 + 震動特效</h1>
     <div>
       <button id="btnStart">開始遊戲</button>
       <button id="btnMusic">音樂</button>
@@ -183,7 +183,7 @@
     <button class="btnBackMenu">回主選單</button>
   </div>
 
-  <!-- 快速校正覆蓋層 -->
+  <!-- 快速校正覆蓋層（保留） -->
   <div id="calibOverlay" style="position:fixed;inset:0;display:none;z-index:50;background:rgba(3,7,15,.86);backdrop-filter:blur(2px)">
     <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92vw);padding:18px 16px;border-radius:12px;background:rgba(10,16,30,.9);box-shadow:0 10px 40px rgba(0,0,0,.4);border:1px solid rgba(120,213,255,.3)">
       <div style="font-size:22px;margin:6px 0 4px">🎯 快速校正</div>
@@ -221,7 +221,7 @@ const DEFAULT_LANE_COLORS=['#b266ff','#66ccff','#66ff66','#ff6666']; // 左 下 
 let RGB_CYCLE_ENABLED = localStorage.getItem('dfjk.rgbCycle') === '1';
 const laneDirs=['left','down','up','right'];
 const HITKEY_BASE=90;
-const NOTE_BASE=46; // 放大箭頭
+const NOTE_BASE=46;
 let uiScale=1;
 
 let phase='menu', running=false, paused=false, loopId=null;
@@ -229,6 +229,8 @@ let selectedSongFile=null;
 let score=0,combo=0,lastJudgementText='-'; let missCount=0,gameOver=false;
 let stats={sick:0,good:0,bad:0,shit:0,miss:0};
 let chart=[], __remainNotes=0, receptorPulse=[0,0,0,0];
+let receptorHitTime=[0,0,0,0]; // ★ 新增：記錄每條 lane 最近一次打擊時間
+
 let currentSongTitle='-', currentDifficulty='normal', currentDirection='down', currentJudgeMode='old';
 
 /* ------------ 幾何 ------------- */
@@ -237,14 +239,16 @@ let cachedJudgeCss=(HITKEY_BASE*uiScale/2), cachedJudgeInternal=cachedJudgeCss/c
 function recomputeLayout(){const rect=canvas.getBoundingClientRect(); cachedRectH=rect.height; cachedScaleY=cachedRectH/H; cachedJudgeCss=(currentDirection==='up')?(HITKEY_BASE*uiScale/2):(cachedRectH-HITKEY_BASE*uiScale/2); cachedJudgeInternal=cachedJudgeCss/cachedScaleY;}
 function applyDesktopScale(){const coarse=matchMedia('(pointer: coarse)').matches; const wide=matchMedia('(min-width:1024px)').matches; const wider=matchMedia('(min-width:1440px)').matches; let u=1; if(!coarse&&(wide||wider))u=wider?1.8:1.5; uiScale=u; $("#stage").style.setProperty('--u',String(u)); $("#stage").style.maxWidth=`${Math.round(420*u)}px`; recomputeLayout();}
 function getJudgeLineYInternal(){return cachedJudgeInternal;}
-function laneCenterX(i){const lw=W/4; let x=i*lw+lw/2; if(i===1)x+=10; if(i===2)x-=10; return x;}
+
+/* ★ 改為完全等距的中心點（取消原本的中間 ±10px 偏移） */
+function laneCenterX(i){ const lw=W/4; return i*lw + lw/2; }
 
 /* ------------ 顏色工具（RGB 循環） ------------- */
 function hslToHex(h,s,l){s/=100; l/=100; const k=n=>(n+h/30)%12; const a=s*Math.min(l,1-l); const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1))); const toHex=x=>('0'+Math.round(x*255).toString(16)).slice(-2); return`#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;}
 function lightenHex(hex,a){const p=parseInt(hex.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`;}
 function laneColorAt(lane,t){ if(!RGB_CYCLE_ENABLED) return DEFAULT_LANE_COLORS[lane]; const hue=((t*60)+lane*90)%360; return hslToHex(hue,85,55);}
 
-/* ------------ 箭頭繪製 ------------- */
+/* ------------ 箭頭繪製（加上 scale 與 extraRot） ------------- */
 function dirToAngle(d){switch(d){case'up':return -Math.PI/2;case'down':return Math.PI/2;case'left':return Math.PI;case'right':return 0;}return 0}
 function arrowPath(c,size){
   const L=size*2.05, Hh=size*0.92, cut=Hh*0.30, tip=L*0.50, tail=-L*0.22;
@@ -257,19 +261,19 @@ function arrowPath(c,size){
   c.lineTo(tail+cut,0);
   c.closePath();
 }
-function drawArrow({x,y,size,dir,baseColor,isReceptor=false,pulse=0,t=0}){
-  const ang=dirToAngle(dir), p=Math.max(0,Math.min(1,pulse||0));
-  const fillHex = baseColor;
-  ctx.save(); ctx.translate(x,y); ctx.rotate(ang);
+function drawArrow({x,y,size,dir,baseColor,isReceptor=false,pulse=0,t=0,scale=1,extraRot=0}){
+  const ang=dirToAngle(dir);
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang+extraRot); ctx.scale(scale,scale);
   arrowPath(ctx,size);
-  ctx.fillStyle = isReceptor? '#050607' : lightenHex(fillHex,.12);
+  ctx.fillStyle = isReceptor? '#050607' : lightenHex(baseColor,.12);
   ctx.fill();
   ctx.lineWidth = isReceptor? 2 : 2.4;
   ctx.strokeStyle = 'rgba(255,255,255,.95)';
   ctx.stroke();
+
   // 內部稜線 + 掃光
   const k=6; ctx.save(); ctx.clip();
-  for(let i=0;i<k;i++){const u=i/(k-1)-.5, yy=u*size*.95; ctx.globalAlpha=isReceptor?(0.12+0.22*p):0.20; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-size,yy); ctx.lineTo(size*1.1,yy); ctx.stroke();}
+  for(let i=0;i<k;i++){const u=i/(k-1)-.5, yy=u*size*.95; ctx.globalAlpha=isReceptor?(0.12+0.22*pulse):0.20; ctx.strokeStyle='#ffffff'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-size,yy); ctx.lineTo(size*1.1,yy); ctx.stroke();}
   const sweep=(Math.sin(t*2.2)+1)/2, sw=size*0.65, sx=-size+(size*2.2)*sweep;
   const grad=ctx.createLinearGradient(sx-sw,0,sx+sw,0);
   grad.addColorStop(0,'rgba(255,255,255,0)'); grad.addColorStop(0.5,'rgba(255,255,255,.28)'); grad.addColorStop(1,'rgba(255,255,255,0)');
@@ -347,7 +351,7 @@ function judge(dtMs,lane){
   score=Math.max(0,Math.round(score+base*centrality));
   combo = incCombo ? combo+1 : Math.max(0,combo-1);
   if(incCombo && combo>0 && combo%10===0) triggerComboFlash();
-  lastJudgementText=rating; recordDt(dtMs); receptorPulse[lane]=1;
+  lastJudgementText=rating; recordDt(dtMs);
   if(SUPPORTS_VIB) try{navigator.vibrate(10)}catch{}
   updateHUD();
 }
@@ -393,6 +397,12 @@ function addHitFx(l){
     particles.push({x, y:judge, vx, vy, life, t0:t, color:col, thick});
   }
 }
+/* ★ 標記 receptor 被打擊，用來做「放大→縮回 + 微抖」 */
+function impactReceptor(lane){
+  receptorPulse[lane]=1.2;                // 比原先更強的起始脈衝
+  receptorHitTime[lane]=performance.now()/1000;
+}
+
 function updateEffects(dt){
   const now=performance.now()/1000;
   for(let i=hitFx.length-1;i>=0;i--) if((now-hitFx[i].t0)>hitFx[i].life) hitFx.splice(i,1);
@@ -454,10 +464,16 @@ function render({skipNotes=false}={}){
   ctx.clearRect(0,0,W,H);
   drawPlayfieldBackground(t);
 
+  // ★ Receptor：依據 pulse + 最近打擊時間做「放大→縮回 + 微抖」
   for(let i=0;i<4;i++){
     const x=laneCenterX(i);
     const col = laneColorAt(i, t);
-    drawArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:col,isReceptor:true,pulse:receptorPulse[i],t});
+    const since = Math.max(0, t - receptorHitTime[i]);     // 秒
+    const hitWave = Math.max(0, 1 - since / 0.22);         // 0~1，約 220ms 退場
+    const p = Math.max(receptorPulse[i], hitWave);         // 取較大者
+    const scale = 1 + 0.42 * p + 0.08 * Math.sin((1-p)*Math.PI); // 放大後自然回彈
+    const rot = (Math.sin(since*60) * 0.05) * p;           // 輕微抖動（~3°）
+    drawArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:col,isReceptor:true,pulse:p,t,scale,extraRot:rot});
   }
 
   if(!skipNotes){
@@ -486,7 +502,10 @@ function render({skipNotes=false}={}){
 function renderPreviewAt(songTime){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
-  for(let i=0;i<4;i++){const x=laneCenterX(i); const col=laneColorAt(i,t); drawArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:col,isReceptor:true,pulse:receptorPulse[i],t});}
+  for(let i=0;i<4;i++){
+    const x=laneCenterX(i); const col=laneColorAt(i,t);
+    drawArrow({x,y:judge,size:NOTE_BASE,dir:laneDirs[i],baseColor:col,isReceptor:true,pulse:0,t,scale:1,extraRot:0});
+  }
   const top=-160,bottom=H+160;
   for(let i=0;i<chart.length;i++){
     const n=chart[i]; if(n.hit)continue; const y=noteYAtTimeFor(n.t,songTime); if(y<top||y>bottom)continue;
@@ -536,10 +555,12 @@ function onLanePress(lane){
     const n=chart[bestIdx]; n.hit=true; __remainNotes--;
     judge((tNow-n.t)*1000,lane);
     addHitFx(lane);
+    impactReceptor(lane); // ★ receptor 放大/抖動
   }else{
     if(currentJudgeMode==='old'){ lastJudgementText='MISS'; combo=0; score=Math.max(0,score+SCORES.ghost); updateHUD(); }
-    receptorPulse[lane]=Math.max(receptorPulse[lane],0.7);
+    receptorPulse[lane]=Math.max(receptorPulse[lane],1.0);
     addHitFx(lane);
+    impactReceptor(lane); // ★ 空打也觸發 receptor 特效
   }
 }
 window.addEventListener('keydown',e=>{
@@ -651,7 +672,8 @@ function startGame(){
   let mul=parseFloat(sp.value); if(diff==='beginner')mul=0.8; else if(diff==='easy')mul=0.9; else if(diff==='ex')mul=1.8; noteSpeed=baseNoteSpeed*mul;
 
   score=0; combo=0; lastJudgementText='-'; missCount=0; gameOver=false; stats={sick:0,good:0,bad:0,shit:0,miss:0};
-  chart=[]; __remainNotes=0; dtHistory.length=0; receptorPulse=[0,0,0,0]; comboFlashText=''; hitFx.length=0; particles.length=0; updateHUD();
+  chart=[]; __remainNotes=0; dtHistory.length=0; receptorPulse=[0,0,0,0]; receptorHitTime=[0,0,0,0];
+  comboFlashText=''; hitFx.length=0; particles.length=0; updateHUD();
 
   currentSongTitle=selectedSongFile.replace(/\.mp3$/i,'');
   const url='music/'+encodeURIComponent(selectedSongFile);
