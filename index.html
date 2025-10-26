@@ -6,13 +6,12 @@
   name="viewport"
   content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"
 />
-<title>DFJK — 血條＋RGB＋校正（短行版）</title>
+<title>DFJK 多鍵＋血條＋校正（Mobile 60fps）</title>
 <link
   href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap"
   rel="stylesheet"
 />
 <style>
-/* ===== 基礎 ===== */
 html,body{
   margin:0;
   touch-action:manipulation;
@@ -38,8 +37,6 @@ body.ex-mode{
     #000 100%
   );
 }
-
-/* ===== 舞台 ===== */
 #stage{
   position:relative;
   width:95%;
@@ -64,8 +61,6 @@ canvas{
   border:none;
   z-index:6;
 }
-
-/* 漸層偽邊界 */
 #edgeFade{
   position:absolute;
   inset:0;
@@ -94,8 +89,6 @@ canvas{
       rgba(255,255,255,0) 40%
     ) bottom/100% 16px no-repeat;
 }
-
-/* ===== 上方列：HEAT / HP / 暫停 ===== */
 .topbar{
   position:absolute;
   top:10px;
@@ -125,8 +118,6 @@ canvas{
   background:#78d5ff;
   cursor:pointer;
 }
-
-/* 血條 */
 #hpBar{
   position:relative;
   flex:1;
@@ -152,8 +143,6 @@ canvas{
   color:#000;
   font-size:12px;
 }
-
-/* 其他 UI */
 .hitbar{
   position:absolute;
   left:0;
@@ -196,8 +185,6 @@ button{
   pointer-events:none;
   user-select:none;
 }
-
-/* 倒數 */
 #countdownText{
   position:absolute;
   top:40%;
@@ -216,8 +203,6 @@ button{
   50%{transform:translate(-50%,-50%) scale(1.12)}
   100%{transform:translate(-50%,-50%) scale(1)}
 }
-
-/* 其他 */
 #warnBanner{
   position:fixed;
   left:50%;
@@ -284,6 +269,15 @@ input[type=range]{
   <h2>⚙️ 遊戲選項</h2>
 
   <div class="row">
+    <label for="keyModeSelect">鍵數：</label>
+    <select id="keyModeSelect">
+      <option value="4" selected>4 鍵</option>
+      <option value="6">6 鍵</option>
+      <option value="8">8 鍵</option>
+    </select>
+  </div>
+
+  <div class="row">
     <label for="difficultySelect">難度：</label>
     <select id="difficultySelect">
       <option value="ex">EX（極限）</option>
@@ -298,7 +292,7 @@ input[type=range]{
   <div class="row">
     <label for="speedMultiplier">速度倍率：</label>
     <select id="speedMultiplier">
-      <option value="1">1.0x（標準）</option>
+      <option value="1">1.0x</option>
       <option value="1.1">1.1x</option>
       <option value="1.2">1.2x</option>
       <option value="1.3">1.3x</option>
@@ -350,8 +344,6 @@ input[type=range]{
     <button id="offsetCalibBtn" type="button">快速校正</button>
   </div>
 
-  <hr class="row" style="opacity:.2"/>
-
   <div class="row">
     <label for="rgbCycleToggle">RGB 循環箭頭色：</label>
     <input id="rgbCycleToggle" type="checkbox"/>
@@ -396,7 +388,8 @@ input[type=range]{
       難度：<span id="diffLabel">-</span> ｜
       方向：<span id="dirLabel">-</span> ｜
       判定：<span id="judgeLabel">-</span> ｜
-      偏移：<span id="offsetActive">0 ms</span>
+      偏移：<span id="offsetActive">0 ms</span> ｜
+      鍵數：<span id="laneLabel">4</span>
     </div>
   </div>
 </div>
@@ -425,7 +418,7 @@ input[type=range]{
   <button class="btnBackMenu">回主選單</button>
 </div>
 
-<!-- ===== 校正覆蓋層 ===== -->
+<!-- ===== 校正覆蓋層（保留舊版功能） ===== -->
 <div
   id="calibOverlay"
   style="
@@ -466,9 +459,8 @@ input[type=range]{
       "
     >
       跟著節拍（每拍 1000ms）
-      按 DFJK 或點畫面，
-      至少 10 次後可完成。
-      中位數 + MAD 去極值。
+      按鍵至少 10 次。
+      使用中位數＋MAD 去極值。
     </div>
 
     <div
@@ -558,466 +550,255 @@ input[type=range]{
 <div id="warnBanner">⚠️ 提示</div>
 
 <script>
-/* ===== 簡易工具 ===== */
-const $ = (s,r=document)=>r.querySelector(s);
-const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
-const banner = (m)=>{
-  const b = $("#warnBanner");
-  b.textContent = m;
-  b.style.display = "block";
-  setTimeout(()=> b.style.display="none", 1600);
+/* ==== 小工具 ==== */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const banner=(m)=>{
+  const b=$("#warnBanner");
+  b.textContent=m;
+  b.style.display="block";
+  setTimeout(()=>b.style.display="none",1600);
 };
 
-/* ===== 畫布 / DPR ===== */
-const W = 420;
-const H = 640;
-const c = $("#gameCanvas");
-const ctx = c.getContext(
-  "2d",
-  { alpha:false, desynchronized:true }
-);
-const uc = $("#uiCanvas");
-const uix = uc.getContext("2d",{ alpha:true });
+/* ==== 畫布 / DPR ==== */
+const W=420, H=640;
+const c=$("#gameCanvas");
+const ctx=c.getContext("2d",{alpha:false,desynchronized:true});
+const uc=$("#uiCanvas");
+const uix=uc.getContext("2d",{alpha:true});
+const IS_MOBILE=matchMedia("(pointer: coarse)").matches;
 
 function fitDPR(){
-  const d = Math.min(devicePixelRatio||1, 2);
-  c.width  = W * d;
-  c.height = H * d;
-  uc.width  = W * d;
-  uc.height = H * d;
+  const d = IS_MOBILE
+    ? Math.min(devicePixelRatio||1,1.35)
+    : Math.min(devicePixelRatio||1,2);
+  c.width=W*d; c.height=H*d;
+  uc.width=W*d; uc.height=H*d;
   ctx.setTransform(d,0,0,d,0,0);
   uix.setTransform(d,0,0,d,0,0);
 }
 fitDPR();
 
-/* ===== 狀態 ===== */
-const IS_MOBILE = matchMedia("(pointer: coarse)").matches;
-const VIB = IS_MOBILE && ("vibrate" in navigator);
-const HITKEY = 90;
-const NOTE_SZ = 46;
+/* ==== FPS 鎖（mobile-stable 60） ==== */
+const FPS_TARGET=60;
+const MS_PER_FRAME=1000/FPS_TARGET;
+let _lastRAF=0;
 
-let uiScale = 1;
-let phase = "menu";
-let running = false;
-let paused  = false;
-let loopId  = null;
-
-let selectedSongFile = null;
-let currentSong = "-";
-
-let score = 0;
-let combo = 0;
-let missCount = 0;
-let lastJudge = "-";
-
-let stats = {
-  sick:0,
-  good:0,
-  bad:0,
-  shit:0,
-  miss:0
-};
-let wrongCount = 0;
-
-let chart = [];
-let remain = 0;
-
-let recPulse = [0,0,0,0];
-let recHitT  = [0,0,0,0];
-
-let diff = "normal";
-let dir  = "down";
-let jmode = "old";
-
-/* 熱圖 */
-let showHeat = true;
-let heatMode = 0;
-
-/* 佈局 */
-let rectH = c.getBoundingClientRect().height;
-let scaleY = rectH / H;
-let judgeCss = (HITKEY * uiScale / 2);
-let judgeY = judgeCss / scaleY;
+/* ==== 佈局 ==== */
+const HITKEY=90;
+let uiScale=1;
+let dir="down";
+let rectH=c.getBoundingClientRect().height;
+let scaleY=rectH/H;
+let judgeCss=(HITKEY*uiScale/2);
+let judgeY=judgeCss/scaleY;
 
 function layout(){
-  const r = c.getBoundingClientRect();
-  rectH = r.height;
-  scaleY = rectH / H;
-  judgeCss = (dir==='up')
-    ? (HITKEY * uiScale / 2)
-    : (rectH - HITKEY * uiScale / 2);
-  judgeY = judgeCss / scaleY;
+  const r=c.getBoundingClientRect();
+  rectH=r.height;
+  scaleY=rectH/H;
+  judgeCss=(dir==='up')
+    ? (HITKEY*uiScale/2)
+    : (rectH - HITKEY*uiScale/2);
+  judgeY=judgeCss/scaleY;
 }
-
 function desktopScale(){
-  const coarse = matchMedia("(pointer: coarse)").matches;
-  const wide   = matchMedia("(min-width:1024px)").matches;
-  const wider  = matchMedia("(min-width:1440px)").matches;
-  let u = 1;
-  if(!coarse && (wide || wider)){
-    u = wider ? 1.8 : 1.5;
-  }
-  uiScale = u;
-  const st = $("#stage");
-  st.style.setProperty("--u", String(u));
-  st.style.maxWidth = `${Math.round(420*u)}px`;
+  const coarse=IS_MOBILE;
+  const wide=matchMedia("(min-width:1024px)").matches;
+  const wider=matchMedia("(min-width:1440px)").matches;
+  let u=1;
+  if(!coarse&&(wide||wider)){ u=wider?1.8:1.5; }
+  uiScale=u;
+  const st=$("#stage");
+  st.style.setProperty("--u",String(u));
+  st.style.maxWidth=`${Math.round(420*u)}px`;
   layout();
 }
+desktopScale();
 
-function laneX(i){
-  const lw = W/4;
-  return i*lw + lw/2;
+/* ==== 鍵數/方向/顏色 ==== */
+let LANE=4;
+let DIRS=["left","down","up","right"];
+let BASE_COL=["#b266ff","#66ccff","#66ff66","#ff6666"];
+const BASE_COL_6=[
+  "#ff3b3b","#ff8a00","#ffd400",
+  "#26d77d","#2aa0ff","#4b57ff"
+];
+const BASE_COL_8=[
+  "#ffffff","#ff3b3b","#ff8a00","#ffd400",
+  "#26d77d","#2aa0ff","#4b57ff","#9aa0a6"
+];
+function applyKeyMode(v){
+  LANE=v|0;
+  if(LANE===4){
+    DIRS=["left","down","up","right"];
+    BASE_COL=["#b266ff","#66ccff","#66ff66","#ff6666"];
+  }else if(LANE===6){
+    DIRS=["left","up","right","left","down","right"];
+    BASE_COL=[...BASE_COL_6];
+  }else{
+    DIRS=["left","down","up","right","left","down","up","right"];
+    BASE_COL=[...BASE_COL_8];
+  }
+  $("#laneLabel").textContent=String(LANE);
 }
 
-/* ===== 顏色 / RGB ===== */
-const BASE_COL = [
-  "#b266ff",
-  "#66ccff",
-  "#66ff66",
-  "#ff6666"
-];
+/* ==== 顏色工具（RGB 循環） ==== */
 let RGB = localStorage.getItem("dfjk.rgbCycle")==="1";
-
 function h2x(h,s,l){
   s/=100; l/=100;
-  const k = n => (n + h/30) % 12;
-  const a = s * Math.min(l,1-l);
-  const f = n => l - a * Math.max(
-    -1,
-    Math.min(
-      k(n)-3,
-      Math.min(9-k(n),1)
-    )
-  );
-  const to = x => (
-    "0" + Math.round(x*255).toString(16)
-  ).slice(-2);
+  const k=n=>(n+h/30)%12;
+  const a=s*Math.min(l,1-l);
+  const f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));
+  const to=x=>("0"+Math.round(x*255).toString(16)).slice(-2);
   return `#${to(f(0))}${to(f(8))}${to(f(4))}`;
 }
 function light(hex,a){
-  const p = parseInt(hex.slice(1),16);
-  let r=(p>>16)&255;
-  let g=(p>>8)&255;
-  let b=(p)&255;
+  const p=parseInt(hex.slice(1),16);
+  let r=(p>>16)&255, g=(p>>8)&255, b=p&255;
   r=Math.min(255,Math.round(r+(255-r)*a));
   g=Math.min(255,Math.round(g+(255-g)*a));
   b=Math.min(255,Math.round(b+(255-b)*a));
   return `rgb(${r},${g},${b})`;
 }
 function laneCol(i,t){
-  if(!RGB){ return BASE_COL[i]; }
-  const hue = ((t*60)+i*90) % 360;
+  if(!RGB) return BASE_COL[i%BASE_COL.length];
+  const hue=((t*60)+i*90)%360;
   return h2x(hue,85,55);
 }
 
-/* ===== 箭頭繪製（cyber 風） ===== */
-const DIRS = ["left","down","up","right"];
-
-function d2a(d){
-  if(d==="up")   return -Math.PI/2;
-  if(d==="down") return  Math.PI/2;
-  if(d==="left") return  Math.PI;
-  return 0;
-}
-
-function arrowPath(xc,s){
-  const L   = s*2.05;
-  const Hh  = s*0.92;
-  const cut = Hh*0.30;
-  const tip = L*0.50;
-  const tail= -L*0.22;
-  xc.beginPath();
-  xc.moveTo(tail, -Hh*0.55);
-  xc.lineTo(0,    -Hh*0.55);
-  xc.lineTo(tip,   0);
-  xc.lineTo(0,     Hh*0.55);
-  xc.lineTo(tail,  Hh*0.55);
-  xc.lineTo(tail+cut, 0);
-  xc.closePath();
-}
-
-function drawArrow(o){
-  const {
-    x, y, size, dir,
-    base, isRec, pulse=0,
-    t=0, scale=1, rot=0
-  } = o;
-
-  const ang = d2a(dir);
-
-  ctx.save();
-  ctx.translate(x,y);
-  ctx.rotate(ang+rot);
-  ctx.scale(scale,scale);
-
-  arrowPath(ctx,size);
-
-  ctx.fillStyle = isRec
-    ? "#050607"
-    : light(base,.12);
-  ctx.fill();
-
-  ctx.lineWidth = isRec ? 2 : 2.2;
-  ctx.strokeStyle = "rgba(255,255,255,.95)";
-  ctx.stroke();
-
-  const k = 6;
-  ctx.save();
-  ctx.clip();
-  for(let i=0;i<k;i++){
-    const u = i/(k-1) - .5;
-    const yy = u * size * .95;
-    ctx.globalAlpha = isRec
-      ? (0.12+0.22*pulse)
-      : 0.20;
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(-size, yy);
-    ctx.lineTo( size*1.1, yy);
-    ctx.stroke();
-  }
-
-  const sw = (Math.sin(t*2.2)+1)/2;
-  const w  = size*0.65;
-  const sx = -size + (size*2.2)*sw;
-
-  const g = ctx.createLinearGradient(
-    sx-w,0, sx+w,0
-  );
-  g.addColorStop(0,'rgba(255,255,255,0)');
-  g.addColorStop(.5,'rgba(255,255,255,.28)');
-  g.addColorStop(1,'rgba(255,255,255,0)');
-
-  ctx.fillStyle = g;
-  ctx.fillRect(
-    -size*1.2,
-    -size*1.2,
-    size*2.4,
-    size*2.4
-  );
-  ctx.restore();
-  ctx.restore();
-}
-
-function drawTrail(o){
-  const {
-    x, y, size, dir,
-    base, t
-  } = o;
-
-  const step = 3;
-  const gap  = 10;
-  const a = d2a(dir);
-
-  for(let i=1;i<=step;i++){
-    const off = i*gap;
-    const ax = x - Math.cos(a)*off;
-    const ay = y - Math.sin(a)*off;
-    ctx.save();
-    ctx.globalAlpha = .16*(1-i/(step+1));
-    drawArrow({
-      x:ax, y:ay,
-      size, dir, base,
-      isRec:false, t
-    });
-    ctx.restore();
-  }
-}
-
-/* ===== 背景特效 ===== */
-function bg(t){
-  ctx.save();
-  ctx.fillStyle = "#0c1322";
-  ctx.fillRect(0,0,W,H);
-
-  const Ls = [
-    { step:26, s:28, a:.18, c:'rgba(120,213,255,0.35)' },
-    { step:18, s:50, a:.14, c:'rgba(255,0,160,0.28)'  },
-    { step:34, s:18, a:.12, c:'rgba(255,255,0,0.22)'  }
-  ];
-
-  for(const L of Ls){
-    ctx.globalAlpha = L.a;
-    ctx.strokeStyle = L.c;
-    ctx.lineWidth = 1;
-
-    const ox = (t*L.s)%L.step;
-    const oy = (t*L.s*0.7)%L.step;
-
-    for(let x=-ox;x<=W;x+=L.step){
-      ctx.beginPath();
-      ctx.moveTo(x,0);
-      ctx.lineTo(x,H);
-      ctx.stroke();
-    }
-    for(let y=-oy;y<=H;y+=L.step){
-      ctx.beginPath();
-      ctx.moveTo(0,y);
-      ctx.lineTo(0+y,H+y);
-      ctx.stroke();
-    }
-  }
-  ctx.restore();
-}
-
-/* ===== 音訊 / SFX ===== */
-let OFFSET = +(localStorage.getItem("dfjk.offsetMs")||0);
-
-const bgm = $("#bgm");
-let AC  = null;
-let Gm  = null;
-let Gsfx= null;
-
-let VOL_M = (+(localStorage.getItem("dfjk.volume")||80))/100;
-let VOL_S = (+(localStorage.getItem("dfjk.sfxVol")||70))/100;
+/* ==== 音訊 / SFX ==== */
+const bgm=$("#bgm");
+let AC=null, Gm=null, Gsfx=null;
+let VOL_M=(+(localStorage.getItem("dfjk.volume")||80))/100;
+let VOL_S=(+(localStorage.getItem("dfjk.sfxVol")||70))/100;
 
 async function ensureAC(){
   if(!AC){
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    AC = new Ctx({ latencyHint:"interactive" });
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    AC=new Ctx({latencyHint:"interactive"});
   }
-  if(!Gm){
-    Gm = AC.createGain();
-    Gm.connect(AC.destination);
-  }
+  if(!Gm){ Gm=AC.createGain(); Gm.connect(AC.destination); }
   if(!Gsfx){
-    Gsfx = AC.createGain();
-    Gsfx.gain.value = VOL_S;
+    Gsfx=AC.createGain();
+    Gsfx.gain.value=VOL_S;
     Gsfx.connect(Gm);
   }
 }
-
 function applyVol(){
-  if(Gm){ Gm.gain.value = VOL_M; }
-  if(bgm){ bgm.volume = VOL_M; }
-  if(Gsfx){ Gsfx.gain.value = VOL_S; }
+  if(Gm) Gm.gain.value=VOL_M;
+  if(bgm) bgm.volume=VOL_M;
+  if(Gsfx) Gsfx.gain.value=VOL_S;
 }
-
 async function tapSfx(){
   try{
     await ensureAC();
-    const t0 = AC.currentTime + 0.001;
-    const dur = 0.10;
+    const t0=AC.currentTime+0.001;
+    const mix=AC.createGain();
+    mix.connect(Gsfx||Gm);
 
-    const mix = AC.createGain();
-    mix.connect(Gsfx || Gm);
-
-    const o1 = AC.createOscillator();
-    o1.type = 'triangle';
-    o1.frequency.setValueAtTime(2700, t0);
-    o1.frequency.exponentialRampToValueAtTime(1900, t0+dur);
-    const g1 = AC.createGain();
-    g1.gain.setValueAtTime(0.0001, t0);
-    g1.gain.exponentialRampToValueAtTime(0.55, t0+0.004);
-    g1.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    const o1=AC.createOscillator();
+    o1.type='triangle';
+    o1.frequency.setValueAtTime(2700,t0);
+    o1.frequency.exponentialRampToValueAtTime(1900,t0+.10);
+    const g1=AC.createGain();
+    g1.gain.setValueAtTime(.0001,t0);
+    g1.gain.exponentialRampToValueAtTime(.55,t0+.004);
+    g1.gain.exponentialRampToValueAtTime(.0001,t0+.10);
     o1.connect(g1); g1.connect(mix);
 
-    const o2 = AC.createOscillator();
-    o2.type = 'square';
-    o2.frequency.setValueAtTime(5400, t0);
-    o2.frequency.exponentialRampToValueAtTime(2800, t0+0.08);
-    const g2 = AC.createGain();
-    g2.gain.setValueAtTime(0.17, t0);
-    g2.gain.exponentialRampToValueAtTime(0.0001, t0+0.08);
+    const o2=AC.createOscillator();
+    o2.type='square';
+    o2.frequency.setValueAtTime(5400,t0);
+    o2.frequency.exponentialRampToValueAtTime(2800,t0+.08);
+    const g2=AC.createGain();
+    g2.gain.setValueAtTime(.17,t0);
+    g2.gain.exponentialRampToValueAtTime(.0001,t0+.08);
     o2.connect(g2); g2.connect(mix);
 
-    const nb = AC.createBuffer(1,256,AC.sampleRate);
-    const data = nb.getChannelData(0);
-    for(let i=0;i<data.length;i++){
-      data[i] = Math.random()*2 - 1;
-    }
-    const n = AC.createBufferSource();
-    n.buffer = nb;
+    const nb=AC.createBuffer(1,256,AC.sampleRate);
+    const a=nb.getChannelData(0);
+    for(let i=0;i<a.length;i++){ a[i]=Math.random()*2-1; }
+    const n=AC.createBufferSource();
+    n.buffer=nb;
 
-    const bp = AC.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.frequency.value = 9800;
-    bp.Q.value = 6;
+    const bp=AC.createBiquadFilter();
+    bp.type='bandpass'; bp.frequency.value=9800; bp.Q.value=6;
+    const hp=AC.createBiquadFilter();
+    hp.type='highpass'; hp.frequency.value=2000; hp.Q.value=.7;
+    const ng=AC.createGain();
+    ng.gain.setValueAtTime(.16,t0);
+    ng.gain.exponentialRampToValueAtTime(.0001,t0+.06);
 
-    const hp = AC.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 2000;
-    hp.Q.value = 0.7;
+    n.connect(bp); bp.connect(hp); hp.connect(ng); ng.connect(mix);
 
-    const ng = AC.createGain();
-    ng.gain.setValueAtTime(0.16,t0);
-    ng.gain.exponentialRampToValueAtTime(0.0001, t0+0.06);
-
-    n.connect(bp); bp.connect(hp);
-    hp.connect(ng); ng.connect(mix);
-
-    o1.start(t0); o1.stop(t0+dur+0.03);
-    o2.start(t0); o2.stop(t0+0.09);
-    n.start(t0);  n.stop(t0+0.06);
+    o1.start(t0); o1.stop(t0+.13);
+    o2.start(t0); o2.stop(t0+.10);
+    n.start(t0);  n.stop(t0+.06);
   }catch{}
 }
 
-/* ===== 判定 / 譜面 ===== */
-const WIN = {
-  sick:85,
-  good:135,
-  bad:155,
-  shit:175
-};
-const SC = {
-  sick:350,
-  good:200,
-  bad:100,
-  shit:-50,
-  miss:-300,
-  ghost:-150
-};
-let baseSpd = 550;
-let spd = baseSpd;
+/* ==== 判定 / 譜面 ==== */
+const WIN={ sick:85, good:135, bad:155, shit:175 };
+const SC ={ sick:350, good:200, bad:100, shit:-50, miss:-300, ghost:-150 };
 
-/* 偏移統計 for 熱圖 */
-const dts = [];
-const DT_MAX = 240;
+let diff="normal";
+let jmode="old";
+let baseSpd=550;
+let spd=baseSpd;
+let OFFSET=+(localStorage.getItem("dfjk.offsetMs")||0);
 
-function recDt(d){
-  dts.push(d);
-  if(dts.length>DT_MAX){ dts.shift(); }
-}
+let score=0, combo=0, missCount=0, lastJudge='-';
+let stats={sick:0,good:0,bad:0,shit:0,miss:0};
+let wrongCount=0;
 
+let chart=[];
+let remain=0;
+
+/* 偏移統計 */
+const dts=[]; const DT_MAX=240;
+function recDt(d){ dts.push(d); if(dts.length>DT_MAX)dts.shift(); }
 function dtStats(){
-  if(!dts.length) return { avg:0, std:0 };
-  const n = dts.length;
-  const avg = dts.reduce((a,c)=>a+c,0)/n;
-  const va  = dts.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;
-  return { avg, std:Math.sqrt(va) };
+  if(!dts.length) return {avg:0,std:0};
+  const n=dts.length;
+  const avg=dts.reduce((a,c)=>a+c,0)/n;
+  const va=dts.reduce((a,c)=>a+(c-avg)*(c-avg),0)/n;
+  return {avg,std:Math.sqrt(va)};
 }
+
+/* 受擊器狀態 */
+let recPulse=[];
+let recHitT=[];
 
 /* 連擊提示 */
-let comboFlash = "";
-let comboT0 = 0;
-
+let comboFlash="";
+let comboT0=0;
 function comboFlashNow(){
-  comboFlash = `COMBO x${combo}!!`;
-  comboT0 = performance.now()/1000;
+  comboFlash=`COMBO x${combo}!!`;
+  comboT0=performance.now()/1000;
 }
 
-/* Game Over / EX MISS 限制 */
+/* EX 失敗 */
 function endWith(msg){
-  running = false;
+  running=false;
   stopLoop();
   stopAudio();
 
-  $("#finalSong").textContent = currentSong;
-  $("#finalDiff").textContent = diff.toUpperCase();
-  $("#finalDir").textContent  = (dir==='up'?'上升':'下落');
-  $("#finalJudge").textContent= (jmode==='old'?'Old':'New');
+  $("#finalSong").textContent=currentSong;
+  $("#finalDiff").textContent=diff.toUpperCase();
+  $("#finalDir").textContent=(dir==='up'?'上升':'下落');
+  $("#finalJudge").textContent=(jmode==='old'?'Old':'New');
 
-  $("#finalScore").textContent = score;
-  $("#statSick").textContent = stats.sick;
-  $("#statGood").textContent = stats.good;
-  $("#statBad").textContent  = stats.bad;
-  $("#statShit").textContent = stats.shit;
-  $("#statMiss").textContent = missCount;
+  $("#finalScore").textContent=score;
+  $("#statSick").textContent=stats.sick;
+  $("#statGood").textContent=stats.good;
+  $("#statBad").textContent =stats.bad;
+  $("#statShit").textContent=stats.shit;
+  $("#statMiss").textContent=missCount;
 
   showOnly("endScreen");
-  phase = "menu";
-  if(msg){ banner(msg); }
+  phase="menu";
+  if(msg) banner(msg);
 }
 function exCheck(){
   if(diff==='ex' && missCount>15){
@@ -1025,451 +806,586 @@ function exCheck(){
   }
 }
 
-/* 幾何 */
+/* 幾何工具 */
+function laneX(i){
+  const lw=W/Math.max(1,LANE);
+  return i*lw + lw/2;
+}
 function yAt(thit,tnow){
-  const j = judgeY;
+  const j=judgeY;
   return (dir==='down')
     ? j - (thit-tnow)*spd
     : j + (thit-tnow)*spd;
 }
 
-/* ===== 血條 ===== */
-const HP_MAX = 100;
-let HP_ON = (localStorage.getItem("dfjk.hpOn")==="1");
-let HP = HP_MAX;
-
-function hpShow(b){
-  $("#hpBar").style.display = b?"block":"none";
-}
+/* ==== 血條 ==== */
+const HP_MAX=100;
+let HP_ON=(localStorage.getItem("dfjk.hpOn")==="1");
+let HP=HP_MAX;
+function hpShow(b){ $("#hpBar").style.display=b?"block":"none"; }
 function hpUpdate(){
-  const fill = $("#hpFill");
-  const txt  = $("#hpText");
-  const w = Math.max(0,Math.min(100, HP/HP_MAX*100));
-  fill.style.width = w.toFixed(1) + "%";
-  txt.textContent  = `${HP}/${HP_MAX}`;
+  const w=Math.max(0,Math.min(100,HP/HP_MAX*100));
+  $("#hpFill").style.width=w.toFixed(1)+"%";
+  $("#hpText").textContent=`${HP}/${HP_MAX}`;
 }
 function hpSet(v){
-  HP = Math.max(0,Math.min(HP_MAX, Math.round(v)));
+  HP=Math.max(0,Math.min(HP_MAX,Math.round(v)));
   hpUpdate();
-  if(HP<=0 && running){
-    endWith("HP 耗盡");
-  }
+  if(HP<=0 && running){ endWith("HP 耗盡"); }
 }
-function hpAdd(d){
-  if(!HP_ON) return;
-  hpSet(HP + d);
-}
+function hpAdd(d){ if(HP_ON) hpSet(HP+d); }
 function hpDelta(j){
   if(j==="SICK") return +15;
   if(j==="GOOD") return +12;
   if(j==="BAD")  return +6;
-
-  let missV = 0;
-  let shitV = 0;
-
-  if(diff==='beginner' || diff==='easy'){
-    missV=-5;  shitV=-3;
-  }else if(diff==='normal'){
-    missV=-8;  shitV=-6;
-  }else if(diff==='hard'){
-    missV=-10; shitV=-8;
-  }else if(diff==='ex'){
-    missV=-25; shitV=-20;
-  }else{
-    /* hell */
-    missV=-28; shitV=-22;
-  }
-
+  let missV=0, shitV=0;
+  if(diff==='beginner'||diff==='easy'){ missV=-5;  shitV=-3; }
+  else if(diff==='normal'){ missV=-8;   shitV=-6; }
+  else if(diff==='hard'){   missV=-10;  shitV=-8; }
+  else if(diff==='ex'){     missV=-25;  shitV=-20; }
+  else {                    missV=-28;  shitV=-22; }
   if(j==="MISS") return missV;
   if(j==="SHIT") return shitV;
   return 0;
 }
 
-/* ===== HUD / 特效 ===== */
+/* ==== HUD ==== */
+let currentSong="-";
 function hud(){
-  $("#score").textContent = score;
-  $("#combo").textContent = combo;
-  $("#judgement").textContent = lastJudge;
-  $("#missCount").textContent = missCount;
-
-  $("#songTitle").textContent = currentSong;
-  $("#diffLabel").textContent = diff.toUpperCase();
-  $("#dirLabel").textContent  = (dir==='up'?'上升':'下落');
-  $("#judgeLabel").textContent= (jmode==='old'?'Old':'New');
-  $("#offsetActive").textContent = `${OFFSET} ms`;
+  $("#score").textContent=score;
+  $("#combo").textContent=combo;
+  $("#judgement").textContent=lastJudge;
+  $("#missCount").textContent=missCount;
+  $("#songTitle").textContent=currentSong;
+  $("#diffLabel").textContent=diff.toUpperCase();
+  $("#dirLabel").textContent=(dir==='up'?'上升':'下落');
+  $("#judgeLabel").textContent=(jmode==='old'?'Old':'New');
+  $("#offsetActive").textContent=`${OFFSET} ms`;
+  $("#laneLabel").textContent=String(LANE);
 }
 
-/* 命中特效 */
-const hits  = [];
-const parts = [];
-
+/* ==== 特效（命中＋粒子） ==== */
+const hits=[];
+const parts=[];
 function addHit(l){
-  const t = performance.now()/1000;
-  const j = judgeY;
-  const x = laneX(l);
-  hits.push({ lane:l, t0:t, life:.40 });
+  const t=performance.now()/1000;
+  const j=judgeY, x=laneX(l);
+  const life=.40;
+  hits.push({lane:l,t0:t,life});
 
-  const N = 26;
-  const col = laneCol(l,t);
-
+  const N=IS_MOBILE?18:26;
+  const col=laneCol(l,t);
   for(let i=0;i<N;i++){
-    const a  = Math.random()*Math.PI*2;
-    const sp = 80 + Math.random()*220;
-    const vx = Math.cos(a)*sp;
-    const vy = Math.sin(a)*sp;
-    const life = .28 + Math.random()*.22;
-    const th = .8 + Math.random()*1.6;
-    parts.push({
-      x, y:j, vx, vy, life, t0:t, col, th
-    });
+    const a=Math.random()*Math.PI*2;
+    const sp=80+Math.random()*220;
+    const vx=Math.cos(a)*sp;
+    const vy=Math.sin(a)*sp;
+    const pLife=.24+.20*Math.random();
+    const th=.7+Math.random()*1.4;
+    parts.push({x,y:j,vx,vy,life:pLife,t0:t,col,th});
   }
 }
 function impact(l){
-  recPulse[l] = 1.2;
-  recHitT[l]  = performance.now()/1000;
+  recPulse[l]=1.2;
+  recHitT[l]=performance.now()/1000;
 }
-
 function fxUpdate(dt){
-  const now = performance.now()/1000;
-
+  const now=performance.now()/1000;
   for(let i=hits.length-1;i>=0;i--){
-    if((now-hits[i].t0)>hits[i].life){ hits.splice(i,1); }
+    if((now-hits[i].t0)>hits[i].life) hits.splice(i,1);
   }
   for(let i=parts.length-1;i>=0;i--){
-    const p = parts[i];
-    const age = now - p.t0;
+    const p=parts[i];
+    const age=now-p.t0;
     if(age>p.life){ parts.splice(i,1); continue; }
-    p.x += p.vx*dt;
-    p.y += p.vy*dt;
-    p.vx *= (1-1.6*dt);
-    p.vy *= (1-1.6*dt);
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    p.vx*=(1-1.6*dt);
+    p.vy*=(1-1.6*dt);
   }
 }
-
 function fxDraw(){
-  const t = performance.now()/1000;
-  const j = judgeY;
-
+  const t=performance.now()/1000;
+  const j=judgeY;
   ctx.save();
   for(const fx of hits){
-    const age = t - fx.t0;
-    const p = Math.min(1, age/fx.life);
-    const x = laneX(fx.lane);
-    const r = 28 + 90*p;
-    ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(
-      x,j,r*.2, x,j,r
-    );
+    const age=t-fx.t0;
+    const p=Math.min(1,age/fx.life);
+    const x=laneX(fx.lane);
+    const r=28+90*p;
+    ctx.globalCompositeOperation='lighter';
+    const g=ctx.createRadialGradient(x,j,r*.2,x,j,r);
     g.addColorStop(0,'rgba(255,255,255,.35)');
     g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle = g;
-    ctx.beginPath();
-    ctx.arc(x,j,r,0,Math.PI*2);
-    ctx.fill();
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.globalAlpha = 1-p;
+    ctx.fillStyle=g;
+    ctx.beginPath(); ctx.arc(x,j,r,0,Math.PI*2); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+    ctx.globalAlpha=1-p;
   }
   ctx.restore();
 
   ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalCompositeOperation='lighter';
   for(const p of parts){
-    const now = performance.now()/1000;
-    const age = now - p.t0;
-    const q = Math.max(0, 1-age/p.life);
-    ctx.strokeStyle = p.col;
-    ctx.globalAlpha = Math.pow(q,1.6);
-    ctx.lineWidth = p.th;
+    const now=performance.now()/1000;
+    const age=now-p.t0;
+    const q=Math.max(0,1-age/p.life);
+    ctx.strokeStyle=p.col;
+    ctx.globalAlpha=Math.pow(q,1.6);
+    ctx.lineWidth=p.th;
     ctx.beginPath();
     ctx.moveTo(p.x,p.y);
-    ctx.lineTo(
-      p.x - p.vx*0.025,
-      p.y - p.vy*0.025
-    );
+    ctx.lineTo(p.x-p.vx*0.025,p.y-p.vy*0.025);
     ctx.stroke();
   }
   ctx.restore();
 }
 
-/* ===== 更新 / 繪圖 ===== */
-function upd(songT,dt){
-  for(const n of chart){
-    n.y = yAt(n.t, songT);
-  }
-  for(const n of chart){
-    if(n.hit) continue;
-    const late = (songT - n.t)*1000;
-    const over = WIN.shit + 160;
-    if(late > over){
-      n.hit = true;
-      remain--;
-      lastJudge = 'MISS';
-      combo = 0;
-      missCount++;
-      stats.miss++;
-      score = Math.max(0, score+SC.miss);
-      hpAdd(hpDelta('MISS'));
-      hud();
-      exCheck();
+/* ==== 背景 ==== */
+function bg(t){
+  ctx.save();
+  ctx.fillStyle="#0c1322";
+  ctx.fillRect(0,0,W,H);
+
+  const Ls=[
+    {step:26,s:28,a:.18,c:'rgba(120,213,255,0.35)'},
+    {step:18,s:50,a:.14,c:'rgba(255,0,160,0.28)'},
+    {step:34,s:18,a:.12,c:'rgba(255,255,0,0.22)'}
+  ];
+  for(const L of Ls){
+    ctx.globalAlpha=L.a;
+    ctx.strokeStyle=L.c;
+    ctx.lineWidth=1;
+    const ox=(t*L.s)%L.step;
+    const oy=(t*L.s*.7)%L.step;
+    for(let x=-ox;x<=W;x+=L.step){
+      ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    }
+    for(let y=-oy;y<=H;y+=L.step){
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(0+y,H+y); ctx.stroke();
     }
   }
-  for(let i=0;i<4;i++){
-    recPulse[i] = Math.max(0, recPulse[i]-dt*3.2);
+  ctx.restore();
+}
+
+/* ==== 箭頭（Cyber 造型） ==== */
+function d2a(d){
+  if(d==="up") return -Math.PI/2;
+  if(d==="down") return  Math.PI/2;
+  if(d==="left") return  Math.PI;
+  return 0;
+}
+function arrowPath(xc,s){
+  const L=s*2.05, Hh=s*0.92, cut=Hh*0.30;
+  const tip=L*0.50, tail=-L*0.22;
+  xc.beginPath();
+  xc.moveTo(tail,-Hh*0.55);
+  xc.lineTo(0,-Hh*0.55);
+  xc.lineTo(tip,0);
+  xc.lineTo(0,Hh*0.55);
+  xc.lineTo(tail,Hh*0.55);
+  xc.lineTo(tail+cut,0);
+  xc.closePath();
+}
+function drawArrow(o){
+  const {x,y,size,dir,base,isRec,pulse=0,t=0,scale=1,rot=0}=o;
+  const ang=d2a(dir);
+  ctx.save(); ctx.translate(x,y); ctx.rotate(ang+rot); ctx.scale(scale,scale);
+
+  arrowPath(ctx,size);
+  ctx.fillStyle = isRec ? "#050607" : light(base,.12);
+  ctx.fill();
+  ctx.lineWidth = isRec ? 2 : 2.2;
+  ctx.strokeStyle="rgba(255,255,255,.95)";
+  ctx.stroke();
+
+  const k=6;
+  ctx.save(); ctx.clip();
+  for(let i=0;i<k;i++){
+    const u=i/(k-1)-.5;
+    const yy=u*size*.95;
+    ctx.globalAlpha=isRec ? (0.12+0.22*pulse) : 0.20;
+    ctx.strokeStyle="#ffffff";
+    ctx.lineWidth=1;
+    ctx.beginPath();
+    ctx.moveTo(-size,yy);
+    ctx.lineTo(size*1.1,yy);
+    ctx.stroke();
+  }
+  const sw=(Math.sin(t*2.2)+1)/2;
+  const w=size*0.65;
+  const sx=-size+(size*2.2)*sw;
+  const g=ctx.createLinearGradient(sx-w,0,sx+w,0);
+  g.addColorStop(0,'rgba(255,255,255,0)');
+  g.addColorStop(.5,'rgba(255,255,255,.28)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=g;
+  ctx.fillRect(-size*1.2,-size*1.2,size*2.4,size*2.4);
+  ctx.restore();
+  ctx.restore();
+}
+function drawTrail(o){
+  const {x,y,size,dir,base,t}=o;
+  const step=3, gap=10, a=d2a(dir);
+  for(let i=1;i<=step;i++){
+    const off=i*gap;
+    const ax=x-Math.cos(a)*off;
+    const ay=y-Math.sin(a)*off;
+    ctx.save(); ctx.globalAlpha=.16*(1-i/(step+1));
+    drawArrow({x:ax,y:ay,size,dir,base,isRec:false,t});
+    ctx.restore();
+  }
+}
+
+/* ==== 更新 / 繪圖 ==== */
+const NOTE_SZ=46;
+function upd(songT,dt){
+  for(const n of chart){ n.y=yAt(n.t,songT); }
+  for(const n of chart){
+    if(n.hit) continue;
+    const late=(songT-n.t)*1000;
+    const over=WIN.shit+160;
+    if(late>over){
+      n.hit=true; remain--;
+      lastJudge='MISS';
+      combo=0; missCount++; stats.miss++;
+      score=Math.max(0,score+SC.miss);
+      hpAdd(hpDelta('MISS'));
+      hud(); exCheck();
+    }
+  }
+  for(let i=0;i<LANE;i++){
+    recPulse[i]=Math.max(0,recPulse[i]-dt*3.2);
   }
   fxUpdate(dt);
 }
-
 function draw(opt={}){
-  const sk = !!opt.skip;
-  const t = performance.now()/1000;
-  const j = judgeY;
+  const sk=!!opt.skip;
+  const t=performance.now()/1000;
+  const j=judgeY;
 
   ctx.clearRect(0,0,W,H);
   bg(t);
 
-  for(let i=0;i<4;i++){
-    const x = laneX(i);
-    const col = laneCol(i,t);
-    const since = Math.max(0, t-recHitT[i]);
-    const wave  = Math.max(0, 1-since/0.22);
-    const p     = Math.max(recPulse[i], wave);
-    const sc    = 1 + 0.42*p + 0.08*Math.sin((1-p)*Math.PI);
-    const rot   = (Math.sin(since*60)*0.05)*p;
+  for(let i=0;i<LANE;i++){
+    const x=laneX(i);
+    const col=laneCol(i,t);
+    const since=Math.max(0,t-recHitT[i]||0);
+    const wave=Math.max(0,1-since/0.22);
+    const p=Math.max(recPulse[i]||0,wave);
+    const sc=1+0.42*p+0.08*Math.sin((1-p)*Math.PI);
+    const rot=(Math.sin(since*60)*0.05)*p;
 
     drawArrow({
-      x, y:j,
-      size:NOTE_SZ,
-      dir:DIRS[i],
-      base:col,
-      isRec:true,
-      pulse:p,
-      t,
-      scale:sc,
-      rot
+      x,y:j,size:NOTE_SZ,dir:DIRS[i],
+      base:col,isRec:true,pulse:p,t,scale:sc,rot
     });
   }
 
   if(!sk){
-    const top = -160;
-    const bot =  H+160;
+    const top=-160, bot=H+160;
     for(let i=0;i<chart.length;i++){
-      const n = chart[i];
+      const n=chart[i];
       if(n.hit) continue;
-      if(n.y<top || n.y>bot) continue;
-      const x = laneX(n.lane);
-      const col = laneCol(n.lane, t+i*0.02);
-      drawTrail({
-        x, y:n.y,
-        size:NOTE_SZ,
-        dir:DIRS[n.lane],
-        base:col,
-        t:t+i*0.02
-      });
-      drawArrow({
-        x, y:n.y,
-        size:NOTE_SZ,
-        dir:DIRS[n.lane],
-        base:col,
-        isRec:false,
-        t:t+i*0.02
-      });
+      if(n.y<top||n.y>bot) continue;
+      const x=laneX(n.lane);
+      const col=laneCol(n.lane,t+i*0.02);
+      drawTrail({x,y:n.y,size:NOTE_SZ,dir:DIRS[n.lane],base:col,t:t+i*0.02});
+      drawArrow({x,y:n.y,size:NOTE_SZ,dir:DIRS[n.lane],base:col,isRec:false,t:t+i*0.02});
     }
   }
 
   fxDraw();
 
   if(lastJudge!=='-'){
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.textAlign = 'center';
-    const off = (dir==='up') ? 120 : -40;
-    ctx.fillText(lastJudge, W/2, j+off);
+    ctx.fillStyle='#fff';
+    ctx.font='bold 32px sans-serif';
+    ctx.textAlign='center';
+    const off=(dir==='up')?120:-40;
+    ctx.fillText(lastJudge,W/2,j+off);
   }
 
   if(comboFlash){
-    const life = .9;
-    const age = (performance.now()/1000 - comboT0);
-    if(age < life){
-      const s = 1 + 0.18*Math.sin(age*9);
+    const life=.9;
+    const age=(performance.now()/1000 - comboT0);
+    if(age<life){
+      const s=1+0.18*Math.sin(age*9);
       ctx.save();
-      ctx.translate(W/2, H*0.22);
+      ctx.translate(W/2,H*0.22);
       ctx.scale(s,s);
       ctx.fillStyle='rgba(255,255,255,.95)';
       ctx.font='bold 36px sans-serif';
       ctx.textAlign='center';
-      ctx.fillText(comboFlash, 0, 0);
+      ctx.fillText(comboFlash,0,0);
       ctx.restore();
-    }else{
-      comboFlash = '';
-    }
+    }else{ comboFlash=''; }
   }
 }
-
 function drawPreview(t){
   ctx.clearRect(0,0,W,H);
   bg(performance.now()/1000);
-
-  const j = judgeY;
-
-  for(let i=0;i<4;i++){
-    const x = laneX(i);
-    const col = laneCol(i, performance.now()/1000);
-    drawArrow({
-      x, y:j,
-      size:NOTE_SZ,
-      dir:DIRS[i],
-      base:col,
-      isRec:true,
-      pulse:0,
-      t:0,
-      scale:1,
-      rot:0
-    });
+  const j=judgeY;
+  for(let i=0;i<LANE;i++){
+    const x=laneX(i);
+    const col=laneCol(i,performance.now()/1000);
+    drawArrow({x,y:j,size:NOTE_SZ,dir:DIRS[i],base:col,isRec:true,pulse:0,t:0,scale:1,rot:0});
   }
-
   const top=-160, bot=H+160;
   for(let i=0;i<chart.length;i++){
-    const n = chart[i];
+    const n=chart[i];
     if(n.hit) continue;
-    const y = yAt(n.t, t);
-    if(y<top || y>bot) continue;
-    const x = laneX(n.lane);
-    const col = laneCol(n.lane, performance.now()/1000+i*0.02);
-    drawTrail({
-      x, y,
-      size:NOTE_SZ,
-      dir:DIRS[n.lane],
-      base:col,
-      t:0
-    });
-    drawArrow({
-      x, y,
-      size:NOTE_SZ,
-      dir:DIRS[n.lane],
-      base:col,
-      isRec:false,
-      t:0
-    });
+    const y=yAt(n.t,t);
+    if(y<top||y>bot) continue;
+    const x=laneX(n.lane);
+    const col=laneCol(n.lane,performance.now()/1000+i*0.02);
+    drawTrail({x,y,size:NOTE_SZ,dir:DIRS[n.lane],base:col,t:0});
+    drawArrow({x,y,size:NOTE_SZ,dir:DIRS[n.lane],base:col,isRec:false,t:0});
   }
 }
 
-/* ===== 熱圖（UI Canvas） ===== */
+/* ==== 熱圖（UI） ==== */
+let showHeat=true, heatMode=0;
 function ui(){
   uix.clearRect(0,0,W,H);
   if(!showHeat) return;
-
-  const bins = 36;
-  const mn = -300;
-  const mx =  300;
-  const step = (mx-mn)/bins;
-  const hist = new Array(bins).fill(0);
-
+  const bins=36, mn=-300, mx=300;
+  const step=(mx-mn)/bins;
+  const hist=new Array(bins).fill(0);
   for(const v of dts){
-    const i = Math.floor((v-mn)/step);
-    if(i>=0 && i<bins){ hist[i]++; }
+    const i=Math.floor((v-mn)/step);
+    if(i>=0&&i<bins) hist[i]++;
   }
-
-  const w=230, h=74;
-  const bw = w/bins;
-
-  let yAuto = (dir==='up')
-    ? (H-h-24)
-    : (24 + (IS_MOBILE?6:0));
-  let yPos = yAuto;
-
-  if(heatMode===1) yPos = 24;
-  if(heatMode===2) yPos = H-h-24;
-
+  const w=LANE>=6?270:230, h=74, bw=w/bins;
+  let yAuto=(dir==='up')?(H-h-24):(24+(IS_MOBILE?6:0));
+  let yPos=yAuto;
+  if(heatMode===1) yPos=24;
+  if(heatMode===2) yPos=H-h-24;
   const x0=14, y0=yPos;
 
   uix.save();
-  uix.globalAlpha = .98;
-  uix.fillStyle = 'rgba(0,0,0,.58)';
-  uix.fillRect(x0-8, y0-10, w+16, h+46);
-
-  uix.fillStyle = '#fff';
-  uix.font = '12px sans-serif';
-  uix.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
-
-  const maxc = Math.max(1,...hist);
-
+  uix.globalAlpha=.98;
+  uix.fillStyle='rgba(0,0,0,.58)';
+  uix.fillRect(x0-8,y0-10,w+16,h+46);
+  uix.fillStyle='#fff';
+  uix.font='12px sans-serif';
+  uix.fillText('Hit 偏移熱圖 (ms)',x0,y0-12);
+  const maxc=Math.max(1,...hist);
   for(let i=0;i<bins;i++){
-    const v = hist[i];
-    const bh = (v/maxc) * h;
-    const xx = Math.floor(x0 + i*bw);
-    uix.fillStyle = '#78d5ff';
-    uix.fillRect(
-      xx,
-      y0+(h-bh),
-      Math.ceil(bw-1),
-      bh
-    );
+    const v=hist[i];
+    const bh=(v/maxc)*h;
+    const xx=Math.floor(x0+i*bw);
+    uix.fillStyle='#78d5ff';
+    uix.fillRect(xx,y0+(h-bh),Math.ceil(bw-1),bh);
   }
-
-  const {avg,std} = dtStats();
-
-  uix.fillStyle = '#fff';
-  uix.fillText(
-    `avg:${avg.toFixed(1)} σ:${std.toFixed(1)} 偏移:${OFFSET}ms`,
-    x0,
-    y0 + h + 16
-  );
-
-  uix.strokeStyle = '#ffd966';
+  const {avg,std}=dtStats();
+  uix.fillStyle='#fff';
+  uix.fillText(`avg:${avg.toFixed(1)} σ:${std.toFixed(1)} 偏移:${OFFSET}ms`,x0,y0+h+16);
+  uix.strokeStyle='#ffd966';
   uix.beginPath();
-  const mid = x0 + (-mn)/step * bw;
-  uix.moveTo(mid, y0);
-  uix.lineTo(mid, y0+h);
-  uix.stroke();
-
+  const mid=x0+(-mn)/step*bw;
+  uix.moveTo(mid,y0); uix.lineTo(mid,y0+h); uix.stroke();
   uix.restore();
 }
 
-/* ===== 輸入 ===== */
+/* ==== 倒數 ==== */
+let counting=false, cRAF=null;
+function countdown(startCb,opt={}){
+  const show=!!opt.show;
+  const pv=(typeof opt.t==='number')?opt.t:0;
+  cancelCountdown();
+  counting=true;
+  const el=$("#countdownText");
+  el.style.display='block';
+  const lab=['Ready','3','2','1','Go!'];
+  const dur=[600,800,800,800,600];
+  const t0=performance.now();
+  function step(now){
+    if(!counting) return;
+    const e=now-t0;
+    let acc=0, idx=lab.length-1;
+    for(let i=0;i<lab.length;i++){
+      acc+=dur[i]; if(e<acc){ idx=i; break; }
+    }
+    el.textContent=(idx<lab.length?lab[idx]:'Go!');
+    el.style.animation='none'; void el.offsetWidth;
+    el.style.animation='popScale .55s ease-out';
+    if(show) drawPreview(pv); else draw({skip:true});
+    ui();
+    const total=dur.reduce((a,b)=>a+b,0);
+    if(e>=total){
+      el.style.display='none';
+      counting=false;
+      startCb(); return;
+    }
+    cRAF=requestAnimationFrame(step);
+  }
+  cRAF=requestAnimationFrame(step);
+}
+function cancelCountdown(){
+  if(!counting&&!cRAF) return;
+  counting=false;
+  try{ cancelAnimationFrame(cRAF); }catch{}
+  cRAF=null;
+  const el=$("#countdownText");
+  el.style.animation='none';
+  el.style.display='none';
+}
+
+/* ==== 音樂時鐘 ==== */
+let durSec=120, ended=false;
+function stopAudio(){ try{ bgm.pause(); }catch{} ended=false; }
+let softBase=0, softStart=0;
+function startAt(sec){
+  try{
+    const to=Math.max(0,Math.min((durSec||120)-.001,sec||0));
+    bgm.currentTime=to;
+  }catch{}
+  bgm.play().catch(()=>{});
+  ended=false;
+  bgm.onended=()=>{ ended=true; };
+  softBase=bgm.currentTime||0;
+  softStart=performance.now()/1000;
+}
+function hardClock(){
+  const t=(bgm&&!isNaN(bgm.currentTime))
+    ? bgm.currentTime
+    : (performance.now()/1000 - softStart) + softBase;
+  return Math.max(0,Math.min(durSec,t));
+}
+function judgeClock(){ return hardClock() + (OFFSET/1000); }
+
+/* ==== 生譜（含三鍵 for 6/8） ==== */
+const LEAD=1.6;
+function genChart(dur){
+  chart=[]; const d=diff;
+  let dbl=.35, tmin=.24, tmax=.52;
+  if(d==='beginner'){ dbl=.15; tmin=.34; tmax=.64; }
+  else if(d==='easy'){ dbl=.20; tmin=.28; tmax=.54; }
+  else if(d==='hard'){ dbl=.55; tmin=.18; tmax=.40; }
+
+  const tripleOn = (LANE>=6);
+
+  if(!(d==='ex'||d==='hell')){
+    let t=LEAD;
+    while(t<dur){
+      const used=new Set();
+      const notes=[];
+      let cnt=1;
+
+      if(tripleOn){
+        const r=Math.random();
+        if(r<dbl) cnt=3;
+        else if(r<dbl*2) cnt=2;
+        else cnt=1;
+      }else{
+        cnt = (Math.random()<dbl)?2:1;
+      }
+
+      while(notes.length<cnt){
+        const ln=Math.floor(Math.random()*LANE);
+        if(!used.has(ln)){
+          used.add(ln);
+          notes.push({t,lane:ln,hit:false,y:-50});
+        }
+      }
+      chart.push(...notes);
+      t+=Math.random()*(tmax-tmin)+tmin;
+    }
+  }else{
+    const beat=0.5;
+    let t=LEAD, cur=0;
+    const next=()=>{ cur=(cur+1)%LANE; return cur; };
+    const push=(tt,ln)=>chart.push({t:tt,lane:ln,hit:false,y:-50});
+    const rnd=()=>Math.floor(Math.random()*LANE);
+
+    while(t<dur){
+      if(d==='ex'){
+        push(t,next());
+        if(Math.random()<.60) push(t,(cur+Math.floor(LANE/2))%LANE);
+        if(Math.random()<.35) push(t+beat/2,(cur+1)%LANE);
+        if(LANE>=6 && Math.random()<.20){
+          const set=new Set([ (cur+2)%LANE, rnd(), rnd() ]);
+          for(const l of set) push(t+beat/3,l);
+        }
+        t+=Math.random()<.5 ? beat/2 : beat;
+      }else{
+        push(t,next());
+        if(Math.random()<.85) push(t,(cur+Math.floor(LANE/2))%LANE);
+        push(t+beat/2,(cur+1)%LANE);
+        if(Math.random()<.4){
+          push(t+beat/4,rnd());
+          push(t+3*beat/4,rnd());
+        }
+        t+=beat/2;
+      }
+    }
+  }
+  remain=chart.length;
+}
+
+/* ==== 輸入 ==== */
+function allowArrows(){ return LANE===4; }
 function laneKey(k){
-  if(k==='d' || k==='arrowleft')  return 0;
-  if(k==='f' || k==='arrowdown')  return 1;
-  if(k==='j' || k==='arrowup')    return 2;
-  if(k==='k' || k==='arrowright') return 3;
+  const kk=k.toLowerCase();
+  if(LANE===4){
+    if(kk==='d'||kk==='arrowleft')  return 0;
+    if(kk==='f'||kk==='arrowdown')  return 1;
+    if(kk==='j'||kk==='arrowup')    return 2;
+    if(kk==='k'||kk==='arrowright') return 3;
+    return null;
+  }
+  if(LANE===6){
+    if(kk==='s') return 0;
+    if(kk==='d') return 1;
+    if(kk==='f') return 2;
+    if(kk==='j') return 3;
+    if(kk==='k') return 4;
+    if(kk==='l') return 5;
+    if(!allowArrows() && kk.startsWith('arrow')) return null;
+    return null;
+  }
+  if(LANE===8){
+    if(kk==='a') return 0;
+    if(kk==='s') return 1;
+    if(kk==='d') return 2;
+    if(kk==='f') return 3;
+    if(kk==='j') return 4;
+    if(kk==='k') return 5;
+    if(kk==='l') return 6;
+    if(kk===';') return 7;
+    if(!allowArrows() && kk.startsWith('arrow')) return null;
+    return null;
+  }
   return null;
 }
 function lanePtr(xCss){
   const r=c.getBoundingClientRect();
-  const x = xCss / r.width * W;
-  let b=0, bd=1e9;
-  for(let i=0;i<4;i++){
-    const d = Math.abs(x - laneX(i));
-    if(d<bd){ bd=d; b=i; }
+  const x=xCss/r.width*W;
+  let best=0, bd=1e9;
+  for(let i=0;i<LANE;i++){
+    const d=Math.abs(x-laneX(i));
+    if(d<bd){ bd=d; best=i; }
   }
-  return b;
+  return best;
 }
-
 function onPress(l){
   if(!running) return;
-
   tapSfx();
-
-  const t = judgeClock();
+  const t=judgeClock();
   let bi=-1, ba=1e9;
 
   for(let i=0;i<chart.length;i++){
-    const n = chart[i];
-    if(n.hit || n.lane!==l) continue;
-    const dt = (t-n.t)*1000;
-    const ad = Math.abs(dt);
-    if(ad<=WIN.shit && ad<ba){
-      ba=ad; bi=i;
-    }
+    const n=chart[i];
+    if(n.hit||n.lane!==l) continue;
+    const dt=(t-n.t)*1000;
+    const ad=Math.abs(dt);
+    if(ad<=WIN.shit && ad<ba){ ba=ad; bi=i; }
   }
 
   if(bi>=0){
-    const n = chart[bi];
-    n.hit = true;
-    remain--;
-
-    const dt = (t-n.t)*1000;
-    let r = "";
-
+    const n=chart[bi];
+    n.hit=true; remain--;
+    const dt=(t-n.t)*1000;
+    let r="";
     if(Math.abs(dt)<=WIN.sick){
       r='SICK!'; score=Math.max(0,score+SC.sick);
       stats.sick++; combo++;
@@ -1483,256 +1399,98 @@ function onPress(l){
       r='SHIT';  score=Math.max(0,score+SC.shit);
       stats.shit++; combo=Math.max(0,combo-1);
     }
-
-    lastJudge = r;
-    recDt(dt);
-    hud();
-
-    const key = r.replace('!','');
+    lastJudge=r; recDt(dt); hud();
+    const key=r.replace('!','');
     if(key==='SICK'||key==='GOOD'||key==='BAD'||key==='SHIT'){
-      hpAdd( hpDelta(key) );
+      hpAdd(hpDelta(key));
     }
-
     if(combo>0 && combo%10===0){ comboFlashNow(); }
-
-    addHit(l);
-    impact(l);
-
-    if(VIB){ try{ navigator.vibrate(10); }catch{} }
+    addHit(l); impact(l);
+    if(IS_MOBILE){ try{ navigator.vibrate(10); }catch{} }
   }else{
     if(jmode==='old'){
-      lastJudge='WRONG';
-      wrongCount++;
-      hpAdd(-2);
+      lastJudge='WRONG'; wrongCount++; hpAdd(-2);
     }else{
       lastJudge='-';
     }
-    hud();
-    recPulse[l] = Math.max(recPulse[l], 1.0);
-    addHit(l);
-    impact(l);
+    hud(); recPulse[l]=Math.max(recPulse[l]||0,1.0);
+    addHit(l); impact(l);
   }
 }
-
-window.addEventListener("keydown", e=>{
+window.addEventListener("keydown",e=>{
   if(e.repeat) return;
-  const k = e.key.toLowerCase();
-
+  const k=e.key.toLowerCase();
   if(k==='h'){
-    showHeat = !showHeat;
-    banner(showHeat?'熱圖：ON':'熱圖：OFF');
-    ui();
-    e.preventDefault();
-    return;
+    showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF');
+    ui(); e.preventDefault(); return;
   }
   if(k==='r'){
-    heatMode = (heatMode+1)%3;
-    const lab = heatMode===0
-      ? '自動' : (heatMode===1 ? '置頂' : '置底');
-    banner(`熱圖位置：${lab}`);
-    ui();
-    e.preventDefault();
-    return;
+    heatMode=(heatMode+1)%3;
+    const lab=heatMode===0?'自動':(heatMode===1?'置頂':'置底');
+    banner(`熱圖位置：${lab}`); ui(); e.preventDefault(); return;
   }
-
-  const l = laneKey(k);
+  const l=laneKey(k);
   if(l!==null){
     if(running && !paused){ onPress(l); }
-    e.preventDefault();
-    return;
+    e.preventDefault(); return;
   }
-
   if(k==='escape'){
     if(phase==='playing'){ pauseGame(); }
     else if(phase==='paused'){ resumeGame(); }
-    else if(phase==='countdown'){
-      cancelCountdown();
-      pauseGame(true);
-    }
+    else if(phase==='countdown'){ cancelCountdown(); pauseGame(true); }
     e.preventDefault();
   }
 });
+c.addEventListener("pointerdown",e=>{
+  if(!running||paused) return;
+  e.preventDefault();
+  const r=c.getBoundingClientRect();
+  const l=lanePtr(e.clientX - r.left);
+  onPress(l);
+},{passive:false});
+c.addEventListener("touchstart",e=>{
+  if(phase==='playing'||phase==='countdown') e.preventDefault();
+},{passive:false});
+c.addEventListener("touchmove",e=>{
+  if(phase==='playing'||phase==='countdown') e.preventDefault();
+},{passive:false});
+window.addEventListener("dblclick",e=>{
+  if(phase==='playing'||phase==='countdown') e.preventDefault();
+},{passive:false});
+window.addEventListener("gesturestart",e=>{
+  if(phase==='playing'||phase==='countdown') e.preventDefault();
+},{passive:false});
 
-c.addEventListener(
-  "pointerdown",
-  e=>{
-    if(!running||paused) return;
-    e.preventDefault();
-    const r = c.getBoundingClientRect();
-    const l = lanePtr(e.clientX - r.left);
-    onPress(l);
-  },
-  {passive:false}
-);
-c.addEventListener(
-  "touchstart",
-  e=>{
-    if(phase==='playing'||phase==='countdown'){
-      e.preventDefault();
-    }
-  },
-  {passive:false}
-);
-c.addEventListener(
-  "touchmove",
-  e=>{
-    if(phase==='playing'||phase==='countdown'){
-      e.preventDefault();
-    }
-  },
-  {passive:false}
-);
-window.addEventListener(
-  "dblclick",
-  e=>{
-    if(phase==='playing'||phase==='countdown'){
-      e.preventDefault();
-    }
-  },
-  {passive:false}
-);
-window.addEventListener(
-  "gesturestart",
-  e=>{
-    if(phase==='playing'||phase==='countdown'){
-      e.preventDefault();
-    }
-  },
-  {passive:false}
-);
+/* ==== 流程 ==== */
+let phase="menu";
+let running=false, paused=false, loopId=null;
+let currentSong="-";
 
-/* ===== 倒數 ===== */
-let counting=false;
-let cRAF=null;
-
-function countdown(startCb,opt={}){
-  const show = !!opt.show;
-  const pv = (typeof opt.t==='number') ? opt.t : 0;
-
-  cancelCountdown();
-  counting = true;
-
-  const el = $("#countdownText");
-  el.style.display = 'block';
-
-  const lab = ['Ready','3','2','1','Go!'];
-  const dur = [600,800,800,800,600];
-  const t0  = performance.now();
-
-  function step(now){
-    if(!counting) return;
-
-    const e = now - t0;
-    let acc = 0;
-    let idx = lab.length - 1;
-
-    for(let i=0;i<lab.length;i++){
-      acc += dur[i];
-      if(e < acc){ idx=i; break; }
-    }
-
-    el.textContent = (idx<lab.length?lab[idx]:'Go!');
-    el.style.animation = 'none';
-    void el.offsetWidth;
-    el.style.animation = 'popScale .55s ease-out';
-
-    if(show){ drawPreview(pv); }
-    else    { draw({skip:true}); }
-    ui();
-
-    const total = dur.reduce((a,b)=>a+b,0);
-    if(e >= total){
-      el.style.display='none';
-      counting=false;
-      startCb();
-      return;
-    }
-    cRAF = requestAnimationFrame(step);
-  }
-  cRAF = requestAnimationFrame(step);
-}
-function cancelCountdown(){
-  if(!counting && !cRAF) return;
-  counting=false;
-  try{ cancelAnimationFrame(cRAF); }catch{}
-  cRAF=null;
-  const el=$("#countdownText");
-  el.style.animation='none';
-  el.style.display='none';
-}
-
-/* ===== 音樂時鐘 ===== */
-let durSec = 120;
-let ended  = false;
-
-function stopAudio(){
-  try{ bgm.pause(); }catch{}
-  ended=false;
-}
-
-let softBase = 0;
-let softStart= 0;
-
-function startAt(sec){
-  try{
-    const to = Math.max(0, Math.min((durSec||120)-.001, sec||0));
-    bgm.currentTime = to;
-  }catch{}
-  bgm.play().catch(()=>{});
-  ended=false;
-  bgm.onended = ()=>{ ended=true; };
-  softBase = bgm.currentTime || 0;
-  softStart= performance.now()/1000;
-}
-
-function hardClock(){
-  const t = (bgm && !isNaN(bgm.currentTime))
-    ? bgm.currentTime
-    : (performance.now()/1000 - softStart) + softBase;
-  return Math.max(0, Math.min(durSec, t));
-}
-function judgeClock(){
-  return hardClock() + (OFFSET/1000);
-}
-
-/* ===== 畫面切換 ===== */
 function showOnly(id){
-  const ids = [
-    'menuScreen',
-    'musicScreen',
-    'optionsScreen',
-    'gameScreen',
-    'pauseScreen',
-    'endScreen'
+  const ids=[
+    "menuScreen","musicScreen","optionsScreen",
+    "gameScreen","pauseScreen","endScreen"
   ];
   ids.forEach(x=>{
-    const el = $("#"+x);
-    if(!el) return;
-    el.style.display = (x===id ? 'block':'none');
+    const el=$("#"+x); if(!el) return;
+    el.style.display=(x===id?'block':'none');
   });
-  if(id!=='gameScreen'){
-    $("#gameScreen")?.classList.remove('blur');
-  }
+  if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); }
 }
-
 function toMenu(){
-  cancelCountdown();
-  stopLoop();
-  stopAudio();
-  phase='menu';
-  running=false;
-  paused=false;
+  cancelCountdown(); stopLoop(); stopAudio();
+  phase='menu'; running=false; paused=false;
   document.body.classList.remove('ex-mode');
   showOnly('menuScreen');
-  $("#menuChosenSong").textContent = selectedSongFile
+  $("#menuChosenSong").textContent=selectedSongFile
     ? selectedSongFile.replace(/\.mp3$/i,'')
     : '尚未選擇';
 }
 function toOpt(){ showOnly('optionsScreen'); }
 function toMusic(){ showOnly('musicScreen'); }
 
-/* ===== 曲庫 ===== */
-const S = [
+/* 曲庫 */
+const S=[
 "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3",
 "Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3",
 "Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3",
@@ -1765,144 +1523,64 @@ const S = [
 "Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3",
 "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
 ];
-
+let selectedSongFile=null;
 function fillSongs(){
-  const sel = $("#songSelect");
+  const sel=$("#songSelect");
   if(sel.dataset.filled) return;
-
-  sel.innerHTML = "";
-
-  const ph = document.createElement("option");
-  ph.value = "";
-  ph.textContent = "— 請選擇曲目 —";
-  ph.disabled = true;
-  ph.selected = !selectedSongFile;
+  sel.innerHTML="";
+  const ph=document.createElement("option");
+  ph.value=""; ph.textContent="— 請選擇曲目 —";
+  ph.disabled=true; ph.selected=!selectedSongFile;
   sel.appendChild(ph);
-
   S.forEach(f=>{
-    const o = document.createElement("option");
-    o.value = f;
-    o.textContent = f.replace(/\.mp3$/i,"");
+    const o=document.createElement("option");
+    o.value=f; o.textContent=f.replace(/\.mp3$/i,"");
     if(selectedSongFile===f) o.selected=true;
     sel.appendChild(o);
   });
-
   sel.addEventListener("change",()=>{
-    $("#chosenSongLabel").textContent = sel.value
+    $("#chosenSongLabel").textContent=sel.value
       ? sel.options[sel.selectedIndex].textContent
       : "尚未選擇";
   });
-
-  sel.dataset.filled = "1";
+  sel.dataset.filled="1";
 }
-
 function confirmSong(){
-  const sel = $("#songSelect");
-  if(!sel.value){
-    alert("請先選擇音樂");
-    return;
-  }
-  selectedSongFile = sel.value;
-  $("#chosenSongLabel").textContent = sel.options[sel.selectedIndex].textContent;
-  $("#menuChosenSong").textContent  = sel.options[sel.selectedIndex].textContent;
+  const sel=$("#songSelect");
+  if(!sel.value){ alert("請先選擇音樂"); return; }
+  selectedSongFile=sel.value;
+  $("#chosenSongLabel").textContent=sel.options[sel.selectedIndex].textContent;
+  $("#menuChosenSong").textContent =sel.options[sel.selectedIndex].textContent;
   toMenu();
 }
 
-/* ===== 譜面產生 ===== */
-const LEAD = 1.6;
-
-function genChart(dur){
-  chart = [];
-  const d = diff;
-
-  let dbl=.35, tmin=.24, tmax=.52;
-
-  if(d==='beginner'){ dbl=.15; tmin=.34; tmax=.64; }
-  else if(d==='easy'){ dbl=.20; tmin=.28; tmax=.54; }
-  else if(d==='hard'){ dbl=.55; tmin=.18; tmax=.40; }
-
-  if(!(d==='ex'||d==='hell')){
-    let t = LEAD;
-    while(t<dur){
-      const used=new Set();
-      const arr=[];
-      const cnt = Math.random()<dbl ? 2 : 1;
-      while(arr.length<cnt){
-        const ln = Math.floor(Math.random()*4);
-        if(!used.has(ln)){
-          used.add(ln);
-          arr.push({ t, lane:ln, hit:false, y:-50 });
-        }
-      }
-      chart.push(...arr);
-      t += Math.random()*(tmax-tmin)+tmin;
-    }
-  }else{
-    const beat = 0.5;
-    let t = LEAD, cur=0;
-
-    const n=()=>{ cur=(cur+1)%4; return cur; };
-    const push=(tt,ln)=>chart.push({ t:tt, lane:ln, hit:false, y:-50 });
-    const rnd=()=>Math.floor(Math.random()*4);
-
-    while(t<dur){
-      if(d==='ex'){
-        push(t, n());
-        if(Math.random()<.60) push(t, (cur+2)%4);
-        if(Math.random()<.35) push(t+beat/2, (cur+1)%4);
-        if(Math.random()<.18){
-          push(t+beat/3, rnd());
-          push(t+2*beat/3, rnd());
-        }
-        t += Math.random()<.5 ? beat/2 : beat;
-      }else{
-        push(t, n());
-        if(Math.random()<.85) push(t, (cur+2)%4);
-        push(t+beat/2, (cur+1)%4);
-        if(Math.random()<.4){
-          push(t+beat/4, rnd());
-          push(t+3*beat/4, rnd());
-        }
-        t += beat/2;
-      }
-    }
-  }
-
-  remain = chart.length;
-}
-
-/* ===== HUD 與流程 ===== */
+/* ==== 偏移 HUD ==== */
 function hudOffset(v){
-  $("#offsetLabel").textContent  = `${v} ms`;
-  $("#offsetActive").textContent = `${v} ms`;
+  $("#offsetLabel").textContent=`${v} ms`;
+  $("#offsetActive").textContent=`${v} ms`;
 }
 function setOffset(v){
-  v = Math.max(-600, Math.min(600, (v|0)));
-  OFFSET = v;
-  localStorage.setItem("dfjk.offsetMs", String(v));
+  v=Math.max(-600,Math.min(600,(v|0)));
+  OFFSET=v;
+  localStorage.setItem("dfjk.offsetMs",String(v));
   hudOffset(v);
 }
 
-/* 開始遊戲 */
+/* ==== 遊戲開始 / 暫停 ==== */
+let pausedAt=0;
 function startGame(){
-  if(!selectedSongFile){
-    toMusic();
-    alert("請先選擇音樂");
-    return;
-  }
+  if(!selectedSongFile){ toMusic(); alert("請先選擇音樂"); return; }
 
-  diff  = $("#difficultySelect").value;
-  dir   = $("#noteDirection").value;
-  jmode = $("#judgeMode").value;
+  applyKeyMode( +$("#keyModeSelect").value );
+  diff=$("#difficultySelect").value;
+  dir =$("#noteDirection").value;
+  jmode=$("#judgeMode").value;
 
-  document.body.classList.toggle(
-    'ex-mode',
-    diff==='ex'
-  );
+  document.body.classList.toggle('ex-mode', diff==='ex');
 
-  let mul = parseFloat($("#speedMultiplier").value);
-  if(diff==='beginner') mul=0.8;
-  else if(diff==='easy') mul=0.9;
+  let mul=parseFloat($("#speedMultiplier").value);
+  if(diff==='beginner') mul=.8;
+  else if(diff==='easy') mul=.9;
 
   score=0; combo=0; lastJudge='-';
   missCount=0;
@@ -1910,36 +1588,26 @@ function startGame(){
   wrongCount=0;
 
   chart=[]; remain=0; dts.length=0;
-  recPulse=[0,0,0,0];
-  recHitT=[0,0,0,0];
-  comboFlash="";
-  hits.length=0;
-  parts.length=0;
+  recPulse=new Array(LANE).fill(0);
+  recHitT =new Array(LANE).fill(0);
+  comboFlash=""; hits.length=0; parts.length=0;
 
-  spd = baseSpd * mul;
-  currentSong = selectedSongFile.replace(/\.mp3$/i,'');
+  spd=baseSpd*mul;
+  currentSong=selectedSongFile.replace(/\.mp3$/i,'');
   hud();
 
-  HP = HP_MAX;
-  hpShow(HP_ON);
-  hpUpdate();
+  HP=HP_MAX; hpShow(HP_ON); hpUpdate();
 
   showOnly('gameScreen');
   phase='countdown';
-  fitDPR();
-  desktopScale();
-  layout();
+  fitDPR(); desktopScale(); layout();
 
-  draw({skip:true});
-  ui();
+  draw({skip:true}); ui();
 
   const url='music/'+encodeURIComponent(selectedSongFile);
-  stopAudio();
-  bgm.src = url;
-  try{ bgm.load(); }catch{}
-
-  durSec = isFinite(bgm.duration) ? bgm.duration : 120;
-  genChart(durSec || 120);
+  stopAudio(); bgm.src=url; try{ bgm.load(); }catch{}
+  durSec=isFinite(bgm.duration)?bgm.duration:120;
+  genChart(durSec||120);
 
   countdown(
     ()=>{
@@ -1948,41 +1616,24 @@ function startGame(){
       startAt(0);
       loopId=requestAnimationFrame(loop);
     },
-    { show:false }
+    {show:false}
   );
 }
-
-let pausedAt=0;
-
 function pauseGame(fromC){
-  if(phase==='countdown' && fromC!==true){
-    cancelCountdown();
-  }
+  if(phase==='countdown' && fromC!==true) cancelCountdown();
   if(!running && phase!=='countdown') return;
-
-  paused=true;
-  phase='paused';
-
+  paused=true; phase='paused';
   $("#gameScreen").classList.add('blur');
   showOnly('pauseScreen');
-
-  pausedAt = hardClock();
-
-  stopLoop();
-  stopAudio();
+  pausedAt=hardClock();
+  stopLoop(); stopAudio();
 }
-
 function resumeGame(){
   if(!paused) return;
-
-  paused=false;
-  phase='countdown';
-
+  paused=false; phase='countdown';
   showOnly('gameScreen');
   $("#gameScreen").classList.remove('blur');
-
-  const t = pausedAt;
-
+  const t=pausedAt;
   countdown(
     ()=>{
       phase='playing';
@@ -1990,65 +1641,51 @@ function resumeGame(){
       startAt(t);
       loopId=requestAnimationFrame(loop);
     },
-    { show:true, t }
+    {show:true,t}
   );
 }
 
-function loop(){
+/* ==== 迴圈（含 mobile 60fps 鎖） ==== */
+function loop(ts){
   if(paused) return;
+  if(_lastRAF && ts - _lastRAF < MS_PER_FRAME-0.5){
+    loopId=requestAnimationFrame(loop);
+    return;
+  }
+  _lastRAF=ts;
 
-  const t = hardClock();
-
-  upd(t, 1/60);
+  const t=hardClock();
+  upd(t,1/FPS_TARGET);
   draw();
   ui();
 
-  if(ended || remain<=0){
-    endWith();
-    return;
-  }
-  loopId = requestAnimationFrame(loop);
+  if(ended || remain<=0){ endWith(); return; }
+  loopId=requestAnimationFrame(loop);
 }
-function stopLoop(){
-  try{ cancelAnimationFrame(loopId); }catch{}
-  loopId=null;
-}
+function stopLoop(){ try{ cancelAnimationFrame(loopId); }catch{} loopId=null; }
 
-/* ===== 校正 ===== */
-const pnl = $("#calibOverlay");
-const cbStart  = $("#calibStart");
-const cbDone   = $("#calibFinish");
-const cbCancel = $("#calibCancel");
-const cbBig    = $("#calibBig");
-const cbDot    = $("#calibBeatDot");
-const cbStat   = $("#calibStat");
-
-let cal=false;
-let beatInt=1.0;
-let beats=16;
-let taps=[];
-let timers=[];
-let tapH=null;
-let syncP0=0;
-let syncC0=0;
-let t0C=0;
+/* ==== 校正（沿用上一版，略） ==== */
+const pnl=$("#calibOverlay");
+const cbStart=$("#calibStart");
+const cbDone=$("#calibFinish");
+const cbCancel=$("#calibCancel");
+const cbBig=$("#calibBig");
+const cbDot=$("#calibBeatDot");
+const cbStat=$("#calibStat");
+let cal=false, beatInt=1.0, beats=16, taps=[];
+let timers=[], tapH=null, syncP0=0, syncC0=0, t0C=0;
 
 async function openCalib(){
-  if(phase==='playing' || phase==='countdown'){
-    banner("請先退出或暫停遊戲再校正");
-    return;
-  }
+  if(phase==='playing'||phase==='countdown'){ banner("請先退出或暫停遊戲再校正"); return; }
   pnl.style.display='block';
   cbBig.textContent='待機';
   cbStat.textContent='0/10 建議偏移：—';
-  taps=[];
-  cbDone.disabled=true;
+  taps=[]; cbDone.disabled=true;
   await ensureAC().catch(()=>{});
 }
 function closeCalib(){
   pnl.style.display='none';
-  timers.forEach(id=>clearTimeout(id));
-  timers=[];
+  timers.forEach(id=>clearTimeout(id)); timers=[];
   cal=false;
   if(tapH){
     window.removeEventListener('keydown',tapH);
@@ -2056,16 +1693,13 @@ function closeCalib(){
     tapH=null;
   }
 }
-
 function robust(arr){
   if(!arr.length) return 0;
   const s=[...arr].sort((a,b)=>a-b);
   const m=s[Math.floor(s.length/2)];
   const dev=s.map(v=>Math.abs(v-m)).sort((a,b)=>a-b);
   const MAD=dev[Math.floor(dev.length/2)]||1;
-  const keep=arr.filter(
-    v=>Math.abs(v-m)<=Math.max(3*MAD,120)
-  );
+  const keep=arr.filter(v=>Math.abs(v-m)<=Math.max(3*MAD,120));
   const t=keep.sort((a,b)=>a-b);
   const lo=Math.floor(t.length*0.2);
   const hi=Math.ceil(t.length*0.8);
@@ -2073,208 +1707,146 @@ function robust(arr){
   const mean=core.reduce((a,c)=>a+c,0)/Math.max(1,core.length);
   return Math.max(-600,Math.min(600,Math.round(mean)));
 }
-
 function startCalib(){
-  timers.forEach(id=>clearTimeout(id));
-  timers=[];
-  taps=[];
-  cbDone.disabled=true;
-  cal=true;
-
+  timers.forEach(id=>clearTimeout(id)); timers=[];
+  taps=[]; cbDone.disabled=true; cal=true;
   try{ AC.resume(); }catch{}
-
-  syncP0 = performance.now()/1000;
-  syncC0 = AC.currentTime;
-
-  const lead = .70;
-  t0C = AC.currentTime + lead;
+  syncP0=performance.now()/1000;
+  syncC0=AC.currentTime;
+  const lead=.70; t0C=AC.currentTime+lead;
 
   for(let i=0;i<beats;i++){
-    const t = t0C + i*beatInt;
+    const t=t0C+i*beatInt;
+    const o=AC.createOscillator();
+    const g=AC.createGain();
+    o.type='sine'; o.frequency.value=880;
+    g.gain.setValueAtTime(.0001,t);
+    g.gain.exponentialRampToValueAtTime(.45,t+.005);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.08);
+    o.connect(g); g.connect(Gsfx||Gm);
+    o.start(t); o.stop(t+.09);
 
-    const o = AC.createOscillator();
-    const g = AC.createGain();
-
-    o.type='sine';
-    o.frequency.value=880;
-
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(0.45, t+0.005);
-    g.gain.exponentialRampToValueAtTime(0.0001, t+0.08);
-
-    o.connect(g);
-    g.connect(Gsfx||Gm);
-    o.start(t);
-    o.stop(t+0.09);
-
-    const d = (t-AC.currentTime)*1000;
-    const id = setTimeout(()=>{
+    const d=(t-AC.currentTime)*1000;
+    const id=setTimeout(()=>{
       cbDot.style.transform='scale(1.28)';
       cbDot.style.boxShadow='0 0 30px rgba(120,213,255,1)';
       setTimeout(()=>{
         cbDot.style.transform='scale(1)';
         cbDot.style.boxShadow='0 0 30px rgba(120,213,255,.9)';
       },120);
-    }, d);
+    },d);
     timers.push(id);
   }
 
-  tapH = (e)=>{
+  tapH=(e)=>{
     if(e.type==='keydown'){
       const k=e.key.toLowerCase();
-      if(k!=='d'&&k!=='f'&&k!=='j'&&k!=='k') return;
+      if(!'sdfjklasdf;'.includes(k)) return;
       e.preventDefault();
     }
-    const tp = performance.now()/1000;
-    const tC = syncC0 + (tp - syncP0);
-    if(tC < t0C - 0.15) return;
+    const tp=performance.now()/1000;
+    const tC=syncC0+(tp-syncP0);
+    if(tC<t0C-0.15) return;
+    const k=Math.round((tC-t0C)/beatInt);
+    const tB=t0C+k*beatInt;
+    const dMs=(tC-tB)*1000;
+    if(Math.abs(dMs)<=600) taps.push(dMs);
 
-    const k = Math.round((tC - t0C)/beatInt);
-    const tB = t0C + k*beatInt;
-    const dMs = (tC - tB) * 1000;
-
-    if(Math.abs(dMs)<=600){ taps.push(dMs); }
-
-    const need=10;
-    const nowN=Math.min(taps.length, need);
-
+    const need=10, nowN=Math.min(taps.length,need);
     let adv='—';
-    if(nowN>=4){
-      const rec = robust(taps);
-      adv = (rec>0?'+':'') + rec + ' ms';
-    }
-    cbBig.textContent = nowN + '/' + need;
-    cbStat.textContent = `${nowN}/${need} 建議偏移：${adv}`;
-    if(nowN>=need){ cbDone.disabled=false; }
+    if(nowN>=4){ const rec=robust(taps); adv=(rec>0?'+':'')+rec+' ms'; }
+    cbBig.textContent=nowN+'/'+need;
+    cbStat.textContent=`${nowN}/${need} 建議偏移：${adv}`;
+    if(nowN>=need) cbDone.disabled=false;
   };
-
-  window.addEventListener('keydown', tapH);
-  pnl.addEventListener('pointerdown', tapH);
+  window.addEventListener('keydown',tapH);
+  pnl.addEventListener('pointerdown',tapH);
 }
-
 function finishCalib(){
   if(!taps.length){ closeCalib(); return; }
-  const rec = robust(taps);
+  const rec=robust(taps);
   setOffset(rec);
   banner(`已套用偏移：${rec} ms`);
   closeCalib();
 }
 
-/* ===== 綁定 / 初始化 ===== */
+/* ==== 綁定 ==== */
 function bind(){
-  $("#btnStart").addEventListener("click", startGame);
-  $("#btnMusic").addEventListener("click", toMusic);
-  $("#btnOptions").addEventListener("click", toOpt);
+  $("#btnStart").addEventListener("click",startGame);
+  $("#btnMusic").addEventListener("click",toMusic);
+  $("#btnOptions").addEventListener("click",toOpt);
+  $("#btnSongConfirm").addEventListener("click",confirmSong);
+  $$(".btnBackMenu").forEach(b=>b.addEventListener("click",toMenu));
 
-  $("#btnSongConfirm").addEventListener("click", confirmSong);
-  $$(".btnBackMenu").forEach(
-    b=> b.addEventListener("click", toMenu)
-  );
-
-  $("#pauseButton").addEventListener("click", ()=>{
-    if(phase==='countdown'){ cancelCountdown(); }
+  $("#pauseButton").addEventListener("click",()=>{
+    if(phase==='countdown') cancelCountdown();
     pauseGame();
   });
-  $("#btnResume").addEventListener("click", resumeGame);
-  $("#btnRestart").addEventListener("click", startGame);
+  $("#btnResume").addEventListener("click",resumeGame);
+  $("#btnRestart").addEventListener("click",startGame);
 
   /* 音量 */
-  const mS = $("#volumeSlider");
-  const mL = $("#volumeLabel");
-  const sS = $("#sfxSlider");
-  const sL = $("#sfxLabel");
-
-  const mv = +(localStorage.getItem("dfjk.volume")||80);
-  const sv = +(localStorage.getItem("dfjk.sfxVol")||70);
-
-  mS.value = String(mv);
-  sS.value = String(sv);
-
-  VOL_M = mv/100;
-  VOL_S = sv/100;
-  applyVol();
-
-  mL.textContent = `${mv}%`;
-  sL.textContent = `${sv}%`;
-
-  mS.addEventListener("input", ()=>{
-    const v = +mS.value;
-    VOL_M = v/100;
-    mL.textContent = `${v}%`;
-    localStorage.setItem("dfjk.volume", String(v));
-    applyVol();
+  const mS=$("#volumeSlider"), mL=$("#volumeLabel");
+  const sS=$("#sfxSlider"), sL=$("#sfxLabel");
+  const mv=+(localStorage.getItem("dfjk.volume")||80);
+  const sv=+(localStorage.getItem("dfjk.sfxVol")||70);
+  mS.value=String(mv); sS.value=String(sv);
+  VOL_M=mv/100; VOL_S=sv/100; applyVol();
+  mL.textContent=`${mv}%`; sL.textContent=`${sv}%`;
+  mS.addEventListener("input",()=>{
+    const v=+mS.value; VOL_M=v/100; mL.textContent=`${v}%`;
+    localStorage.setItem("dfjk.volume",String(v)); applyVol();
   });
-  sS.addEventListener("input", ()=>{
-    const v = +sS.value;
-    VOL_S = v/100;
-    sL.textContent = `${v}%`;
-    localStorage.setItem("dfjk.sfxVol", String(v));
-    applyVol();
+  sS.addEventListener("input",()=>{
+    const v=+sS.value; VOL_S=v/100; sL.textContent=`${v}%`;
+    localStorage.setItem("dfjk.sfxVol",String(v)); applyVol();
   });
 
-  /* 偏移 slider + 快速校正 */
-  const oS = $("#offsetSlider");
-  const svOff = +(localStorage.getItem("dfjk.offsetMs")||0);
-  oS.value = String(svOff);
-  setOffset(svOff);
-  oS.addEventListener("input", ()=> setOffset(+oS.value) );
+  /* 偏移 + 校正 */
+  const oS=$("#offsetSlider");
+  const svOff=+(localStorage.getItem("dfjk.offsetMs")||0);
+  oS.value=String(svOff); setOffset(svOff);
+  oS.addEventListener("input",()=>setOffset(+oS.value));
+  $("#offsetCalibBtn").addEventListener("click",openCalib);
+  $("#calibStart").addEventListener("click",()=>{ if(!cal) startCalib(); });
+  $("#calibFinish").addEventListener("click",finishCalib);
+  $("#calibCancel").addEventListener("click",closeCalib);
 
-  $("#offsetCalibBtn").addEventListener("click", openCalib);
-  $("#calibStart").addEventListener("click", ()=>{ if(!cal) startCalib(); });
-  $("#calibFinish").addEventListener("click", finishCalib);
-  $("#calibCancel").addEventListener("click", closeCalib);
-
-  /* RGB 切換 */
-  const rgb = $("#rgbCycleToggle");
-  rgb.checked = RGB;
-  rgb.addEventListener("change", ()=>{
-    RGB = rgb.checked;
-    localStorage.setItem("dfjk.rgbCycle", RGB?'1':'0');
+  /* RGB */
+  const rgb=$("#rgbCycleToggle");
+  rgb.checked=RGB;
+  rgb.addEventListener("change",()=>{
+    RGB=rgb.checked;
+    localStorage.setItem("dfjk.rgbCycle",RGB?'1':'0');
   });
 
-  /* 血條模式 */
-  const hpC = $("#hpToggle");
-  hpC.checked = HP_ON;
-  hpC.addEventListener("change", ()=>{
-    HP_ON = hpC.checked;
-    localStorage.setItem("dfjk.hpOn", HP_ON?'1':'0');
-    hpShow(HP_ON);
-    hpUpdate();
+  /* HP */
+  const hpC=$("#hpToggle");
+  hpC.checked=HP_ON;
+  hpC.addEventListener("change",()=>{
+    HP_ON=hpC.checked;
+    localStorage.setItem("dfjk.hpOn",HP_ON?'1':'0');
+    hpShow(HP_ON); hpUpdate();
   });
 
-  /* 熱圖按鈕 */
-  $("#toggleHeatBtn").addEventListener("click", ()=>{
-    showHeat = !showHeat;
-    banner(showHeat?'熱圖：ON':'熱圖：OFF');
-    ui();
+  /* HEAT 按鈕 */
+  $("#toggleHeatBtn").addEventListener("click",()=>{
+    showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui();
   });
 }
 
+/* ==== 初始化 ==== */
 function init(){
-  desktopScale();
-  fitDPR();
-  layout();
-  fillSongs();
-  bind();
-  hpShow(HP_ON);
-  hpUpdate();
-  hud();
+  desktopScale(); fitDPR(); layout();
+  fillSongs(); bind();
+  hpShow(HP_ON); hpUpdate(); hud();
   showOnly("menuScreen");
 }
-
-/* 重新計算佈局 */
-window.addEventListener("resize", ()=>{
-  fitDPR();
-  desktopScale();
-  layout();
-  if(phase==='countdown'){
-    draw({skip:true});
-    ui();
-  }
+window.addEventListener("resize",()=>{
+  fitDPR(); desktopScale(); layout();
+  if(phase==='countdown'){ draw({skip:true}); ui(); }
 });
-
-/* DOM 就緒 */
-document.addEventListener("DOMContentLoaded", init);
+document.addEventListener("DOMContentLoaded",init);
 </script>
 </body>
 </html>
