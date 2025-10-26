@@ -58,7 +58,6 @@
   <div id="menuScreen">
     <h1>🎵 DFJK 高精度 Cyberpunk 版</h1>
     <div class="row">
-      <!-- 改成呼叫 window 上的方法，防止作用域問題 -->
       <button onclick="window.startGame && window.startGame()">開始遊戲</button>
       <button onclick="window.showMusic && window.showMusic()">音樂</button>
       <button onclick="window.showOptions && window.showOptions()">選項</button>
@@ -181,7 +180,7 @@
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
 
 <script>
-/* ===== 可調參數（保留你前版設定） ===== */
+/* ===== 可調參數 ===== */
 const CENTER_TUCK_PX = 12;
 const GLITCH_AMPLIFY = 1.45;
 const TAIL_FACTOR    = 0.42;
@@ -213,6 +212,7 @@ let selectedSongFile=null;
 let score=0,combo=0,lastJudgementText='-'; let missCount=0,gameOver=false;
 let stats={sick:0,good:0,bad:0,shit:0,miss:0};
 let chart=[],__remainNotes=0;
+let receptorPulse=[0,0,0,0];            /* ✅ 新增：宣告 receptorPulse */
 let currentSongTitle='-',currentDifficulty='normal',currentDirection='down',currentJudgeMode='old';
 const dtHistory=[];const DT_HIST_MAX=240;
 
@@ -265,7 +265,7 @@ function updateHUD(){
   document.getElementById('offsetActive').textContent=`${INPUT_OFFSET_MS} ms`;
 }
 
-/* 箭頭繪製（保留你要的風格） */
+/* 箭頭繪製（故障風格） */
 function lighten(c,a){const p=parseInt(c.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`}
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse,t}){
   const ang=dirToAngle(dir);
@@ -355,7 +355,7 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* WebAudio */
+/* ===== WebAudio 時鐘 + 偏移 ===== */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 let audioCtx=null,songBuffer=null,gainNode=null,srcNode=null,startAtCtx=0,startAtSong=0,songEnded=false;
 let softBaseSong=0,softStartPerf=0;
@@ -368,13 +368,13 @@ function getClockSec(){const ta=getSongClockSecAudio();if(ta!==null&&audioCtx.st
 function getJudgeClockSec(){return getClockSec()+(INPUT_OFFSET_MS/1000)}
 function setGlobalOffset(ms){const v=Math.max(-600,Math.min(600,(ms|0)));INPUT_OFFSET_MS=v;localStorage.setItem('dfjk.offsetMs',String(v));document.getElementById('offsetLabel').textContent=`${v} ms`;document.getElementById('offsetActive').textContent=`${v} ms`}
 
-/* SFX */
+/* ===== SFX ===== */
 const hitSound=document.getElementById('hitSound');const SFX_GAIN=1.6;
 class TapSoundPool{constructor(src,size=10){this.pool=[];this.idx=0;for(let i=0;i<size;i++){const a=new Audio(src);a.preload='auto';a.volume=1.0;this.pool.push(a)}}setVolume(v){const vol=Math.max(0,Math.min(1,v));for(const a of this.pool)a.volume=vol}play(){const a=this.pool[this.idx];this.idx=(this.idx+1)%this.pool.length;try{a.currentTime=0;a.play().catch(()=>{})}catch{}}}
 let tapPool=null;function setVolumes(percent){const v=Math.max(0,Math.min(100,percent))/100;if(gainNode)gainNode.gain.value=v;if(!tapPool)tapPool=new TapSoundPool(hitSound.src,12);const sfxVol=Math.min(1,v*SFX_GAIN);tapPool.setVolume(sfxVol);hitSound.volume=sfxVol}
 function playTapSound(){if(!tapPool)tapPool=new TapSoundPool(hitSound.src,12);tapPool.play()}
 
-/* 判定 */
+/* ===== 判定 ===== */
 const WINDOWS={sick:80,good:130,bad:150,shit:170}, SCORES={sick:350,good:200,bad:100,shit:-50,miss:-300,ghost:-150};
 let baseNoteSpeed=550, noteSpeed=baseNoteSpeed;
 function judge(dtMs,lane){
@@ -392,7 +392,7 @@ function judge(dtMs,lane){
   updateHUD();
 }
 
-/* 譜生成 & 更新 */
+/* ===== 譜生成 & 更新 ===== */
 const FIRST_NOTE_LEAD=1.6;
 function generateChart(dur){
   chart=[]; const d=currentDifficulty;
@@ -441,7 +441,7 @@ function update(songT,dt){
   for(let i=0;i<4;i++){receptorPulse[i]=Math.max(0,receptorPulse[i]-dt*3.2);}
 }
 
-/* 繪製 */
+/* ===== 繪製 ===== */
 function render(){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
   ctx.clearRect(0,0,W,H); drawPlayfieldBackground(t);
@@ -472,7 +472,7 @@ function renderUI(){
   uictx.strokeStyle='#ffd966';uictx.beginPath();const midx=x0+(-min)/step*bw;uictx.moveTo(midx,y0);uictx.lineTo(midx,y0+h);uictx.stroke();uictx.restore();
 }
 
-/* 輸入 */
+/* ===== 輸入 ===== */
 function onLanePress(lane){
   if(!running)return;
   playTapSound();
@@ -490,7 +490,7 @@ function onLanePress(lane){
   }
 }
 
-/* 倒數（RAF） */
+/* ===== 倒數（RAF） ===== */
 let isCountingDown=false, countdownRAF=null;
 function showCountdown(startCallback){
   cancelCountdown(); isCountingDown=true;
@@ -515,13 +515,13 @@ function showCountdown(startCallback){
 }
 function cancelCountdown(){ if(!isCountingDown && !countdownRAF) return; isCountingDown=false; try{cancelAnimationFrame(countdownRAF)}catch{} countdownRAF=null; const el=document.getElementById('countdownText'); el.style.animation='none'; el.style.display='none'; }
 
-/* UI 切換 */
+/* ===== UI 切換 ===== */
 function showOnly(id){['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>document.getElementById(x).style.display=(x===id?'block':'none')); if(id!=='gameScreen')document.getElementById('gameScreen').classList.remove('blur');}
 function goToMenu(){cancelCountdown();stopGameLoop();stopAndResetAudio();showOnly('menuScreen');phase='menu';document.getElementById('menuChosenSong').textContent=selectedSongFile?selectedSongFile.replace(/\.mp3$/i,''):'尚未選擇';}
 function showOptions(){showOnly('optionsScreen')}
 function showMusic(){showOnly('musicScreen')}
 
-/* 音量/校正/曲庫 */
+/* ===== 音量/校正/曲庫 ===== */
 function initVolumeUI(){
   const s=document.getElementById('volumeSlider');
   const l=document.getElementById('volumeLabel');
@@ -535,7 +535,41 @@ function initOffsetUI(){
   s.value=String(saved); lab.textContent=`${saved} ms`; setGlobalOffset(saved);
   document.getElementById('offsetCalibBtn').addEventListener('click',()=>alert('快速校正保留；要全自動我再升級。'));
 }
-const SONGS=[ /* 你的曲庫（略） */ "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3","Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3","Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3","Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collaboration Music Video #BBBBダンス - Creepy Nuts.mp3","KANA-BOON - Silhouette - KANABOONVEVO.mp3","Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3"/* ...其餘省略，照你的清單加回來 */];
+
+/* ✅ 唯一且完整的曲庫清單（不要重複宣告） */
+const SONGS = [
+  "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3",
+  "Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3",
+  "Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3",
+  "Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collaboration Music Video #BBBBダンス - Creepy Nuts.mp3",
+  "KANA-BOON - Silhouette - KANABOONVEVO.mp3",
+  "Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3",
+  "Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3",
+  "Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3",
+  "ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3",
+  "Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3",
+  "Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3",
+  "Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3",
+  "OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3",
+  "YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3",
+  "yung kai - blue (official music video) - yung kai.mp3",
+  "【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3",
+  "【MV】隙_ゆーり【オリジナル】 - ゆーり🍎🐥〔24〕・yuri (1).mp3",
+  "【imase】NIGHT DANCER（MV） - imase.mp3",
+  "なとり - Overdose - なとり _ natori.mp3",
+  "好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3",
+  "廻廻奇譚 - Eve MV - Eve.mp3",
+  "青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3",
+  "Toge Toge Sadistic - Enormita (youtube).mp3",
+  "My dream girls - NACHERRY (youtube).mp3",
+  "PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3",
+  "YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3",
+  "YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3",
+  "YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3",
+  "【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3",
+  "Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3",
+  "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
+];
 function fillSongList(){
   const sel=document.getElementById('songSelect'); if(sel.dataset.filled)return;
   sel.innerHTML='';
@@ -546,33 +580,37 @@ function fillSongList(){
 }
 function confirmSong(){const sel=document.getElementById('songSelect');if(!sel.value){alert('請先選擇音樂');return;}selectedSongFile=sel.value;document.getElementById('chosenSongLabel').textContent=sel.options[sel.selectedIndex].textContent;document.getElementById('menuChosenSong').textContent=sel.options[sel.selectedIndex].textContent;goToMenu();}
 
-/* 流程 */
+/* ===== 流程 ===== */
 async function startGame(){
-  try{ await ensureAudio(); try{await audioCtx.resume()}catch{} }catch{}
-  if(!selectedSongFile){ showMusic(); alert('請先選擇音樂'); return; }
-
-  const diff=document.getElementById('difficultySelect').value,
-        sp=document.getElementById('speedMultiplier'),
-        dir=document.getElementById('noteDirection').value,
-        jmode=document.getElementById('judgeMode').value;
-  currentDifficulty=diff; currentDirection=dir; currentJudgeMode=jmode;
-  let mul=parseFloat(sp.value); if(diff==='beginner')mul=0.8; else if(diff==='easy')mul=0.9; else if(diff==='ex')mul=1.8;
-  noteSpeed=baseNoteSpeed*mul;
-
-  score=0;combo=0;lastJudgementText='-';missCount=0;gameOver=false;stats={sick:0,good:0,bad:0,shit:0,miss:0};
-  chart=[];__remainNotes=0;dtHistory.length=0;for(let i=0;i<4;i++)receptorPulse[i]=0;updateHUD();
-
-  currentSongTitle=selectedSongFile.replace(/\.mp3$/i,'');
-  const url='music/'+encodeURIComponent(selectedSongFile);
-  showOnly('gameScreen');phase='countdown';setupDPR();applyDesktopScale();recomputeLayout();render();renderUI();
-
   try{
+    await ensureAudio(); try{await audioCtx.resume()}catch{}
+    if(!selectedSongFile){ showMusic(); alert('請先選擇音樂'); return; }
+
+    const diff=document.getElementById('difficultySelect').value,
+          sp=document.getElementById('speedMultiplier'),
+          dir=document.getElementById('noteDirection').value,
+          jmode=document.getElementById('judgeMode').value;
+    currentDifficulty=diff; currentDirection=dir; currentJudgeMode=jmode;
+
+    let mul=parseFloat(sp.value); if(diff==='beginner')mul=0.8; else if(diff==='easy')mul=0.9; else if(diff==='ex')mul=1.8;
+    noteSpeed=baseNoteSpeed*mul;
+
+    score=0;combo=0;lastJudgementText='-';missCount=0;gameOver=false;stats={sick:0,good:0,bad:0,shit:0,miss:0};
+    chart=[];__remainNotes=0;dtHistory.length=0;receptorPulse=[0,0,0,0]; updateHUD();
+
+    currentSongTitle=selectedSongFile.replace(/\.mp3$/i,'');
+    const url='music/'+encodeURIComponent(selectedSongFile);
+
+    showOnly('gameScreen');phase='countdown';setupDPR();applyDesktopScale();recomputeLayout();render();renderUI();
+
     await loadSongBuffer(url);
     const dur=songBuffer&&isFinite(songBuffer.duration)?songBuffer.duration:120;
     generateChart(dur);
     showCountdown(()=>{ running=true; paused=false; prevT=getClockSec(); playFrom(0); loopId=requestAnimationFrame(gameLoop); });
   }catch(e){
-    console.warn(e); banner('⚠️ 音樂無法載入或播放'); goToMenu();
+    console.error(e);
+    banner('⚠️ 發生錯誤，請檢查音樂路徑或 Console');
+    goToMenu();
   }
 }
 function pauseGame(){if(!running||paused)return;paused=true;showOnly('pauseScreen');document.getElementById('gameScreen').classList.add('blur');try{if(srcNode){srcNode.onended=null;srcNode.stop(0)}}catch{}srcNode=null;}
@@ -580,7 +618,7 @@ function resumeGame(){if(!paused)return;paused=false;showOnly('gameScreen');docu
 function gameLoop(){if(paused)return;const t=getClockSec();const dt=Math.max(0,t-prevT);prevT=t;update(t,dt);render();renderUI();if(songEnded||__remainNotes<=0){running=false;stopGameLoop();stopAndResetAudio();document.getElementById('finalSong').textContent=currentSongTitle;document.getElementById('finalDiff').textContent=currentDifficulty.toUpperCase();document.getElementById('finalDir').textContent=(currentDirection==='up'?'上升':'下落');document.getElementById('finalJudge').textContent=(currentJudgeMode==='old'?'Old':'New');document.getElementById('finalScore').textContent=score;document.getElementById('statSick').textContent=stats.sick;document.getElementById('statGood').textContent=stats.good;document.getElementById('statBad').textContent=stats.bad;document.getElementById('statShit').textContent=stats.shit;document.getElementById('statMiss').textContent=stats.miss;showOnly('endScreen');return;}loopId=requestAnimationFrame(gameLoop);}
 function stopGameLoop(){try{cancelAnimationFrame(loopId)}catch{}loopId=null;}
 
-/* 綁在 window（關鍵） */
+/* ===== 綁在 window（關鍵） ===== */
 window.startGame = startGame;
 window.pauseGame  = pauseGame;
 window.resumeGame = resumeGame;
@@ -589,7 +627,7 @@ window.showMusic  = showMusic;
 window.goToMenu   = goToMenu;
 window.confirmSong= confirmSong;
 
-/* 事件 */
+/* ===== 事件與初始化 ===== */
 window.addEventListener('keydown',e=>{
   if(e.repeat)return;
   const lane=laneFromKey(e.key.toLowerCase());
@@ -607,7 +645,6 @@ canvas.addEventListener('pointerdown',e=>{
   onLanePress(lane);
 },{passive:true});
 
-/* 初始化 & 健檢 */
 function init(){
   try{
     applyDesktopScale(); setupDPR(); recomputeLayout();
@@ -615,7 +652,6 @@ function init(){
   }catch(err){
     console.error(err); banner('⚠️ 初始化出錯，請重整（詳見 Console）');
   }
-  // 健檢：確認 window 綁定
   setTimeout(()=>{
     if(typeof window.startGame!=='function'){
       banner('⚠️ Start 綁定失敗，已自動修復，請再按一次');
