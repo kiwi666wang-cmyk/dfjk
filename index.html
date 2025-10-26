@@ -31,7 +31,7 @@
   #gameCanvas{touch-action:none}
   canvas.ui{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;background:transparent;border:none;z-index:5}
 
-  /* 螢幕邊緣的偽邊界（不刺眼的漸層） */
+  /* 螢幕邊緣偽邊界 */
   #edgeFade{position:absolute;inset:0;pointer-events:none;opacity:1;border-radius:10px;z-index:6;
     background:
       linear-gradient(to right, rgba(255,255,255,.16), rgba(255,255,255,0) 40%) left/16px 100% no-repeat,
@@ -49,7 +49,7 @@
   .blur{filter:blur(6px);pointer-events:none;user-select:none}
   #pauseButton{position:absolute;top:10px;right:10px;z-index:3}
 
-  /* 倒數（從 .hitbar 移出，避免被 opacity:0 隱藏） */
+  /* 倒數（移出 hitbar，避免被 opacity:0 影響） */
   #countdownText{
     position:absolute;top:40%;left:50%;transform:translate(-50%,-50%);
     font-family:'Fredoka One',sans-serif;font-size:72px;color:#fff;text-shadow:2px 2px 8px #000;z-index:9;pointer-events:none;display:none}
@@ -58,7 +58,7 @@
   #warnBanner{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:rgba(255,80,80,.95);padding:10px 14px;border-radius:8px;font-size:14px;display:none;z-index:20}
   #debug{position:fixed;left:8px;bottom:8px;background:rgba(0,0,0,.55);padding:6px 10px;border-radius:6px;font:12px/1.4 monospace;z-index:25}
 
-  /* 校正覆蓋層（保留） */
+  /* 校正覆蓋層 */
   #calibOverlay{position:fixed;inset:0;display:none;z-index:50;background:rgba(3,7,15,.86);backdrop-filter:blur(2px)}
   #calibWrap{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,92vw);padding:18px 16px;border-radius:12px;background:rgba(10,16,30,.9);box-shadow:0 10px 40px rgba(0,0,0,.4);border:1px solid rgba(120,213,255,.3)}
   #calibTitle{font-size:22px;margin:6px 0 4px}
@@ -68,9 +68,7 @@
   #calibStat{font:14px/1.4 monospace;opacity:.95;margin:2px 0 10px}
   .calibBtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
   .calibBtn{flex:1 1 140px;padding:14px 12px;font-size:18px;border-radius:10px;border:none;cursor:pointer}
-  .calibBtn.primary{background:#78d5ff}
-  .calibBtn.warn{background:#ffc857}
-  .calibBtn.cancel{background:#ff6b6b}
+  .calibBtn.primary{background:#78d5ff}.calibBtn.warn{background:#ffc857}.calibBtn.cancel{background:#ff6b6b}
 </style>
 </head>
 <body>
@@ -170,7 +168,6 @@
       <canvas id="uiCanvas" class="ui" width="420" height="640"></canvas>
       <div id="edgeFade" aria-hidden="true"></div>
       <div class="hitbar"><div class="hitkey"></div><div class="hitkey"></div><div class="hitkey"></div><div class="hitkey"></div></div>
-      <!-- 倒數移到 hitbar 外面，確保可見 -->
       <div id="countdownText">Ready</div>
     </div>
     <div class="hud">
@@ -205,7 +202,7 @@
     <button onclick="window.goToMenu()">回主選單</button>
   </div>
 
-  <!-- 校正覆蓋層（維持上一版的精準校正） -->
+  <!-- 校正覆蓋層 -->
   <div id="calibOverlay">
     <div id="calibWrap">
       <div id="calibTitle">🎯 快速校正</div>
@@ -221,7 +218,7 @@
     </div>
   </div>
 
-  <!-- 點擊音效後備 -->
+  <!-- 後備點擊音 -->
   <audio id="hitSound" src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_6e3e3b6f3f.mp3?filename=click-124467.mp3" preload="auto"></audio>
   <audio id="bgm" preload="auto"></audio>
 
@@ -229,7 +226,7 @@
   <div id="debug">mode: - | err: -</div>
 
 <script>
-/* ====== 基礎尺寸 / DPR ====== */
+/* ====== 尺寸 / DPR ====== */
 const canvas=document.getElementById('gameCanvas');
 const ctx=canvas.getContext('2d',{alpha:false,desynchronized:true});
 const uiCanvas=document.getElementById('uiCanvas');
@@ -257,11 +254,19 @@ let score=0,combo=0,lastJudgementText='-'; let missCount=0,gameOver=false;
 let stats={sick:0,good:0,bad:0,shit:0,miss:0};
 let chart=[],__remainNotes=0;
 let receptorPulse=[0,0,0,0];
+
 let currentSongTitle='-',currentDifficulty='normal',currentDirection='down',currentJudgeMode='old';
 const dtHistory=[];const DT_HIST_MAX=240;
 
 const hitFx=[];
 function addHitFx(lane){hitFx.push({lane,t0:performance.now()/1000,life:0.25});}
+
+/* === 連擊提示 === */
+let comboFlashText='', comboFlashT0=0;
+function triggerComboFlash(){
+  comboFlashText=`COMBO x${combo}!!`;
+  comboFlashT0=performance.now()/1000;
+}
 
 /* ====== 版面 ====== */
 let cachedRectH=canvas.getBoundingClientRect().height;
@@ -300,29 +305,73 @@ function getDtStats(){if(!dtHistory.length)return{avg:0,std:0};const n=dtHistory
 function banner(msg){const b=document.getElementById('warnBanner'); b.textContent=msg; b.style.display='block'; setTimeout(()=>b.style.display='none',3000);}
 
 /* ====== 視覺：箭頭 & 故障特效 ====== */
+const EFFECT_INTENSITY = 1.0; // 想再更狂 → 調 1.4、1.8
+
 function lighten(c,a){const p=parseInt(c.slice(1),16);let r=(p>>16)&255,g=(p>>8)&255,b=p&255;r=Math.min(255,Math.round(r+(255-r)*a));g=Math.min(255,Math.round(g+(255-g)*a));b=Math.min(255,Math.round(b+(255-b)*a));return`rgb(${r},${g},${b})`}
+
 function glitchAura(x,y,r,t,intensity=1){
   if(intensity<=0) return;
   ctx.save();
-  const n=10*intensity;
-  for(let i=0;i<n;i++){
-    const ang=(i/n)*Math.PI*2 + Math.sin(t*3+i)*0.3;
-    const rr=r*(0.75+0.35*Math.sin(t*5+i))*intensity;
-    const px=x+Math.cos(ang)*rr, py=y+Math.sin(ang)*rr;
-    ctx.globalAlpha=0.08+0.12*Math.random();
-    ctx.fillStyle=(i%2)?'rgba(0,255,255,.9)':'rgba(255,0,160,.9)';
-    ctx.fillRect(px-1.3,py-1.3,2.6,2.6);
-  }
-  ctx.globalAlpha=0.10*intensity;
-  ctx.strokeStyle='rgba(255,255,255,.35)';
-  ctx.beginPath(); ctx.arc(x,y,r*0.92,0,Math.PI*2); ctx.stroke();
   ctx.globalCompositeOperation='lighter';
-  ctx.strokeStyle='rgba(0,255,255,.45)'; ctx.beginPath(); ctx.arc(x+1.2,y-0.6,r*0.96,0,Math.PI*2); ctx.stroke();
-  ctx.strokeStyle='rgba(255,0,160,.45)'; ctx.beginPath(); ctx.arc(x-1.1,y+1.1,r*0.98,0,Math.PI*2); ctx.stroke();
+  const n=Math.floor(12*intensity);
+  for(let i=0;i<n;i++){
+    const ang=(i/n)*Math.PI*2 + Math.sin(t*3+i)*0.35;
+    const rr=r*(0.7+0.45*Math.sin(t*5+i))*intensity;
+    const px=x+Math.cos(ang)*rr, py=y+Math.sin(ang)*rr;
+    ctx.globalAlpha=0.12+0.18*Math.random();
+    ctx.fillStyle=(i%2)?'rgba(0,255,255,.95)':'rgba(255,0,160,.95)';
+    ctx.fillRect(px-1.6,py-1.6,3.2,3.2);
+  }
+  // 外圈描邊
+  ctx.globalAlpha=0.18*intensity;
+  ctx.strokeStyle='rgba(255,255,255,.6)';
+  ctx.beginPath(); ctx.arc(x,y,r*0.96,0,Math.PI*2); ctx.stroke();
   ctx.restore();
 }
+
+function electricZaps(x,y,r,angle,t,intensity=1){
+  // 兩種：放射短火花 + 方向性鋸齒閃電
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  const bolts = Math.floor(5*intensity);
+  for(let i=0;i<bolts;i++){
+    const a = angle + (i-bolts/2)*0.25 + Math.sin(t*6+i)*0.08;
+    const len = r*(0.45+0.25*Math.sin(t*9+i));
+    const sx = x + Math.cos(a)*(r*0.3);
+    const sy = y + Math.sin(a)*(r*0.3);
+    const ex = sx + Math.cos(a)*len;
+    const ey = sy + Math.sin(a)*len;
+    ctx.beginPath();
+    const k=4;
+    for(let j=0;j<=k;j++){
+      const p=j/k;
+      const nx = sx+(ex-sx)*p + (Math.sin(t*30+i*2+j)*2.5);
+      const ny = sy+(ey-sy)*p + (Math.cos(t*28+i*2+j)*2.5);
+      j?ctx.lineTo(nx,ny):ctx.moveTo(nx,ny);
+    }
+    ctx.lineWidth=1.6;
+    ctx.strokeStyle=(i%2)?'rgba(0,255,255,.9)':'rgba(255,0,160,.9)';
+    ctx.stroke();
+  }
+  // 小火花
+  const sparks=Math.floor(18*intensity);
+  for(let s=0;s<sparks;s++){
+    const a = Math.random()*Math.PI*2;
+    const rr= r*(0.15+0.6*Math.random());
+    const sx = x + Math.cos(a)*rr;
+    const sy = y + Math.sin(a)*rr;
+    const ex = sx + (Math.random()*2-1)*4;
+    const ey = sy + (Math.random()*2-1)*4;
+    ctx.globalAlpha=0.6;
+    ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(ex,ey);
+    ctx.lineWidth=1;ctx.strokeStyle=(s%3===0)?'#fff':'rgba(0,255,255,.85)';
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function dirToAngle(dir){switch(dir){case 'up':return -Math.PI/2;case 'down':return Math.PI/2;case 'left':return Math.PI;case 'right':return 0;}return 0}
-const TAIL_FACTOR=0.30; /* 尾翼再短一點點 */
+const TAIL_FACTOR=0.30; /* 更短尾翼 */
 function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
   const p = Math.max(0, Math.min(1, pulse||0));
   const ang=dirToAngle(dir);
@@ -346,7 +395,6 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     }
     ctx.restore();
   }else{
-    // 音符：外框（發光）+ 內層白線（科技感）
     const drawChevron=(hh,lw,strokeStyle)=>{
       ctx.beginPath();
       ctx.moveTo(tail, -hh*0.52);
@@ -366,41 +414,28 @@ function drawBlueStreakArrow({x,y,size,dir,baseColor,isReceptor,pulse=0,t=0}){
     drawChevron(Hh*inner, 3.0, '#ffffff');
   }
 
-  // 故障線條（會閃爍、晃動）
+  /* 故障掃描裂紋（縮小到 ~0.81 面積） */
   const gAmp=(isReceptor? size*0.05 : size*0.10)*((isReceptor)? (0.3+0.7*p):1);
-  for(let k=0;k<4;k++){
-    const ox=Math.sin(t*20 + k*1.9)*gAmp;
-    const oy=Math.cos(t*26 + k*2.1)*gAmp*0.45;
-    ctx.save(); ctx.translate(ox,oy);
-    ctx.globalAlpha=(isReceptor?(0.15+0.25*p):0.40); ctx.globalCompositeOperation='lighter';
-    [ 'rgba(0,255,255,.9)','rgba(255,0,160,.9)' ].forEach((col)=>{
-      ctx.beginPath();
-      ctx.moveTo(tail, -Hh*(0.50-k*0.06));
-      ctx.lineTo(0,    -Hh*(0.50-k*0.06));
-      ctx.lineTo(tip,  0);
-      ctx.lineWidth=1.6; ctx.strokeStyle=col; ctx.stroke();
-    });
-    ctx.restore();
-  }
-
-  // 掃描裂紋（小範圍）—— 特別縮小到你要的 81% 面積（≈ 0.9 尺寸比例）
   const slices=4*((isReceptor)? (0.4+0.6*p):1);
   for(let s=0;s<slices;s++){
-    const yy=((s/Math.max(1,(slices-1)))-0.5)*Hh*0.9; /* ← 0.9 縮放：面積約 0.81 */
+    const yy=((s/Math.max(1,(slices-1)))-0.5)*Hh*0.9;
     const jitter=(Math.sin(t*30+s*2.3)*gAmp*0.6);
     ctx.save(); ctx.beginPath(); ctx.rect(tail,yy-2,L*1.05,4); ctx.clip(); ctx.translate(jitter,0);
     ctx.globalAlpha=(isReceptor?(0.10+0.15*p):0.25);
     ctx.beginPath(); ctx.moveTo(tail,yy); ctx.lineTo(tip,yy); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,255,255,1)'; ctx.stroke();
     ctx.restore();
   }
+
   ctx.restore();
 
-  // 外圈故障光暈
-  const R = isReceptor ? size*0.95 : size*0.75;
-  glitchAura(x,y,R,performance.now()/1000,(isReceptor? p : 0.55));
+  /* 加強：外圍紊亂電流（粗體可見） */
+  const R = isReceptor ? size*1.02 : size*0.88;
+  const now = performance.now()/1000;
+  glitchAura(x,y,R,now,EFFECT_INTENSITY*(isReceptor?(0.5+0.8*p):1));
+  electricZaps(x,y,R,ang,now,EFFECT_INTENSITY*(isReceptor?(0.35+0.9*p):0.9));
 }
 
-/* ====== 背景（會動的網格 + 斜掃描帶） ====== */
+/* ====== 背景（網格 + 掃描帶） ====== */
 function drawPlayfieldBackground(t){
   ctx.save();
   ctx.fillStyle='#0f1727'; ctx.fillRect(0,0,W,H);
@@ -423,7 +458,7 @@ function drawPlayfieldBackground(t){
   ctx.restore();
 }
 
-/* ====== 音訊（與上一版相同：WebAudio + HTML5 雙備援） ====== */
+/* ====== 音訊（BGM） ====== */
 let INPUT_OFFSET_MS=+(localStorage.getItem('dfjk.offsetMs')||0);
 const bgmEl=document.getElementById('bgm');
 let audioCtx=null,gainNode=null,buffer=null,srcNode=null,mode='silent';
@@ -579,6 +614,7 @@ function judge(dtMs,lane){
   const p=Math.min(1,adt/WINDOWS.shit),centrality=Math.pow(1-p,1.25);
   score=Math.max(0,Math.round(score+base*centrality));
   if(incCombo)combo++;else combo=Math.max(0,combo-1);
+  if(incCombo && combo>0 && combo%10===0) triggerComboFlash();
   lastJudgementText=rating; recordDt(dtMs); receptorPulse[lane]=1; addHitFx(lane);
   if(SUPPORTS_VIB) try{navigator.vibrate(8)}catch{}
   updateHUD();
@@ -676,8 +712,20 @@ function render(opts={skipNotes:false}){
       drawBlueStreakArrow({x,y:n.y,size:NOTE_BASE,dir:laneDirs[n.lane],baseColor:laneColors[n.lane],isReceptor:false,pulse:0,t:t+i*0.02});
     }
   }
+
   // 判定字
   if(lastJudgementText!=='-'){ctx.fillStyle='#fff';ctx.font='bold 32px sans-serif';ctx.textAlign='center';const off=(currentDirection==='up')?120:-40;ctx.fillText(lastJudgementText,W/2,judge+off);}
+
+  // COMBO 彈出
+  if(comboFlashText){
+    const life=0.9; const age=(performance.now()/1000 - comboFlashT0);
+    if(age<life){
+      const s=1+0.18*Math.sin(age*9);
+      ctx.save(); ctx.translate(W/2, H*0.22); ctx.scale(s,s);
+      ctx.fillStyle='rgba(255,255,255,.95)'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center'; ctx.fillText(comboFlashText,0,0);
+      ctx.restore();
+    }else comboFlashText='';
+  }
 }
 function renderPreviewAt(previewSongTimeSec){
   const t=performance.now()/1000, judge=getJudgeLineYInternal();
@@ -747,8 +795,7 @@ function onLanePress(lane){
   }
 }
 
-/* ====== 倒數（已修正：每幀也會 renderUI & 移出 hitbar） ====== */
-const COUNTDOWN_MS=3200;
+/* ====== 倒數 ====== */
 let isCountingDown=false, countdownRAF=null;
 function showCountdown(startCallback, opts={}){
   const showNotes=!!opts.showNotes;
@@ -848,7 +895,7 @@ const SONGS = [
   "YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3",
   "YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3",
   "YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3",
-  "【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3",
+  "【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3",
   "Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3",
   "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
 ];
@@ -876,7 +923,7 @@ async function startGame(){
   noteSpeed=baseNoteSpeed*mul;
 
   score=0;combo=0;lastJudgementText='-';missCount=0;gameOver=false;stats={sick:0,good:0,bad:0,shit:0,miss:0};
-  chart=[];__remainNotes=0;dtHistory.length=0;receptorPulse=[0,0,0,0]; hitFx.length=0; updateHUD();
+  chart=[];__remainNotes=0;dtHistory.length=0;receptorPulse=[0,0,0,0]; hitFx.length=0; comboFlashText=''; updateHUD();
 
   currentSongTitle=selectedSongFile.replace(/\.mp3$/i,'');
   const url = 'music/' + encodeURIComponent(selectedSongFile);
@@ -888,7 +935,7 @@ async function startGame(){
   generateChart(durationSec || 120);
 
   waReady=htmlReady=false; canStartMusic=false; stopAllAudio(); mode='silent';
-  loadViaWebAudio(url);       // 先載，等倒數完再播
+  loadViaWebAudio(url);       // 先載，倒數完才播
   loadViaHTML5(url).catch(()=>{});
 
   showCountdown(()=>{
@@ -948,7 +995,7 @@ function gameLoop(){
 }
 function stopGameLoop(){try{cancelAnimationFrame(loopId)}catch{}loopId=null;}
 
-/* ====== 校正（與上一版一致） ====== */
+/* ====== 校正 ====== */
 const calibPanel=document.getElementById('calibOverlay');
 const calibStartBtn=document.getElementById('calibStart');
 const calibFinishBtn=document.getElementById('calibFinish');
@@ -1092,7 +1139,7 @@ function init(){
   applyDesktopScale(); setupDPR(); recomputeLayout();
   initVolumeUI(); initOffsetUI(); fillSongList();
 }
-window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout(); if(phase==='countdown'){ /* 讓倒數也刷新 */ render({skipNotes:true}); renderUI(); }});
+window.addEventListener('resize',()=>{setupDPR();applyDesktopScale();recomputeLayout(); if(phase==='countdown'){ render({skipNotes:true}); renderUI(); }});
 init();
 </script>
 </body>
