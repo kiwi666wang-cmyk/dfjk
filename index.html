@@ -5,9 +5,8 @@
 <meta name="viewport"
   content="width=device-width,initial-scale=1.0,
   maximum-scale=1.0,user-scalable=no"/>
-<title>DFJK 多鍵 + 血條 + RGB + HEAT</title>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka+One
-  &display=swap" rel="stylesheet"/>
+<title>DFJK 多鍵+血條+RGB+Offset</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 html,body{margin:0;touch-action:manipulation;}
 body{background:#0b1226;color:#fff;font-family:sans-serif;
@@ -153,6 +152,12 @@ label{margin-right:6px}
   </div>
 
   <div class="row">
+    <label for="offsetSlider">全域校正(ms)：</label>
+    <input id="offsetSlider" type="range" min="-200" max="200" value="0"/>
+    <span id="offsetLabel">0ms</span>
+  </div>
+
+  <div class="row">
     <label for="volumeSlider">主音量（BGM）：</label>
     <input id="volumeSlider" type="range" min="0" max="100" value="80"/>
     <span id="volumeLabel">80%</span>
@@ -270,9 +275,10 @@ let receptorPulse=[], recShock=[];
 let comboFlash='';
 let heatOn=true;
 let rgbOn=false;
+let offsetMs=0;
 
 /* ===== 血條 ===== */
-let hpOn=false;
+let hpOn=true;
 let hp=100, hpMax=100;
 const hpBar=$("#hpBar"), hpFill=$("#hpFill"), hpText=$("#hpText");
 function hpShow(v){ hpBar.style.display=v?"block":"none"; }
@@ -287,7 +293,7 @@ function hpChange(d){ if(!hpOn) return;
   hp+=d; hpClamp(); hpUI();
   if(hp<=0){ fail("血量歸零"); }}
 
-/* ===== 版面 ===== */
+/* ===== 版面 + 舞台寬度（依鍵數放大） ===== */
 function layout(){
   const r=c.getBoundingClientRect();
   const h=r.height, sc=h/H;
@@ -299,8 +305,11 @@ function desktop(){
   const wide=matchMedia("(min-width:1024px)").matches;
   const wider=matchMedia("(min-width:1440px)").matches;
   let u=1; if(!coarse&&(wide||wider)) u=wider?1.8:1.5;
-  uiScale=u; $("#stage").style.setProperty("--u",String(u));
-  $("#stage").style.maxWidth=`${Math.round(420*u)}px`;
+  const laneBoost = (LANE===4)?1 : (LANE===6? (coarse?1.10:1.22) : (coarse?1.18:1.38));
+  uiScale=u*laneBoost;
+  const st=$("#stage");
+  st.style.setProperty("--u",String(uiScale));
+  st.style.maxWidth=`${Math.round(420*uiScale)}px`;
   layout();
 }
 desktop();
@@ -339,9 +348,16 @@ function hsv2rgb(h,s,v){
 function rgbCycle(t, lane){
   const h=( (t*120)+(lane*30) )%360; return hsv2rgb(h,1,.95);
 }
+function meta(){ let cols=COL4,dirs=DIR4;
+  if(LANE===6){cols=COL6;dirs=DIR6;}
+  if(LANE===8){cols=COL8;dirs=DIR8;}
+  return {cols,dirs};
+}
+function noteColor(t,l){ return rgbOn? rgbCycle(t*1000,l)
+  : meta().cols[l%LANE]; }
+function noteSize(){ return (LANE===4?50:(LANE===6?44:38)); }
 
-/* ===== 箭頭（賽博造型） ===== */
-const NOTE_SZ=50;
+/* ===== 箭頭（賽博造型 / 脈衝） ===== */
 function arrowPath(xc,s){
   const L=s*2.0, Hh=s*0.9, cut=Hh*0.28;
   const tip=L*0.52, tail=-L*0.22;
@@ -357,22 +373,30 @@ function arrowPath(xc,s){
 function drawArrow(o){
   const {x,y,size,dir,isRec,base="#18c",pulse=0}=o;
   ctx.save(); ctx.translate(x,y); ctx.rotate(d2a(dir));
+  const scl = isRec ? (1+0.18*pulse) : 1;
+  ctx.scale(scl,scl);
+
   arrowPath(ctx,size);
-  ctx.fillStyle=isRec?"#050607":"#0f1b2f";
+
+  const fillOn = isRec && pulse>0;
+  ctx.fillStyle = fillOn ? base : "#0f1b2f";
   ctx.fill();
-  ctx.lineWidth=isRec?2:2.2;
+
+  ctx.lineWidth=2.2;
   ctx.strokeStyle="rgba(255,255,255,.95)";
   ctx.stroke();
+
   ctx.save(); ctx.clip();
-  const k=6;
+  const k=6, glow = fillOn ? 0.28 : 0.18;
   for(let i=0;i<k;i++){
     const u=i/(k-1)-.5, yy=u*size*.95;
-    ctx.globalAlpha=isRec?(0.14+0.25*pulse):0.18;
+    ctx.globalAlpha=glow;
     ctx.strokeStyle=base; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(-size,yy);
     ctx.lineTo(size*1.1,yy); ctx.stroke();
   }
   ctx.restore();
+
   if(!isRec){
     ctx.globalAlpha=.22;
     ctx.beginPath(); ctx.arc(0,0,size*.36,0,Math.PI*2); ctx.stroke();
@@ -385,8 +409,7 @@ function drawTrail(o){
   for(let i=1;i<=step;i++){
     const off=i*gap, ax=x-Math.cos(a)*off, ay=y-Math.sin(a)*off;
     ctx.save(); ctx.globalAlpha=.12*(1-i/(step+1));
-    ctx.strokeStyle=col; ctx.lineWidth=1.2;
-    drawArrow({x:ax,y:ay,size,dir,isRec:false,base:col});
+    drawArrow({x:ax,y:ay,size,dir,isRec:false,base:col,pulse:0});
     ctx.restore();
   }
 }
@@ -395,17 +418,16 @@ function drawTrail(o){
 function bg(time){
   ctx.save();
   const g=ctx.createLinearGradient(0,0,0,H);
-  g.addColorStop(0,"#0c1322");
-  g.addColorStop(1,"#0a0f1b");
+  g.addColorStop(0,"#0c1322"); g.addColorStop(1,"#0a0f1b");
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  ctx.globalAlpha=.10;
-  ctx.strokeStyle="rgba(120,213,255,.30)";
+  ctx.globalAlpha=.10; ctx.strokeStyle="rgba(120,213,255,.30)";
   const st=26,ox=(time*30)%st,oy=(time*18)%st;
   for(let x=-ox;x<=W;x+=st){ctx.beginPath();
     ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
   for(let y=-oy;y<=H;y+=st){ctx.beginPath();
     ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
   ctx.restore();
+
   if(!heatOn) return;
   const lw=W/Math.max(1,LANE);
   const y0=(dir==='up')? (H*0.65) : (H*0.35);
@@ -422,6 +444,23 @@ function bg(time){
   }
 }
 
+/* ===== 命中光圈 FX ===== */
+let fxRings=[];
+function fxHit(l){ fxRings.push({lane:l,t:performance.now(),life:260}); }
+function drawFX(){
+  const now=performance.now();
+  for(let i=fxRings.length-1;i>=0;i--){
+    const f=fxRings[i], p=(now-f.t)/f.life;
+    if(p>=1){ fxRings.splice(i,1); continue; }
+    const x=laneX(f.lane), j=judgeY;
+    ctx.save(); ctx.globalAlpha=1-p;
+    ctx.lineWidth=3;
+    ctx.strokeStyle=noteColor(clk(),f.lane);
+    ctx.beginPath(); ctx.arc(x,j,18+82*p,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
 /* ===== 判定/位置 ===== */
 const WIN={sick:85,good:135,bad:155,shit:175};
 function yAt(th,tn){
@@ -429,7 +468,7 @@ function yAt(th,tn){
   return (dir==='down')? j-(th-tn)*spd : j+(th-tn)*spd;
 }
 
-/* ===== 敲擊聲（更清脆） ===== */
+/* ===== 敲擊聲 ===== */
 let AC=null; let SFX_GAIN=.7;
 function initAC(){ if(!AC){
   try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }
@@ -578,27 +617,9 @@ function genChart(dur){
 /* ===== 音樂時鐘 ===== */
 const bgm=$("#bgm");
 let durSec=120, ended=false;
-function startAtZero(){
-  try{
-    bgm.currentTime=0;
-    bgm.play().catch(()=>{});
-    ended=false;
-    bgm.onended=()=>{ ended=true; };
-  }catch{}
-}
 function clk(){ return isFinite(bgm.currentTime)?bgm.currentTime:0; }
 
 /* ===== 更新/繪圖 ===== */
-function laneMeta(){
-  let cols=COL4,dirs=DIR4;
-  if(LANE===6){ cols=COL6; dirs=DIR6; }
-  if(LANE===8){ cols=COL8; dirs=DIR8; }
-  return {cols,dirs};
-}
-function noteColor(t,l){
-  if(!rgbOn){ return laneMeta().cols[l%LANE]; }
-  return rgbCycle(t*1000,l);
-}
 function update(t,dt){
   for(const n of chart){ n.y=yAt(n.t,t); }
   for(const n of chart){
@@ -612,7 +633,7 @@ function update(t,dt){
       if(diff==='ex') hpChange(-25);
       else if(diff==='hard') hpChange(-10);
       else if(diff==='easy'||diff==='beginner') hpChange(-5);
-      else hpChange(-8); /* normal / hell 給中間值 */
+      else hpChange(-8);
     }
   }
   for(let i=0;i<LANE;i++){
@@ -623,25 +644,29 @@ function update(t,dt){
 function drawBase(t){
   ctx.clearRect(0,0,W,H);
   bg(performance.now()/1000);
-  const j=judgeY, {dirs}=laneMeta();
+  const j=judgeY, {dirs}=meta();
+  const nsz=noteSize();
   for(let i=0;i<LANE;i++){
     const x=laneX(i);
-    drawArrow({x,y:j,size:NOTE_SZ,dir:dirs[i],
-      isRec:true,pulse:receptorPulse[i]||0});
+    const col=noteColor(t,i);
+    const pul=receptorPulse[i]||0;
+    drawArrow({x,y:j,size:nsz,dir:dirs[i],
+      isRec:true,base:col,pulse:pul});
   }
 }
 function drawNotes(t){
-  const {dirs}=laneMeta();
+  const {dirs}=meta();
   const top=-160,bot=H+160;
+  const nsz=noteSize();
   for(const n of chart){
     if(n.hit) continue;
     if(n.y<top||n.y>bot) continue;
     const x=laneX(n.lane);
     const col=noteColor(t,n.lane);
-    drawTrail({x,y:n.y,size:NOTE_SZ,dir:dirs[n.lane],col});
+    drawTrail({x,y:n.y,size:nsz,dir:dirs[n.lane],col});
     ctx.save(); ctx.globalCompositeOperation="lighter";
-    drawArrow({x,y:n.y,size:NOTE_SZ,dir:dirs[n.lane],
-      isRec:false,base:col});
+    drawArrow({x,y:n.y,size:nsz,dir:dirs[n.lane],
+      isRec:false,base:col,pulse:0});
     ctx.restore();
   }
 }
@@ -662,18 +687,23 @@ function drawCombo(){
   ctx.fillText(comboFlash,W/2,80);
 }
 function draw(opt={}){
-  drawBase(clk());
-  if(!opt.skip){ drawNotes(clk()); }
-  drawJudge(); drawCombo();
+  const t=clk();
+  drawBase(t);
+  if(!opt.skip){ drawNotes(t); }
+  drawFX();
+  drawJudge();
+  drawCombo();
 }
 function drawAt(t){
   ctx.clearRect(0,0,W,H);
   bg(performance.now()/1000);
-  const j=judgeY, {dirs}=laneMeta();
+  const j=judgeY, {dirs}=meta();
+  const nsz=noteSize();
   for(let i=0;i<LANE;i++){
     const x=laneX(i);
-    drawArrow({x,y:j,size:NOTE_SZ,dir:dirs[i],
-      isRec:true,pulse:0});
+    const col=noteColor(t,i);
+    drawArrow({x,y:j,size:nsz,dir:dirs[i],
+      isRec:true,base:col,pulse:0});
   }
   const top=-160,bot=H+160;
   for(const n of chart){
@@ -682,10 +712,10 @@ function drawAt(t){
     if(y<top||y>bot) continue;
     const x=laneX(n.lane);
     const col=noteColor(t,n.lane);
-    drawTrail({x,y,size:NOTE_SZ,dir:dirs[n.lane],col});
+    drawTrail({x,y,size:nsz,dir:dirs[n.lane],col});
     ctx.save(); ctx.globalCompositeOperation="lighter";
-    drawArrow({x,y,size:NOTE_SZ,dir:dirs[n.lane],
-      isRec:false,base:col});
+    drawArrow({x,y,size:nsz,dir:dirs[n.lane],
+      isRec:false,base:col,pulse:0});
     ctx.restore();
   }
 }
@@ -747,7 +777,6 @@ window.addEventListener("keydown",e=>{
     e.preventDefault(); return;
   }
 });
-/* 行動端點擊 */
 c.addEventListener("pointerdown",e=>{
   if(!(running && !paused)) return;
   const r=c.getBoundingClientRect();
@@ -756,7 +785,6 @@ c.addEventListener("pointerdown",e=>{
   const lane=Math.min(LANE-1,Math.max(0,Math.floor(x/lw)));
   onPress(lane); e.preventDefault();
 },{passive:false});
-/* 防止雙擊放大/手勢/右鍵 */
 document.addEventListener("dblclick",e=>{
   if(phase==='playing'||phase==='countdown') e.preventDefault();
 },{passive:false});
@@ -767,7 +795,7 @@ document.addEventListener("contextmenu",e=>{
   if(phase==='playing'||phase==='countdown') e.preventDefault();
 });
 
-/* ===== 判定邏輯＋HP規則 ===== */
+/* ===== 判定邏輯（含全域校正 + HP 規則 + FX） ===== */
 function onPress(l){
   if(!running) return;
   initAC(); ping();
@@ -776,29 +804,29 @@ function onPress(l){
   for(let i=0;i<chart.length;i++){
     const n=chart[i];
     if(n.hit||n.lane!==l) continue;
-    const dt=(t-n.t)*1000,ad=Math.abs(dt);
+    const dt=((t-n.t)*1000) - offsetMs;
+    const ad=Math.abs(dt);
     if(ad<=WIN.shit && ad<ba){ ba=ad; bi=i; }
   }
   if(bi>=0){
     const n=chart[bi]; n.hit=true; remain--;
-    const dt=(t-n.t)*1000, ad=Math.abs(dt);
+    const dt=((t-n.t)*1000) - offsetMs;
+    const ad=Math.abs(dt);
     if(ad<=WIN.sick){
-      lastJudge='SICK!'; combo++; stats.sick++; score+=350;
-      hpChange(+15);
+      lastJudge='SICK!'; combo++; stats.sick++; score+=350; hpChange(+15);
     }else if(ad<=WIN.good){
-      lastJudge='GOOD'; combo++; stats.good++; score+=200;
-      hpChange(+12);
+      lastJudge='GOOD'; combo++; stats.good++; score+=200; hpChange(+12);
     }else if(ad<=WIN.bad){
-      lastJudge='BAD'; stats.bad++; score+=100;
-      hpChange(+6);
+      lastJudge='BAD'; stats.bad++; score+=100; hpChange(+6);
     }else{
       lastJudge='SHIT'; combo=Math.max(0,combo-1); stats.shit++; score-=50;
       if(diff==='ex') hpChange(-20);
       else if(diff==='hard') hpChange(-8);
       else if(diff==='easy'||diff==='beginner') hpChange(-3);
-      else hpChange(-6); /* normal/hell */
+      else hpChange(-6);
     }
     score=Math.max(0,score);
+    fxHit(l);
     if(combo>0 && combo%10===0){
       comboFlash=`COMBO x${combo}!!`;
       setTimeout(()=>comboFlash='',900);
@@ -806,8 +834,8 @@ function onPress(l){
     hud();
   }else{
     if(jmode==='old'){
-      lastJudge='WRONG'; wrongCount++;
-      hpChange(-2);
+      lastJudge='WRONG'; wrongCount++; hpChange(-2);
+      fxHit(l);
     }else lastJudge='-';
     hud();
   }
@@ -844,10 +872,7 @@ function resumeGame(){
     try{ bgm.play().catch(()=>{});}catch{}
   }, true);
 }
-function fail(msg){
-  tip(msg||"失敗");
-  finishGame();
-}
+function fail(msg){ tip(msg||"失敗"); finishGame(); }
 
 /* ===== Start / End ===== */
 function startGame(){
@@ -859,24 +884,27 @@ function startGame(){
   dir=$("#noteDirection").value||"down";
   jmode=$("#judgeMode").value||"old";
   rgbOn=$("#rgbToggle").checked||false;
-  hpOn=$("#hpToggle").checked||false;
+
+  hpOn=$("#hpToggle").checked;
   hpShow(hpOn); hpSet(100);
-  document.body.classList.toggle('ex-mode',diff==='ex');
 
   let mul=parseFloat($("#speedMultiplier").value||"1");
   if(diff==='beginner') mul=.8; else if(diff==='easy') mul=.9;
   spd=baseSpd*mul;
 
+  document.body.classList.toggle('ex-mode',diff==='ex');
+
   score=0; combo=0; missCount=0; wrongCount=0; lastJudge='-';
   stats={sick:0,good:0,bad:0,shit:0,miss:0};
-  chart=[]; remain=0; comboFlash='';
+  chart=[]; remain=0; comboFlash=''; fxRings.length=0;
 
   currentSong=selectedSongFile.replace(/\.mp3$/i,''); hud();
-  showOnly("gameScreen"); phase="countdown";
-  fit(); desktop(); layout(); draw({skip:true});
 
+  showOnly("gameScreen"); phase="countdown";
+  desktop(); fit(); layout(); draw({skip:true});
+
+  try{ bgm.pause(); }catch{}
   const url='music/'+encodeURIComponent(selectedSongFile);
-  try{ bgm.pause(); }catch{} /* 先停掉舊聲音 */
   try{ bgm.src=url; bgm.load(); }catch{}
   durSec=isFinite(bgm.duration)?bgm.duration:120;
   genChart(durSec||120);
@@ -902,7 +930,7 @@ function finishGame(){
   showOnly("endScreen"); phase="menu";
 }
 
-/* ===== 綁定（雙保險） ===== */
+/* ===== 綁定（雙保險） + 設定保存 ===== */
 function bind(){
   $("#btnStart")?.addEventListener("click",startGame);
   $("#btnMusic")?.addEventListener("click",toMusic);
@@ -951,6 +979,29 @@ function bind(){
     localStorage.setItem("dfjk.sfxVol",String(v));
   });
 
+  /* 全域偏移 */
+  offsetMs=+(localStorage.getItem("dfjk.offset")||0);
+  $("#offsetSlider").value=String(offsetMs);
+  $("#offsetLabel").textContent=`${offsetMs}ms`;
+  $("#offsetSlider").addEventListener("input",e=>{
+    offsetMs=+e.target.value;
+    $("#offsetLabel").textContent=`${offsetMs}ms`;
+    localStorage.setItem("dfjk.offset",String(offsetMs));
+  });
+
+  /* RGB / HP 預設記憶 */
+  const rgb = localStorage.getItem("dfjk.rgbOn");
+  if(rgb!==null){ $("#rgbToggle").checked = rgb==="1"; }
+  $("#rgbToggle").addEventListener("change",e=>{
+    localStorage.setItem("dfjk.rgbOn", e.target.checked?"1":"0");
+  });
+  const hps = localStorage.getItem("dfjk.hpOn");
+  if(hps!==null){ $("#hpToggle").checked = hps==="1"; }
+  else { $("#hpToggle").checked = true; } /* 預設開啟 */
+  $("#hpToggle").addEventListener("change",e=>{
+    localStorage.setItem("dfjk.hpOn", e.target.checked?"1":"0");
+  });
+
   /* 首次互動啟動 AudioContext */
   const wake=()=>{
     initAC(); document.removeEventListener("pointerdown",wake);
@@ -970,12 +1021,19 @@ function showOnly(id){
   });
   if(id!=="gameScreen"){
     $("#gameScreen")?.classList.remove("blur");
-    document.body.classList.remove('ex-mode'); /* 修正返回仍紅背景 */
+    document.body.classList.remove('ex-mode'); /* 回主單修正紅底 */
   }
 }
 function init(){
   desktop(); fit(); layout(); bind(); fillSongs(); hud();
-  hpShow(false); showOnly("menuScreen");
+  const hps = localStorage.getItem("dfjk.hpOn");
+  hpOn = hps ? (hps==="1") : true;
+  hpShow(hpOn); hpSet(100);
+  const rgb = localStorage.getItem("dfjk.rgbOn");
+  rgbOn = rgb ? (rgb==="1") : false;
+  $("#rgbToggle").checked = rgbOn;
+  $("#hpToggle").checked = hpOn;
+  showOnly("menuScreen");
 }
 window.addEventListener("resize",()=>{
   fit(); desktop(); layout();
