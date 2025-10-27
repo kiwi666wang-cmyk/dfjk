@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<title>DFJK — 橫版控制中心改版（半透明＋等底距＋無背景屬性）</title>
+<title>DFJK — 控制中心修正版（防二次宣告 v5）</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 /* ===== 基礎 ===== */
@@ -47,7 +47,7 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 #hpFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
 #hpText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
 
-/* 無背景屬性 HUD：整體刪除，這裡僅保留 class 避免外部 CSS 依賴衝突 */
+/* 背景屬性 HUD：移除（避免與控制中心重複） */
 .hud{ display:none; }
 
 /* 倒數 */
@@ -60,7 +60,7 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid #445; background:#12152a; color:#fff; }
 #songSelect{ width:90%; max-width:420px; height:280px; }
 
-/* 手機：只有在開啟「全高」時讓 canvas 吃滿高度，避免橫板被壓縮 */
+/* 手機：只有在開啟「全高」時讓 canvas 吃滿高度 */
 @media (pointer:coarse){
   body{ background:radial-gradient(1200px 780px at 50% 0%, #101b33 0%, #0a1226 55%, #07111f 100%); }
   #stageWrap.fullH #stage canvas{ height:100%; }
@@ -77,11 +77,11 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 #landDock .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
 #landDock .actions button{ flex:1 1 180px; margin:0; }
 
-/* 點擊區域：放在 #stageWrap 內，隨旋轉。為了對應橫版「相對頂部」，位置放在 wrap 的「左邊正中央」（旋轉後即為頂部中央）。 */
+/* 點擊區域：放在 #stageWrap 內，對應橫版相對頂部（舞台旋轉後的左側中央） */
 #dockHandleArea{ position:absolute; left:0; top:50%; transform:translate(-35%,-50%); width:200px; height:36px; z-index:181; display:none; }
 #dockHandleArea.show{ display:block; }
 
-/* 遮罩更淡一點，襯出半透明感 */
+/* 遮罩更淡一點 */
 #dockScrim{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.12); z-index:170; }
 #dockScrim.show{ display:block; }
 
@@ -234,7 +234,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   </div>
 </div>
 
-<!-- ===== 橫版控制中心（移除「暫停/繼續」） ===== -->
+<!-- ===== 橫版控制中心（無「暫停/繼續」） ===== -->
 <div id="dockScrim"></div>
 <div id="landDock" aria-label="控制中心">
   <div class="sheet">
@@ -302,7 +302,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <div id="warnBanner">⚠️ 提示</div>
 
 <script>
-/* ======================= 防二次宣告：AbortController 方案 ======================= */
+/* ======================= 防二次宣告：AbortController + 單例狀態 ======================= */
 (() => {
   try { window.__DFJK_ABORT__?.abort(); } catch {}
   const CTRL = new AbortController();
@@ -310,10 +310,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   const SIG = CTRL.signal;
   const addEv = (target, type, handler, opts={}) => target.addEventListener(type, handler, {...opts, signal: SIG});
 
+  /* 共享狀態先宣告，確保 abort 時一定存在 */
+  let loopId = null;
+  let cRAF = null;
+  let timers = [];
+
   const onAbort = () => {
     try { cancelAnimationFrame(loopId); }catch{}
     try { cancelAnimationFrame(cRAF); }catch{}
-    timers.forEach(id => { try{ clearTimeout(id);}catch{} });
+    try { timers.forEach(id => clearTimeout(id)); }catch{}
     timers.length = 0;
     stopAudio();
     cancelCalibAudio();
@@ -415,7 +420,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   const NOTE_SZ = 46;
   let uiScale = 1;
   let phase = "menu";
-  let running=false, paused=false, loopId=null;
+  let running=false, paused=false;
 
   let selectedSongFile = null, currentSong = "-";
 
@@ -434,7 +439,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let showHeat = true;
   let heatMode = 0;
 
-  /* 佈局（Landscape 等底距：所有鍵數共用同一個「距離底部的絕對高度」，並把 4 鍵再下移一點） */
+  /* 佈局（Landscape 等底距） */
   let rectH = c.getBoundingClientRect().height;
   let scaleY = rectH / H;
   let judgeCss = (HITKEY * uiScale / 2);
@@ -448,11 +453,9 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const LANDSCAPE = isLandscapeNow();
 
     if (IS_MOBILE && LANDSCAPE){
-      /* 固定與底部的像素距離（等底距）。為了讓 4 鍵更靠近底部，降低比例。 */
-      const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.14 * rectH)); // 原 0.20 -> 0.14 更貼近底部
+      const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.14 * rectH)); // 4鍵也與底等距
       judgeCss = (dir==='up') ? BOTTOM_PAD_CSS : (rectH - BOTTOM_PAD_CSS);
     } else {
-      /* 直向或桌機：維持原比例 */
       judgeCss = (dir==='up') ? (HITKEY*uiScale/2) : (rectH - HITKEY*uiScale/2);
     }
     judgeY = judgeCss / scaleY;
@@ -637,7 +640,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     if(j==="MISS") return missV; if(j==="SHIT") return shitV; return 0;
   }
 
-  /* ===== HUD（移除背景屬性：僅更新控制中心） ===== */
+  /* ===== HUD（僅更新控制中心） ===== */
   function hud(){ updateDockHUD(); }
 
   const hits=[], parts=[];
@@ -844,7 +847,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   addEv(window,"gesturestart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
 
   /* ===== 倒數 ===== */
-  let counting=false, cRAF=null;
+  let counting=false;
   function countdown(startCb,opt={}){
     const show=!!opt.show, pv=(typeof opt.t==='number')?opt.t:0;
     cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block';
@@ -1110,9 +1113,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
   /* ===== 校正 ===== */
   const pnl=$("#calibOverlay"), cbStart=$("#calibStart"), cbDone=$("#calibFinish"), cbCancel=$("#calibCancel"), cbBig=$("#calibBig"), cbDot=$("#calibBeatDot"), cbStat=$("#calibStat");
-  let cal=false, beatInt=1.0, beats=16, taps=[], timers=[], tapH=null, syncP0=0, syncC0=0, t0C=0;
-
-  const bgm=$("#bgm"); // ensure bgm in scope for stopAudio
+  let cal=false, beatInt=1.0, beats=16, taps=[], tapH=null, syncP0=0, syncC0=0, t0C=0;
 
   async function openCalib(){
     if(phase==='playing' || phase==='countdown'){ banner("請先退出或暫停遊戲再校正"); return; }
@@ -1138,7 +1139,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     return Math.max(-600,Math.min(600,Math.round(mean)));
   }
   function startCalib(){
-    timers.forEach(id=>clearTimeout(id)); timers=[]; taps=[]; cbDone.disabled=true; cal=true;
+    try{ timers.forEach(id=>clearTimeout(id)); }catch{} timers=[]; taps=[]; cbDone.disabled=true; cal=true;
     try{ AC.resume(); }catch{}
     if(!Gcal){ Gcal = AC.createGain(); Gcal.gain.value = 1; Gcal.connect(Gsfx||Gm); }
     syncP0=performance.now()/1000; syncC0=AC.currentTime;
