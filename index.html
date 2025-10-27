@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<title>DFJK — 直版熱圖定位＋頂欄左右分離（v7, no redeclare）</title>
+<title>DFJK — 直版 6/8 鍵不超框 & 不壓縮（v9, no redeclare）</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 /* ===== 基礎 ===== */
@@ -25,13 +25,8 @@ body.ex-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #00
 
 /* 真正的舞台容器 */
 #stage{ position:relative; width:100%; height:100%; }
-canvas{ display:block; width:100%; height:auto; background:#0c1322; }
+canvas{ display:block; width:100%; height:auto; max-width:100%; background:#0c1322; }
 #uiCanvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; background:transparent; border:none; z-index:6; }
-
-/* 防止 portrait 被拉伸（當強制滿高時，同步 width:auto 保持比例） */
-@media (pointer:coarse){
-  #stageWrap.fullH #stage canvas{ height:100%; width:auto; }
-}
 
 /* 漸層偽邊界 */
 #edgeFade{ position:absolute; inset:0; pointer-events:none; border-radius:10px; z-index:5;
@@ -59,6 +54,15 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 #hpFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
 #hpText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
 
+/* 橫版 HP 浮動（不旋轉，固定貼在旋轉後舞台的相對頂部中央） */
+#hpFloat{
+  position:fixed; z-index:186; display:none;
+  height:18px; min-width:160px; background:rgba(255,255,255,.18);
+  border-radius:999px; box-shadow:0 6px 20px rgba(0,0,0,.35);
+}
+#hpFloatFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
+#hpFloatText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
+
 /* 背景屬性 HUD：移除（避免與控制中心重複） */
 .hud{ display:none; }
 
@@ -83,12 +87,11 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 #landDock .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
 #landDock .actions button{ flex:1 1 180px; margin:0; }
 
-/* 固定在橫版視窗頂部中央的「控制中心開關」 */
+/* 控制中心開關把手（定位由 JS 依舞台位置動態設定） */
 #dockTopHandle{
-  position:fixed; top:6px; left:50%; transform:translateX(-50%);
-  width:200px; height:28px; z-index:185; border-radius:999px;
-  background:rgba(255,255,255,.08); backdrop-filter:blur(2px);
-  display:none; cursor:pointer;
+  position:fixed; z-index:185; border-radius:999px;
+  width:200px; height:28px; background:rgba(255,255,255,.08); backdrop-filter:blur(2px);
+  display:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25);
 }
 #dockTopHandle.show{ display:block; }
 #dockTopHandle::after{
@@ -233,6 +236,9 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   </div>
 </div>
 
+<!-- 橫版 HP 浮動條 -->
+<div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
+
 <!-- ===== 橫版控制中心 ===== -->
 <div id="dockScrim"></div>
 <div id="dockTopHandle" title="點我展開控制中心"></div>
@@ -254,6 +260,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     <div class="actions">
       <button id="dockResume">返回遊戲（321）</button>
       <button id="dockHeatToggle">HEAT 開/關</button>
+      <button id="dockToMenu">返回主畫面</button>
     </div>
   </div>
 </div>
@@ -372,7 +379,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     scaleY = rectH / H;
     const LANDSCAPE = isLandscapeNow();
     if (IS_MOBILE && LANDSCAPE){
-      const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.14 * rectH));
+      const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.16 * rectH)); // 橫版齊底
       judgeCss = (dir==='up') ? BOTTOM_PAD_CSS : (rectH - BOTTOM_PAD_CSS);
     } else {
       judgeCss = (dir==='up') ? (HITKEY*uiScale/2) : (rectH - HITKEY*uiScale/2);
@@ -481,8 +488,26 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
   /* ===== 血條 ===== */
   const HP_MAX=100; let HP_ON=(localStorage.getItem("dfjk.hpOn")==="1"); let HP=HP_MAX;
-  function hpShow(b){ $("#hpBar").style.display=b?"block":"none"; }
-  function hpUpdate(){ const fill=$("#hpFill"), txt=$("#hpText"); const w=Math.max(0,Math.min(100, HP/HP_MAX*100)); fill.style.width=w.toFixed(1)+"%"; txt.textContent=`${HP}/${HP_MAX}`; }
+  function hpShow(b){
+    const LANDSCAPE = isLandscapeNow();
+    if(LANDSCAPE){
+      const f = $("#hpFloat");
+      f.style.display = b ? "block" : "none";
+      $("#hpBar").style.display = "none";
+      positionHpFloat();
+    }else{
+      $("#hpBar").style.display=b?"block":"none";
+      $("#hpFloat").style.display="none";
+    }
+  }
+  function hpUpdate(){
+    const fill=$("#hpFill"), txt=$("#hpText");
+    const w=Math.max(0,Math.min(100, HP/HP_MAX*100));
+    fill.style.width=w.toFixed(1)+"%"; txt.textContent=`${HP}/${HP_MAX}`;
+    const f=$("#hpFloat"), ff=$("#hpFloatFill"), ft=$("#hpFloatText");
+    ff.style.width=w.toFixed(1)+"%"; ft.textContent=`${HP}/${HP_MAX}`;
+    positionHpFloat();
+  }
   function hpSet(v){ HP=Math.max(0,Math.min(HP_MAX,Math.round(v))); hpUpdate(); if(HP<=0 && running){ endWith("HP 耗盡"); } }
   function hpAdd(d){ if(!HP_ON) return; hpSet(HP+d); }
   function hpDelta(j){ if(j==="SICK") return +15; if(j==="GOOD") return +12; if(j==="BAD") return +6; let missV=0, shitV=0;
@@ -605,24 +630,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     for(const v of dts){ const i=Math.floor((v-mn)/step); if(i>=0&&i<bins) hist[i]++; }
     const w=230, h=74, bw=w/bins;
 
-    // Portrait: place under HEAT button
     const LANDSCAPE = isLandscapeNow();
     let x0 = 14, y0 = 24; // fallback
     if(!LANDSCAPE){
       const btn = $("#toggleHeatBtn"); const cr = c.getBoundingClientRect(); const br = btn ? btn.getBoundingClientRect() : null;
       if(br && cr){
-        const xCss = Math.max(8, Math.min(cr.width - w - 8, (br.left - cr.left))); // left align to HEAT btn
-        const yCss = Math.min(cr.height - h - 8, (br.bottom - cr.top) + 8);        // just below the button
+        const xCss = Math.max(8, Math.min(cr.width - w - 8, (br.left - cr.left)));
+        const yCss = Math.min(cr.height - h - 8, (br.bottom - cr.top) + 8);
         x0 = xCss / cr.width  * W;
         y0 = yCss / cr.height * H;
-      }else{
-        // legacy fallback by mode
-        let yAuto=(dir==='up') ? (H-h-24) : (24 + (matchMedia("(pointer: coarse)").matches?6:0));
-        y0 = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto);
-        x0 = 14;
       }
     }else{
-      // landscape: keep previous behavior (auto/top/bottom)
       let yAuto=(dir==='up') ? (H-h-24) : (24 + (matchMedia("(pointer: coarse)").matches?6:0));
       y0 = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto);
       x0 = 14;
@@ -638,9 +656,9 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     uix.restore();
   }
 
-  /* ===== 音樂時鐘與流程 等（省略與前版一致的其餘函式，只保留必要變更） ===== */
+  /* ===== 音樂時鐘與流程 等 ===== */
   let phase = "menu";
-  let running=false, paused=false, loopRunning=false;
+  let running=false, paused=false;
   let selectedSongFile = null, currentSong = "-";
   let score=0, combo=0, missCount=0, lastJudge="-";
   let stats = {sick:0,good:0,bad:0,shit:0,miss:0};
@@ -660,7 +678,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
   /* 畫面切換 */
   function showOnly(id){ ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>{ const el=$("#"+x); if(!el) return; el.style.display=(x===id?'block':'none'); }); if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); } }
-  function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; }
+  function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; closeDock(true); }
   function toOpt(){ showOnly('optionsScreen'); }
   function toMusic(){ showOnly('musicScreen'); }
 
@@ -671,7 +689,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function fillSongs(){ const sel=$("#songSelect"); if(sel.dataset.filled) return; sel.innerHTML=""; const ph=document.createElement("option"); ph.value=""; ph.textContent="— 請選擇曲目 —"; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph); S.forEach(f=>{ const o=document.createElement("option"); o.value=f; o.textContent=f.replace(/\.mp3$/i,""); if(selectedSongFile===f) o.selected=true; sel.appendChild(o); }); addEv(sel,"change",()=>{ $("#chosenSongLabel").textContent = sel.value ? sel.options[sel.selectedIndex].textContent : "尚未選擇"; }); sel.dataset.filled="1"; }
   function confirmSong(){ const sel=$("#songSelect"); if(!sel.value){ alert("請先選擇音樂"); return; } selectedSongFile=sel.value; $("#chosenSongLabel").textContent = sel.options[sel.selectedIndex].textContent; $("#menuChosenSong").textContent  = sel.options[sel.selectedIndex].textContent; toMenu(); }
 
-  /* 譜面產生（略，沿用 v6） */
+  /* 譜面產生 */
   const LEAD=1.6;
   function genChart(dur){
     chart=[];
@@ -727,37 +745,94 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function updateDockHUD(){ $("#dockSong").textContent = currentSong; $("#dockLanes").textContent= String(LANES); $("#dockDiff").textContent = diff.toUpperCase(); $("#dockDir").textContent  = (dir==='up'?'上升':'下落'); $("#dockJudge").textContent= (jmode==='old'?'Old':'New'); $("#dockScore").textContent= String(score); $("#dockCombo").textContent= String(combo); $("#dockMiss").textContent = String(missCount); $("#dockHeatState").textContent = showHeat ? 'ON' : 'OFF'; }
   function openDock(){ if(dockOpenState) return; dockOpenState=true; $("#landDock").classList.add('open'); $("#dockScrim").classList.add('show'); if(phase==='playing'||phase==='countdown'){ pausedByDock=true; pauseGame(); }else{ pausedByDock=false; } updateDockHUD(); }
   function closeDock(silent){ if(!dockOpenState) return; dockOpenState=false; $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show'); if(!silent && pausedByDock){ pausedByDock=false; resumeGame(); } }
-  function bindDock(){ const LANDSCAPE = isLandscapeNow(); const handle = $("#dockHandle"); const topHandle = $("#dockTopHandle"); if (IS_MOBILE && LANDSCAPE) topHandle.classList.add('show'); else topHandle.classList.remove('show'); const toggle = ()=>{ dockOpenState?closeDock():openDock(); }; ["click","pointerdown","touchstart"].forEach(ev=>{ addEv(topHandle, ev, toggle, {passive:true}); addEv(handle, ev, toggle, {passive:true}); }); addEv($("#dockScrim"),'click', ()=> closeDock() ); addEv($("#dockResume"),'click', ()=> closeDock() ); addEv($("#dockHeatToggle"),'click', ()=>{ showHeat=!showHeat; ui(); $("#dockHeatState").textContent = showHeat?'ON':'OFF'; }); }
+  function bindDock(){ const LANDSCAPE = isLandscapeNow(); const handle = $("#dockHandle"); const topHandle = $("#dockTopHandle"); if (IS_MOBILE && LANDSCAPE) topHandle.classList.add('show'); else topHandle.classList.remove('show'); positionDockHandle(); const toggle = ()=>{ dockOpenState?closeDock():openDock(); }; ["click","pointerdown","touchstart"].forEach(ev=>{ addEv(topHandle, ev, toggle, {passive:true}); addEv(handle, ev, toggle, {passive:true}); }); addEv($("#dockScrim"),'click', ()=> closeDock() ); addEv($("#dockResume"),'click', ()=> closeDock() ); addEv($("#dockHeatToggle"),'click', ()=>{ showHeat=!showHeat; ui(); $("#dockHeatState").textContent = showHeat?'ON':'OFF'; }); addEv($("#dockToMenu"),'click', ()=>{ closeDock(true); toMenu(); }); }
 
   function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; localStorage.setItem("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
 
-  /* 版面套用 */
+  /* 版面套用（直版 6/8 鍵不超框，且不壓縮畫面/字體/箭頭） */
   function applyStageLayout(){
     const wrap = $("#stageWrap");
     const topbar = $("#gameScreen .topbar");
     const vw = Math.min(window.innerWidth, document.documentElement.clientWidth||window.innerWidth);
     const vh = window.innerHeight || document.documentElement.clientHeight || 640;
     const LANDSCAPE = isLandscapeNow();
+
+    // 依目前 lanes 實際畫布寬高比
+    const aspect = W / H;
+
     if (!IS_MOBILE){
-      wrap.classList.remove('landscape','fullH');
+      wrap.classList.remove('landscape');
       const desiredW = Math.round(baseLaneW*LANES*uiScale);
       const targetW  = Math.min(desiredW, Math.floor(vw*0.98));
-      wrap.style.width  = targetW + 'px'; wrap.style.height = '';
+      const targetH  = Math.round(targetW * (H / W));  // 確保容器高度與 canvas 比例一致
+      wrap.style.width  = targetW + 'px';
+      wrap.style.height = targetH + 'px';
       if(topbar) topbar.style.display='flex';
-      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show'); if (dockOpenState) closeDock(true);
+      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show');
+      $("#hpFloat").style.display='none';
     } else if (LANDSCAPE){
-      wrap.classList.add('landscape'); wrap.classList.remove('fullH');
+      wrap.classList.add('landscape');
       const scale = Math.min(vw / H, vh / W);
       const w = Math.max(320, Math.floor(scale * W));
       const h = Math.max(480, Math.floor(scale * H));
-      wrap.style.width  = w + 'px'; wrap.style.height = h + 'px';
+      wrap.style.width  = w + 'px';
+      wrap.style.height = h + 'px';
       if(topbar) topbar.style.display='none';
-      $("#dockTopHandle").classList.add('show'); $("#landDock").style.display='block';
+      $("#landDock").style.display='block';
+      positionDockHandle();
+      hpShow(HP_ON);
     } else {
-      wrap.classList.remove('landscape'); $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show'); if (dockOpenState) closeDock(true); if(topbar) topbar.style.display='flex';
-      if (MOBILE_FULL && LANES>4){ wrap.classList.add('fullH'); const targetH = Math.max(360, Math.round(vh * 0.86)); const targetW = Math.round(targetH * (W / H)); wrap.style.width  = Math.min(targetW, Math.round(vw*0.98)) + 'px'; wrap.style.height = targetH + 'px'; } else { wrap.classList.remove('fullH'); const targetW = Math.min(vw*0.98, baseLaneW*LANES); wrap.style.width  = Math.round(targetW) + 'px'; wrap.style.height = ''; }
+      // Portrait mobile (包含 6/8 鍵)：用可視寬優先，精準算高，保證不超框且不失真
+      wrap.classList.remove('landscape');
+      const maxW = Math.floor(vw * 0.98);
+      let targetW = Math.min(maxW, Math.round(baseLaneW*LANES)); // 小螢幕自動縮小
+      let targetH = Math.round(targetW * (H / W));
+
+      if (MOBILE_FULL && LANES>4){
+        // 以可視高為基礎，但二階段檢查寬是否超框；超過則回退以寬為基準
+        const maxH = Math.round(vh * 0.86);
+        let h1 = Math.max(360, maxH);
+        let w1 = Math.round(h1 * aspect);
+        if (w1 > maxW){ w1 = maxW; h1 = Math.round(w1 / aspect); }
+        targetW = w1; targetH = h1;
+      }
+
+      wrap.style.width  = targetW + 'px';
+      wrap.style.height = targetH + 'px';
+      if(topbar) topbar.style.display='flex';
+      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show');
+      $("#hpFloat").style.display='none';
     }
     layout(); draw({skip:true}); ui();
+    positionHpFloat();
+  }
+
+  /* 將控制中心把手定位在「旋轉後舞台」的相對頂部中央（長邊中央） */
+  function positionDockHandle(){
+    const LANDSCAPE = isLandscapeNow();
+    const handle = $("#dockTopHandle");
+    if(!(IS_MOBILE && LANDSCAPE)){ handle.style.display='none'; return; }
+    const wrap = $("#stageWrap");
+    const r = wrap.getBoundingClientRect();
+    const width = 200; const height = 28;
+    handle.style.display='block';
+    handle.classList.add('show');
+    handle.style.left = (r.left + r.width/2 - width/2) + 'px';
+    handle.style.top  = (r.top + 6) + 'px';
+  }
+
+  /* 將浮動 HP 條定位到旋轉舞台的相對頂部中央 */
+  function positionHpFloat(){
+    const LANDSCAPE = isLandscapeNow();
+    const f = $("#hpFloat");
+    if(!(IS_MOBILE && LANDSCAPE && f.style.display==='block')) return;
+    const wrap = $("#stageWrap");
+    const r = wrap.getBoundingClientRect();
+    const pad = 40;
+    const w = Math.max(180, Math.min(280, Math.floor(r.width*0.55)));
+    f.style.width = w + 'px';
+    f.style.left  = (r.left + r.width/2 - w/2) + 'px';
+    f.style.top   = (r.top + pad) + 'px';
   }
 
   /* 輸入處理 */
@@ -925,7 +1000,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
     /* 血條模式 */
     const hpC=$("#hpToggle"); hpC.checked=HP_ON;
-    addEv(hpC,"change", ()=>{ HP_ON=hpC.checked; localStorage.setItem("dfjk.hpOn", HP_ON?'1':'0'); hpShow(HP_ON); hpUpdate(); });
+    addEv(hpC,"change", ()=>{ HP_ON=hpC.checked; localStorage.setItem("dfjk.hpOn", HP_ON?'1':'0'); hpShow(HP_ON); });
 
     /* 熱圖按鈕（直向 topbar 用） */
     addEv($("#toggleHeatBtn"),"click", ()=>{ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); });
