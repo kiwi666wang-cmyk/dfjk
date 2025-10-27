@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<title>DFJK — 控制中心修正版（防二次宣告 v5）</title>
+<title>DFJK — 直版熱圖定位＋頂欄左右分離（v7, no redeclare）</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 /* ===== 基礎 ===== */
@@ -28,6 +28,11 @@ body.ex-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #00
 canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 #uiCanvas{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; background:transparent; border:none; z-index:6; }
 
+/* 防止 portrait 被拉伸（當強制滿高時，同步 width:auto 保持比例） */
+@media (pointer:coarse){
+  #stageWrap.fullH #stage canvas{ height:100%; width:auto; }
+}
+
 /* 漸層偽邊界 */
 #edgeFade{ position:absolute; inset:0; pointer-events:none; border-radius:10px; z-index:5;
   background:
@@ -38,12 +43,19 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 }
 
 /* ===== 直向 topbar（橫版由控制中心接管） ===== */
-.topbar{ position:absolute; top:10px; left:0; right:0; z-index:8; display:flex; align-items:center; gap:8px; padding:0 10px; }
-#toggleHeatBtn{ padding:6px 10px; font-size:12px; background:#1c293e; border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; opacity:.95; cursor:pointer; }
+.topbar{
+  position:absolute; top:10px; left:0; right:0; z-index:8;
+  display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 10px;
+}
+.top-mid{ flex:1 1 auto; display:flex; justify-content:center; }
+#toggleHeatBtn{
+  padding:6px 10px; font-size:12px; background:#1c293e;
+  border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; opacity:.95; cursor:pointer;
+}
 #pauseButton{ padding:6px 10px; font-size:14px; border:none; border-radius:8px; background:#78d5ff; cursor:pointer; }
 
-/* 血條 */
-#hpBar{ position:relative; flex:1; height:18px; margin:0 2px; background:rgba(255,255,255,.18); border-radius:999px; display:none; }
+/* 血條（置中顯示） */
+#hpBar{ position:relative; height:18px; background:rgba(255,255,255,.18); border-radius:999px; display:none; min-width:160px; }
 #hpFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
 #hpText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
 
@@ -60,15 +72,9 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
 select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid #445; background:#12152a; color:#fff; }
 #songSelect{ width:90%; max-width:420px; height:280px; }
 
-/* 手機：只有在開啟「全高」時讓 canvas 吃滿高度 */
-@media (pointer:coarse){
-  body{ background:radial-gradient(1200px 780px at 50% 0%, #101b33 0%, #0a1226 55%, #07111f 100%); }
-  #stageWrap.fullH #stage canvas{ height:100%; }
-}
-
 /* ===== 橫版控制中心（點擊滑出面板） ===== */
-#landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; }
-#landDock.open{ transform:translate(-50%,0); pointer-events:auto; }
+#landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; display:none; }
+#landDock.open{ transform:translate(-50%,0); pointer-events:auto; display:block; }
 #landDock .sheet{ margin:10px auto; background:rgba(20,26,44,.62); backdrop-filter:blur(10px); border:1px solid rgba(120,213,255,.20); border-radius:14px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
 #landDock .handleBar{ width:64px; height:6px; border-radius:999px; background:rgba(255,255,255,.65); margin:10px auto 12px; }
 #landDock .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px 12px; text-align:left; }
@@ -77,11 +83,20 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 #landDock .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
 #landDock .actions button{ flex:1 1 180px; margin:0; }
 
-/* 點擊區域：放在 #stageWrap 內，對應橫版相對頂部（舞台旋轉後的左側中央） */
-#dockHandleArea{ position:absolute; left:0; top:50%; transform:translate(-35%,-50%); width:200px; height:36px; z-index:181; display:none; }
-#dockHandleArea.show{ display:block; }
+/* 固定在橫版視窗頂部中央的「控制中心開關」 */
+#dockTopHandle{
+  position:fixed; top:6px; left:50%; transform:translateX(-50%);
+  width:200px; height:28px; z-index:185; border-radius:999px;
+  background:rgba(255,255,255,.08); backdrop-filter:blur(2px);
+  display:none; cursor:pointer;
+}
+#dockTopHandle.show{ display:block; }
+#dockTopHandle::after{
+  content:''; display:block; width:64px; height:6px; border-radius:999px;
+  background:rgba(255,255,255,.55); margin:11px auto;
+}
 
-/* 遮罩更淡一點 */
+/* 遮罩 */
 #dockScrim{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.12); z-index:170; }
 #dockScrim.show{ display:block; }
 
@@ -118,7 +133,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <!-- ===== 選項 ===== -->
 <div id="optionsScreen" style="display:none;">
   <h2>⚙️ 遊戲選項</h2>
-
   <div class="row">
     <label for="keyModeSelect">鍵數：</label>
     <select id="keyModeSelect">
@@ -127,7 +141,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <option value="8">8 鍵（ASDF JKL;）</option>
     </select>
   </div>
-
   <div class="row">
     <label for="difficultySelect">難度：</label>
     <select id="difficultySelect">
@@ -139,7 +152,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <option value="beginner">初學者</option>
     </select>
   </div>
-
   <div class="row">
     <label for="speedMultiplier">速度倍率：</label>
     <select id="speedMultiplier">
@@ -149,7 +161,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <option value="2.8">2.8x</option><option value="3.0">3.0x</option>
     </select>
   </div>
-
   <div class="row">
     <label for="noteDirection">音符方向：</label>
     <select id="noteDirection">
@@ -157,7 +168,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <option value="up">上升打擊</option>
     </select>
   </div>
-
   <div class="row">
     <label for="judgeMode">判定模式：</label>
     <select id="judgeMode">
@@ -165,21 +175,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <option value="new">New Input</option>
     </select>
   </div>
-
   <div class="row">
     <label for="volumeSlider">主音量（BGM）：</label>
     <input id="volumeSlider" type="range" min="0" max="100" value="80"/>
     <span id="volumeLabel">80%</span>
   </div>
-
   <div class="row">
     <label for="sfxSlider">敲擊聲音量：</label>
     <input id="sfxSlider" type="range" min="0" max="100" value="70"/>
     <span id="sfxLabel">70%</span>
   </div>
-
   <hr class="row" style="opacity:.2"/>
-
   <h3>🎯 命中延遲校正</h3>
   <div class="row">
     <label for="offsetSlider">全域偏移 (ms)：</label>
@@ -187,29 +193,23 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     <span id="offsetLabel">0 ms</span>
     <button id="offsetCalibBtn" type="button">快速校正</button>
   </div>
-
   <hr class="row" style="opacity:.2"/>
-
   <div class="row">
     <label for="rgbCycleToggle">RGB 循環箭頭色：</label>
     <input id="rgbCycleToggle" type="checkbox"/>
   </div>
-
   <div class="row">
     <label for="hpToggle">血條模式：</label>
     <input id="hpToggle" type="checkbox"/>
   </div>
-
   <div class="row">
     <label for="mobileFullHeight">手機全高（>4鍵推薦）：</label>
     <input id="mobileFullHeight" type="checkbox"/>
   </div>
-
   <div class="row">
     <label for="mobileLandscape">手機橫板模式（β，未勾選則自動依螢幕方向）：</label>
     <input id="mobileLandscape" type="checkbox"/>
   </div>
-
   <div class="row"><button class="btnBackMenu">回主選單</button></div>
 </div>
 
@@ -217,10 +217,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <div id="gameScreen" style="display:none;position:relative;">
   <div class="topbar">
     <button id="toggleHeatBtn">HEAT</button>
-    <div id="hpBar"><div id="hpFill"></div><div id="hpText">100/100</div></div>
+    <div class="top-mid">
+      <div id="hpBar"><div id="hpFill"></div><div id="hpText">100/100</div></div>
+    </div>
     <button id="pauseButton">⏸️</button>
   </div>
-
   <div id="stageWrap">
     <div id="stage">
       <canvas id="gameCanvas" width="420" height="640"></canvas>
@@ -229,13 +230,12 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <div class="hitbar"><div></div><div></div><div></div><div></div></div>
       <div id="countdownText">Ready</div>
     </div>
-    <!-- 橫版頂部開關（隨舞台旋轉） -->
-    <div id="dockHandleArea" title="點我展開控制中心"></div>
   </div>
 </div>
 
-<!-- ===== 橫版控制中心（無「暫停/繼續」） ===== -->
+<!-- ===== 橫版控制中心 ===== -->
 <div id="dockScrim"></div>
+<div id="dockTopHandle" title="點我展開控制中心"></div>
 <div id="landDock" aria-label="控制中心">
   <div class="sheet">
     <div class="handleBar" id="dockHandle"></div>
@@ -308,7 +308,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   const CTRL = new AbortController();
   window.__DFJK_ABORT__ = CTRL;
   const SIG = CTRL.signal;
-  const addEv = (target, type, handler, opts={}) => target.addEventListener(type, handler, {...opts, signal: SIG});
+  const addEv = (target, type, handler, opts={}) => { try{ target.addEventListener(type, handler, {...opts, signal: SIG}); }catch{ target.addEventListener(type, handler, opts); } };
 
   /* 共享狀態先宣告，確保 abort 時一定存在 */
   let loopId = null;
@@ -355,112 +355,30 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     uix.setTransform(d,0,0,d,0,0);
   }
 
-  /* 是否橫向（行動裝置：勾選 or 依螢幕） */
   const isLandscapeNow = () => IS_MOBILE && (LANDSCAPE_FORCE || (window.innerWidth > window.innerHeight + 20));
 
-  /* 布局（桌機維持比例；手機直向可全高；手機橫向旋轉並依螢幕計算縮放） */
-  function applyStageLayout(){
-    const wrap = $("#stageWrap");
-    const topbar = $("#gameScreen .topbar");
-    const vw = Math.min(window.innerWidth, document.documentElement.clientWidth||window.innerWidth);
-    const vh = window.innerHeight || document.documentElement.clientHeight || 640;
-    const LANDSCAPE = isLandscapeNow();
-
-    if (!IS_MOBILE){
-      wrap.classList.remove('landscape','fullH');
-      const desiredW = Math.round(baseLaneW*LANES*uiScale);
-      const targetW  = Math.min(desiredW, Math.floor(vw*0.98));
-      wrap.style.width  = targetW + 'px';
-      wrap.style.height = '';
-      if(topbar) topbar.style.display='flex';
-      $("#dockHandleArea").classList.remove('show');
-      $("#landDock").style.display='none';
-      $("#dockScrim").classList.remove('show');
-      if (dockOpenState) closeDock(true);
-    } else if (LANDSCAPE){
-      wrap.classList.add('landscape');
-      wrap.classList.remove('fullH');
-      const scale = Math.min(vw / H, vh / W);
-      const w = Math.max(320, Math.floor(scale * W));
-      const h = Math.max(480, Math.floor(scale * H));
-      wrap.style.width  = w + 'px';
-      wrap.style.height = h + 'px';
-      if(topbar) topbar.style.display='none'; // 橫版由控制中心接手
-      $("#dockHandleArea").classList.add('show'); // 顯示橫版頂部開關（左側中央）
-      $("#landDock").style.display='block';
-    } else {
-      wrap.classList.remove('landscape');
-      $("#dockHandleArea").classList.remove('show');
-      $("#landDock").style.display='none';
-      $("#dockScrim").classList.remove('show');
-      if (dockOpenState) closeDock(true);
-      if(topbar) topbar.style.display='flex';
-
-      if (MOBILE_FULL && LANES>4){
-        wrap.classList.add('fullH');
-        const targetH = Math.max(360, Math.round(vh * 0.86));
-        const targetW = Math.round(targetH * (W / H));
-        wrap.style.width  = Math.min(targetW, Math.round(vw*0.98)) + 'px';
-        wrap.style.height = targetH + 'px';
-      } else {
-        wrap.classList.remove('fullH');
-        const targetW = Math.min(vw*0.98, baseLaneW*LANES);
-        wrap.style.width  = Math.round(targetW) + 'px';
-        wrap.style.height = '';
-      }
-    }
-
-    layout();
-    draw({skip:true}); ui();
-  }
-
-  /* ===== 狀態 ===== */
-  const VIB = IS_MOBILE && ("vibrate" in navigator);
+  /* 佈局 */
+  let rectH = c.getBoundingClientRect().height, rectW = c.getBoundingClientRect().width;
+  let scaleY = rectH / H;
+  let judgeCss = 0;
+  let judgeY = 0;
   const HITKEY = 90;
   const NOTE_SZ = 46;
   let uiScale = 1;
-  let phase = "menu";
-  let running=false, paused=false;
-
-  let selectedSongFile = null, currentSong = "-";
-
-  let score=0, combo=0, missCount=0, lastJudge="-";
-  let stats = {sick:0,good:0,bad:0,shit:0,miss:0};
-  let wrongCount=0;
-
-  let chart=[], remain=0;
-
-  let recPulse = new Array(LANES).fill(0);
-  let recHitT  = new Array(LANES).fill(0);
-
-  let diff="normal", dir="down", jmode="old";
-
-  /* 熱圖 */
-  let showHeat = true;
-  let heatMode = 0;
-
-  /* 佈局（Landscape 等底距） */
-  let rectH = c.getBoundingClientRect().height;
-  let scaleY = rectH / H;
-  let judgeCss = (HITKEY * uiScale / 2);
-  let judgeY = judgeCss / scaleY;
 
   function layout(){
     const r = c.getBoundingClientRect();
-    rectH = r.height;
+    rectH = r.height; rectW = r.width;
     scaleY = rectH / H;
-
     const LANDSCAPE = isLandscapeNow();
-
     if (IS_MOBILE && LANDSCAPE){
-      const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.14 * rectH)); // 4鍵也與底等距
+      const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.14 * rectH));
       judgeCss = (dir==='up') ? BOTTOM_PAD_CSS : (rectH - BOTTOM_PAD_CSS);
     } else {
       judgeCss = (dir==='up') ? (HITKEY*uiScale/2) : (rectH - HITKEY*uiScale/2);
     }
     judgeY = judgeCss / scaleY;
   }
-
   function desktopScale(){
     const coarse = matchMedia("(pointer: coarse)").matches;
     const wide   = matchMedia("(min-width:1024px)").matches;
@@ -469,13 +387,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     if(!coarse && (wide || wider)) u = wider ? 1.8 : 1.5;
     uiScale = u;
   }
-
   function laneX(i){ const lw = W/LANES; return i*lw + lw/2; }
 
   /* ===== 顏色 / RGB ===== */
   const BASE_COL = ['#b266ff','#66ccff','#66ff66','#ff6666','#ffc857','#ff9bd3','#78d5ff','#ffd966'];
   let RGB = localStorage.getItem("dfjk.rgbCycle")==="1";
-
   function h2x(h,s,l){ s/=100; l/=100; const k=n=>(n+h/30)%12; const a=s*Math.min(l,1-l); const f=n=>l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1))); const to=x=>("0"+Math.round(x*255).toString(16)).slice(-2); return `#${to(f(0))}${to(f(8))}${to(f(4))}`; }
   function light(hex,a){ const p=parseInt(hex.slice(1),16); let r=(p>>16)&255,g=(p>>8)&255,b=p&255; r=Math.min(255,Math.round(r+(255-r)*a)); g=Math.min(255,Math.round(g+(255-g)*a)); b=Math.min(255,Math.round(b+(255-b)*a)); return `rgb(${r},${g},${b})`; }
   function laneCol(i,t){ if(RGB){ const hue=((t*60)+i*(360/LANES))%360; return h2x(hue,85,55); } return BASE_COL[i % BASE_COL.length]; }
@@ -498,100 +414,45 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function drawArrow(o){
     const {x,y,size,dir,base,isRec,pulse=0,t=0,scale=1,rot=0} = o;
     const ang = d2a(dir);
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.rotate(ang+rot);
-    ctx.scale(scale,scale);
+    ctx.save(); ctx.translate(x,y); ctx.rotate(ang+rot); ctx.scale(scale,scale);
     arrowPath(ctx,size);
-    ctx.fillStyle = isRec? "#050607" : light(base,.12);
-    ctx.fill();
-    ctx.lineWidth = isRec? 2 : 2.2;
-    ctx.strokeStyle="rgba(255,255,255,.95)";
-    ctx.stroke();
-
-    const k=6;
-    ctx.save(); ctx.clip();
-    for(let i=0;i<k;i++){
-      const u=i/(k-1)-.5, yy=u*size*.95;
-      ctx.globalAlpha = isRec ? (0.12+0.22*pulse) : 0.20;
-      ctx.strokeStyle = "#ffffff"; ctx.lineWidth=1;
-      ctx.beginPath(); ctx.moveTo(-size,yy); ctx.lineTo(size*1.1,yy); ctx.stroke();
-    }
-    const sw=(Math.sin(t*2.2)+1)/2, w=size*0.65, sx=-size+(size*2.2)*sw;
-    const g=ctx.createLinearGradient(sx-w,0,sx+w,0);
+    ctx.fillStyle = isRec? "#050607" : light(base,.12); ctx.fill();
+    ctx.lineWidth = isRec? 2 : 2.2; ctx.strokeStyle="rgba(255,255,255,.95)"; ctx.stroke();
+    const k=6; ctx.save(); ctx.clip();
+    for(let i=0;i<k;i++){ const u=i/(k-1)-.5, yy=u*size*.95; ctx.globalAlpha = isRec ? (0.12+0.22*pulse) : 0.20; ctx.strokeStyle = "#ffffff"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-size,yy); ctx.lineTo(size*1.1,yy); ctx.stroke(); }
+    const sw=(Math.sin(t*2.2)+1)/2, w=size*0.65, sx=-size+(size*2.2)*sw; const g=ctx.createLinearGradient(sx-w,0,sx+w,0);
     g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.5,'rgba(255,255,255,.28)'); g.addColorStop(1,'rgba(255,255,255,0)');
-    ctx.fillStyle=g; ctx.fillRect(-size*1.2,-size*1.2,size*2.4,size*2.4);
-    ctx.restore();
-
-    ctx.restore();
+    ctx.fillStyle=g; ctx.fillRect(-size*1.2,-size*1.2,size*2.4,size*2.4); ctx.restore(); ctx.restore();
   }
-  function drawTrail(o){
-    const {x,y,size,dir,base,t} = o;
-    const step=3,gap=10,a=d2a(dir);
-    for(let i=1;i<=step;i++){
-      const off=i*gap, ax=x-Math.cos(a)*off, ay=y-Math.sin(a)*off;
-      ctx.save(); ctx.globalAlpha=.16*(1-i/(step+1)); drawArrow({x:ax,y:ay,size,dir,base,isRec:false,t}); ctx.restore();
-    }
-  }
+  function drawTrail(o){ const {x,y,size,dir,base,t} = o; const step=3,gap=10,a=d2a(dir);
+    for(let i=1;i<=step;i++){ const off=i*gap, ax=x-Math.cos(a)*off, ay=y-Math.sin(a)*off; ctx.save(); ctx.globalAlpha=.16*(1-i/(step+1)); drawArrow({x:ax,y:ay,size,dir,base,isRec:false,t}); ctx.restore(); } }
 
   /* ===== 背景 ===== */
-  function bg(t){
-    ctx.save();
-    ctx.fillStyle="#0c1322"; ctx.fillRect(0,0,W,H);
-    const Ls=[
-      {step:26,s:28,a:.18,c:'rgba(120,213,255,0.35)'},
-      {step:18,s:50,a:.14,c:'rgba(255,0,160,0.28)'},
-      {step:34,s:18,a:.12,c:'rgba(255,255,0,0.22)'}
-    ];
-    for(const L of Ls){
-      ctx.globalAlpha=L.a; ctx.strokeStyle=L.c; ctx.lineWidth=1;
-      const ox=(t*L.s)%L.step, oy=(t*L.s*0.7)%L.step;
+  function bg(t){ ctx.save(); ctx.fillStyle="#0c1322"; ctx.fillRect(0,0,W,H);
+    const Ls=[{step:26,s:28,a:.18,c:'rgba(120,213,255,0.35)'},{step:18,s:50,a:.14,c:'rgba(255,0,160,0.28)'},{step:34,s:18,a:.12,c:'rgba(255,255,0,0.22)'}];
+    for(const L of Ls){ ctx.globalAlpha=L.a; ctx.strokeStyle=L.c; ctx.lineWidth=1; const ox=(t*L.s)%L.step, oy=(t*L.s*0.7)%L.step;
       for(let x=-ox;x<=W;x+=L.step){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-      for(let y=-oy;y<=H;y+=L.step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(0+y,H+y); ctx.stroke(); }
-    }
-    ctx.restore();
-  }
+      for(let y=-oy;y<=H;y+=L.step){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(0+y,H+y); ctx.stroke(); } }
+    ctx.restore(); }
 
   /* ===== 音訊 / SFX ===== */
   let OFFSET = +(localStorage.getItem("dfjk.offsetMs")||0);
   const bgm=$("#bgm"); let AC=null, Gm=null, Gsfx=null; let Gcal=null;
   let VOL_M=(+(localStorage.getItem("dfjk.volume")||80))/100;
   let VOL_S=(+(localStorage.getItem("dfjk.sfxVol")||70))/100;
-
   async function ensureAC(){ if(!AC){ const Ctx=window.AudioContext||window.webkitAudioContext; AC=new Ctx({latencyHint:"interactive"}); }
     if(!Gm){ Gm=AC.createGain(); Gm.connect(AC.destination); }
     if(!Gsfx){ Gsfx=AC.createGain(); Gsfx.gain.value=VOL_S; Gsfx.connect(Gm); } }
   function applyVol(){ if(Gm)Gm.gain.value=VOL_M; if(bgm)bgm.volume=VOL_M; if(Gsfx)Gsfx.gain.value=VOL_S; }
-
-  function cancelCalibAudio(){
-    try{
-      if(AC && Gcal){
-        Gcal.gain.cancelScheduledValues(AC.currentTime);
-        Gcal.gain.setValueAtTime(0, AC.currentTime);
-        try{ Gcal.disconnect(); }catch{}
-        Gcal = null;
-      }
-    }catch{}
-    for(const id of timers) try{ clearTimeout(id); }catch{}
-    timers.length = 0;
-  }
-
-  async function tapSfx(){ try{
-    await ensureAC(); const t0=AC.currentTime+0.001, dur=0.10;
-    const mix=AC.createGain(); mix.connect(Gsfx||Gm);
+  function cancelCalibAudio(){ try{ if(AC && Gcal){ Gcal.gain.cancelScheduledValues(AC.currentTime); Gcal.gain.setValueAtTime(0, AC.currentTime); try{ Gcal.disconnect(); }catch{} Gcal = null; } }catch{} for(const id of timers) try{ clearTimeout(id); }catch{} timers.length = 0; }
+  async function tapSfx(){ try{ await ensureAC(); const t0=AC.currentTime+0.001, dur=0.10; const mix=AC.createGain(); mix.connect(Gsfx||Gm);
     const o1=AC.createOscillator(); o1.type='triangle'; o1.frequency.setValueAtTime(2700,t0); o1.frequency.exponentialRampToValueAtTime(1900,t0+dur);
-    const g1=AC.createGain(); g1.gain.setValueAtTime(0.0001,t0); g1.gain.exponentialRampToValueAtTime(0.55,t0+0.004); g1.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
-    o1.connect(g1); g1.connect(mix);
+    const g1=AC.createGain(); g1.gain.setValueAtTime(0.0001,t0); g1.gain.exponentialRampToValueAtTime(0.55,t0+0.004); g1.gain.exponentialRampToValueAtTime(0.0001,t0+dur); o1.connect(g1); g1.connect(mix);
     const o2=AC.createOscillator(); o2.type='square'; o2.frequency.setValueAtTime(5400,t0); o2.frequency.exponentialRampToValueAtTime(2800,t0+0.08);
-    const g2=AC.createGain(); g2.gain.setValueAtTime(0.17,t0); g2.gain.exponentialRampToValueAtTime(0.0001,t0+0.08);
-    o2.connect(g2); g2.connect(mix);
-    const nb=AC.createBuffer(1,256,AC.sampleRate); const data=nb.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1;
-    const n=AC.createBufferSource(); n.buffer=nb;
-    const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=9800; bp.Q.value=6;
-    const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2000; hp.Q.value=0.7;
-    const ng=AC.createGain(); ng.gain.setValueAtTime(0.16,t0); ng.gain.exponentialRampToValueAtTime(0.0001,t0+0.06);
-    n.connect(bp); bp.connect(hp); hp.connect(ng); ng.connect(mix);
-    o1.start(t0); o1.stop(t0+dur+0.03); o2.start(t0); o2.stop(t0+0.09); n.start(t0); n.stop(t0+0.06);
+    const g2=AC.createGain(); g2.gain.setValueAtTime(0.17,t0); g2.gain.exponentialRampToValueAtTime(0.0001,t0+0.08); o2.connect(g2); g2.connect(mix);
+    const nb=AC.createBuffer(1,256,AC.sampleRate); const data=nb.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1; const n=AC.createBufferSource(); n.buffer=nb;
+    const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=9800; bp.Q.value=6; const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2000; hp.Q.value=0.7; const ng=AC.createGain(); ng.gain.setValueAtTime(0.16,t0); ng.gain.exponentialRampToValueAtTime(0.0001,t0+0.06);
+    n.connect(bp); bp.connect(hp); hp.connect(ng); ng.connect(mix); o1.start(t0); o1.stop(t0+dur+0.03); o2.start(t0); o2.stop(t0+0.09); n.start(t0); n.stop(t0+0.06);
   }catch{} }
 
   /* ===== 判定 / 分數 ===== */
@@ -608,22 +469,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
   function endWith(msg){
     running=false; stopLoop(); stopAudio();
-    $("#finalSong").textContent=currentSong;
-    $("#finalDiff").textContent=diff.toUpperCase();
-    $("#finalDir").textContent=(dir==='up'?'上升':'下落');
-    $("#finalJudge").textContent=(jmode==='old'?'Old':'New');
-    $("#finalScore").textContent=score;
-    $("#statSick").textContent=stats.sick;
-    $("#statGood").textContent=stats.good;
-    $("#statBad").textContent=stats.bad;
-    $("#statShit").textContent=stats.shit;
-    $("#statMiss").textContent=missCount;
-    showOnly('endScreen'); phase='menu';
-    if(msg) banner(msg);
+    $("#finalSong").textContent=currentSong; $("#finalDiff").textContent=diff.toUpperCase();
+    $("#finalDir").textContent=(dir==='up'?'上升':'下落'); $("#finalJudge").textContent=(jmode==='old'?'Old':'New');
+    $("#finalScore").textContent=score; $("#statSick").textContent=stats.sick; $("#statGood").textContent=stats.good;
+    $("#statBad").textContent=stats.bad; $("#statShit").textContent=stats.shit; $("#statMiss").textContent=missCount;
+    showOnly('endScreen'); phase='menu'; if(msg) banner(msg);
   }
   function exCheck(){ if(diff==='ex' && missCount>15){ endWith("你輸了！EX MISS > 15"); } }
 
-  function yAt(thit,tnow){ const j=judgeY; return (dir==='down') ? j - (thit-tnow)*spd : j + (thit-tnow)*spd; }
+  function yAt(thit,tnow){ return (dir==='down') ? (judgeY - (thit-tnow)*spd) : (judgeY + (thit-tnow)*spd); }
 
   /* ===== 血條 ===== */
   const HP_MAX=100; let HP_ON=(localStorage.getItem("dfjk.hpOn")==="1"); let HP=HP_MAX;
@@ -640,28 +494,22 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     if(j==="MISS") return missV; if(j==="SHIT") return shitV; return 0;
   }
 
-  /* ===== HUD（僅更新控制中心） ===== */
+  /* ===== HUD（只更新控制中心） ===== */
   function hud(){ updateDockHUD(); }
 
   const hits=[], parts=[];
-  function addHit(l){
-    const t=performance.now()/1000, j=judgeY, x=laneX(l);
-    hits.push({lane:l,t0:t,life:.40});
-    const N=26, col=laneCol(l,t);
-    for(let i=0;i<N;i++){
-      const a=Math.random()*Math.PI*2, sp=80+Math.random()*220;
+  function addHit(l){ const t=performance.now()/1000, j=judgeY, x=laneX(l);
+    hits.push({lane:l,t0:t,life:.40}); const N=26, col=laneCol(l,t);
+    for(let i=0;i<N;i++){ const a=Math.random()*Math.PI*2, sp=80+Math.random()*220;
       const vx=Math.cos(a)*sp, vy=Math.sin(a)*sp, life=.28+Math.random()*.22, th=.8+Math.random()*1.6;
-      parts.push({x,y:j,vx,vy,life,t0:t,col,th});
-    }
-  }
+      parts.push({x,y:j,vx,vy,life,t0:t,col,th}); } }
   function impact(l){ recPulse[l]=1.2; recHitT[l]=performance.now()/1000; }
 
   function fxUpdate(dt){
     const now=performance.now()/1000;
     for(let i=hits.length-1;i>=0;i--) if((now-hits[i].t0)>hits[i].life) hits.splice(i,1);
     for(let i=parts.length-1;i>=0;i--){
-      const p=parts[i], age=now-p.t0;
-      if(age>p.life){ parts.splice(i,1); continue; }
+      const p=parts[i], age=now-p.t0; if(age>p.life){ parts.splice(i,1); continue; }
       p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=(1-1.6*dt); p.vy*=(1-1.6*dt);
     }
   }
@@ -701,17 +549,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     for(let i=0;i<LANES;i++) recPulse[i]=Math.max(0, recPulse[i]-dt*3.2);
     fxUpdate(dt);
   }
+
   function draw(opt={}){
     const sk=!!opt.skip, t=performance.now()/1000, j=judgeY;
-    ctx.clearRect(0,0,W,H);
-    bg(t);
-
+    ctx.clearRect(0,0,W,H); bg(t);
     for(let i=0;i<LANES;i++){
       const x=laneX(i), col=laneCol(i,t), since=Math.max(0,t-recHitT[i]), wave=Math.max(0,1-since/0.22);
       const p=Math.max(recPulse[i],wave), sc=1+0.42*p+0.08*Math.sin((1-p)*Math.PI), rot=(Math.sin(since*60)*0.05)*p;
       drawArrow({x,y:j,size:NOTE_SZ,dir:LANE_DIRS[i],base:col,isRec:true,pulse:p,t,scale:sc,rot});
     }
-
     if(!sk){
       const top=-160, bot=H+160;
       for(let i=0;i<chart.length;i++){
@@ -721,18 +567,12 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
         drawArrow({x,y:n.y,size:NOTE_SZ,dir:LANE_DIRS[n.lane],base:col,isRec:false,t:t+i*0.02});
       }
     }
-
     fxDraw();
-
-    if(lastJudge!=='-'){
-      ctx.fillStyle='#fff'; ctx.font='bold 32px sans-serif'; ctx.textAlign='center';
-      const off=(dir==='up') ? 120 : -40; ctx.fillText(lastJudge, W/2, j+off);
-    }
-
+    if(lastJudge!=='-'){ ctx.fillStyle='#fff'; ctx.font='bold 32px sans-serif'; ctx.textAlign='center';
+      const off=(dir==='up') ? 120 : -40; ctx.fillText(lastJudge, W/2, j+off); }
     if(comboFlash){
       const life=.9, age=(performance.now()/1000 - comboT0);
-      if(age<life){
-        const s=1+0.18*Math.sin(age*9);
+      if(age<life){ const s=1+0.18*Math.sin(age*9);
         ctx.save(); ctx.translate(W/2,H*0.22); ctx.scale(s,s);
         ctx.fillStyle='rgba(255,255,255,.95)'; ctx.font='bold 36px sans-serif'; ctx.textAlign='center'; ctx.fillText(comboFlash,0,0);
         ctx.restore();
@@ -757,192 +597,81 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   }
 
   /* ===== 熱圖（UI Canvas） ===== */
+  let showHeat = true;
+  let heatMode = 0;
   function ui(){
     uix.clearRect(0,0,W,H); if(!showHeat) return;
     const bins=36, mn=-300, mx=300, step=(mx-mn)/bins, hist=new Array(bins).fill(0);
     for(const v of dts){ const i=Math.floor((v-mn)/step); if(i>=0&&i<bins) hist[i]++; }
     const w=230, h=74, bw=w/bins;
-    let yAuto=(dir==='up') ? (H-h-24) : (24 + (matchMedia("(pointer: coarse)").matches?6:0));
-    let yPos = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto);
-    const x0=14,y0=yPos;
+
+    // Portrait: place under HEAT button
+    const LANDSCAPE = isLandscapeNow();
+    let x0 = 14, y0 = 24; // fallback
+    if(!LANDSCAPE){
+      const btn = $("#toggleHeatBtn"); const cr = c.getBoundingClientRect(); const br = btn ? btn.getBoundingClientRect() : null;
+      if(br && cr){
+        const xCss = Math.max(8, Math.min(cr.width - w - 8, (br.left - cr.left))); // left align to HEAT btn
+        const yCss = Math.min(cr.height - h - 8, (br.bottom - cr.top) + 8);        // just below the button
+        x0 = xCss / cr.width  * W;
+        y0 = yCss / cr.height * H;
+      }else{
+        // legacy fallback by mode
+        let yAuto=(dir==='up') ? (H-h-24) : (24 + (matchMedia("(pointer: coarse)").matches?6:0));
+        y0 = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto);
+        x0 = 14;
+      }
+    }else{
+      // landscape: keep previous behavior (auto/top/bottom)
+      let yAuto=(dir==='up') ? (H-h-24) : (24 + (matchMedia("(pointer: coarse)").matches?6:0));
+      y0 = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto);
+      x0 = 14;
+    }
+
     uix.save(); uix.globalAlpha=.98; uix.fillStyle='rgba(0,0,0,.58)'; uix.fillRect(x0-8,y0-10,w+16,h+46);
     uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
     const maxc=Math.max(1,...hist);
-    for(let i=0;i<bins;i++){
-      const v=hist[i], bh=(v/maxc)*h, xx=Math.floor(x0+i*bw);
-      uix.fillStyle='#78d5ff'; uix.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh);
-    }
+    for(let i=0;i<bins;i++){ const v=hist[i], bh=(v/maxc)*h, xx=Math.floor(x0+i*bw); uix.fillStyle='#78d5ff'; uix.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); }
     const {avg,std}=dtStats();
-    uix.fillStyle='#fff'; uix.fillText(`avg:${avg.toFixed(1)} σ:${std.toFixed(1)} 偏移:${OFFSET}ms`, x0, y0+h+16);
+    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(`avg:${avg.toFixed(1)} σ:${std.toFixed(1)} 偏移:${OFFSET}ms`, x0, y0+h+16);
     uix.strokeStyle='#ffd966'; uix.beginPath(); const mid=x0 + (-mn)/step * bw; uix.moveTo(mid,y0); uix.lineTo(mid,y0+h); uix.stroke();
     uix.restore();
   }
 
-  /* ===== 鍵位／指觸 ===== */
-  function laneKeyFromChar(k){
-    k=k.toLowerCase();
-    if(LANES===4){
-      if(k==='d')return 0; if(k==='f')return 1; if(k==='j')return 2; if(k==='k')return 3;
-      if(k==='arrowleft')return 0; if(k==='arrowdown')return 1; if(k==='arrowup')return 2; if(k==='arrowright')return 3;
-      return null;
-    }
-    if(LANES===6){
-      if(k==='s')return 0; if(k==='d')return 1; if(k==='f')return 2; if(k==='j')return 3; if(k==='k')return 4; if(k==='l')return 5;
-      return null;
-    }
-    if(k==='a')return 0; if(k==='s')return 1; if(k==='d')return 2; if(k==='f')return 3;
-    if(k==='j')return 4; if(k==='k')return 5; if(k==='l')return 6; if(k===';')return 7;
-    return null;
-  }
-  function lanePtrFromClient(clientX, clientY){
-    const r = c.getBoundingClientRect();
-    const LANDSCAPE = isLandscapeNow();
-    let xCss, denom;
-    if (!LANDSCAPE){ xCss = clientX - r.left; denom = r.width; }
-    else { xCss = clientY - r.top; denom = r.height; } // 橫版以 y 作為 lane 取樣
-    const x = xCss / denom * W;
-    let best=0, bd=1e9; for(let i=0;i<LANES;i++){ const d=Math.abs(x-laneX(i)); if(d<bd){ bd=d; best=i; } } return best;
-  }
+  /* ===== 音樂時鐘與流程 等（省略與前版一致的其餘函式，只保留必要變更） ===== */
+  let phase = "menu";
+  let running=false, paused=false, loopRunning=false;
+  let selectedSongFile = null, currentSong = "-";
+  let score=0, combo=0, missCount=0, lastJudge="-";
+  let stats = {sick:0,good:0,bad:0,shit:0,miss:0};
+  let wrongCount=0;
+  let chart=[], remain=0;
+  let recPulse = new Array(LANES).fill(0);
+  let recHitT  = new Array(LANES).fill(0);
+  let diff="normal", dir="down", jmode="old";
 
-  /* ===== 輸入處理 ===== */
-  function onPress(l){
-    if(!running) return;
-    tapSfx();
-    const t=judgeClock(); let bi=-1, ba=1e9;
-    for(let i=0;i<chart.length;i++){
-      const n=chart[i]; if(n.hit||n.lane!==l) continue;
-      const dt=(t-n.t)*1000, ad=Math.abs(dt);
-      if(ad<=WIN.shit && ad<ba){ ba=ad; bi=i; }
-    }
-    if(bi>=0){
-      const n=chart[bi]; n.hit=true; remain--;
-      const dt=(t-n.t)*1000;
-      let r="";
-      if(Math.abs(dt)<=WIN.sick){ r='SICK!'; score=Math.max(0,score+SC.sick); stats.sick++; combo++; }
-      else if(Math.abs(dt)<=WIN.good){ r='GOOD'; score=Math.max(0,score+SC.good); stats.good++; combo++; }
-      else if(Math.abs(dt)<=WIN.bad){ r='BAD'; score=Math.max(0,score+SC.bad); stats.bad++; combo++; }
-      else { r='SHIT'; score=Math.max(0,score+SC.shit); stats.shit++; combo=Math.max(0,combo-1); }
-      lastJudge=r; recDt(dt); hud();
-      const key=r.replace('!',''); if(['SICK','GOOD','BAD','SHIT'].includes(key)) hpAdd(hpDelta(key));
-      if(combo>0 && combo%10===0) comboFlashNow();
-      addHit(l); impact(l); if(VIB){ try{ navigator.vibrate(10);}catch{} }
-    }else{
-      if(jmode==='old'){ lastJudge='WRONG'; wrongCount++; hpAdd(-2); } else lastJudge='-';
-      hud(); recPulse[l]=Math.max(recPulse[l],1.0); addHit(l); impact(l);
-    }
-  }
-  addEv(window,"keydown", e=>{
-    if(e.repeat) return; const k=e.key.toLowerCase();
-    if(k==='h'){ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); e.preventDefault(); return; }
-    if(k==='r'){ heatMode=(heatMode+1)%3; banner(`熱圖位置：${heatMode===0?'自動':(heatMode===1?'置頂':'置底')}`); ui(); e.preventDefault(); return; }
-    const l=laneKeyFromChar(k);
-    if(l!==null){ if(running&&!paused){ onPress(l); } e.preventDefault(); return; }
-    if(k==='escape'){ if(phase==='playing') pauseGame(); else if(phase==='paused') resumeGame();
-      else if(phase==='countdown'){ cancelCountdown(); pauseGame(true); } e.preventDefault(); }
-  });
-  addEv(c,"pointerdown", e=>{ if(!running||paused) return; e.preventDefault(); const l=lanePtrFromClient(e.clientX, e.clientY); onPress(l); }, {passive:false});
-  addEv(c,"touchstart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
-  addEv(c,"touchmove",  e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
-  addEv(window,"dblclick",     e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
-  addEv(window,"gesturestart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
-
-  /* ===== 倒數 ===== */
-  let counting=false;
-  function countdown(startCb,opt={}){
-    const show=!!opt.show, pv=(typeof opt.t==='number')?opt.t:0;
-    cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block';
-    const lab=['Ready','3','2','1','Go!'], dur=[600,800,800,800,600], t0=performance.now();
-    function step(now){
-      if(!counting) return; const e=now-t0; let acc=0, idx=lab.length-1;
-      for(let i=0;i<lab.length;i++){ acc+=dur[i]; if(e<acc){ idx=i; break; } }
-      el.textContent=(idx<lab.length?lab[idx]:'Go!'); el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
-      if(show){ drawPreview(pv); } else { draw({skip:true}); } ui();
-      const total=dur.reduce((a,b)=>a+b,0);
-      if(e>=total){ el.style.display='none'; counting=false; startCb(); return; }
-      cRAF=requestAnimationFrame(step);
-    }
-    cRAF=requestAnimationFrame(step);
-  }
-  function cancelCountdown(){ if(!counting && !cRAF) return; counting=false; try{ cancelAnimationFrame(cRAF);}catch{} cRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; }
-
-  /* ===== 音樂時鐘 ===== */
+  /* 音樂時鐘 */
   let durSec=120, ended=false;
   function stopAudio(){ try{ bgm.pause(); }catch{} ended=false; cancelCalibAudio(); }
   let softBase=0, softStart=0;
-  function startAt(sec){
-    try{ const to=Math.max(0,Math.min((durSec||120)-.001,sec||0)); bgm.currentTime=to; }catch{}
-    bgm.play().catch(()=>{}); ended=false; bgm.onended=()=>{ ended=true; };
-    softBase=bgm.currentTime||0; softStart=performance.now()/1000;
-  }
+  function startAt(sec){ try{ const to=Math.max(0,Math.min((durSec||120)-.001,sec||0)); bgm.currentTime=to; }catch{} bgm.play().catch(()=>{}); ended=false; bgm.onended=()=>{ ended=true; }; softBase=bgm.currentTime||0; softStart=performance.now()/1000; }
   function hardClock(){ const t=(bgm && !isNaN(bgm.currentTime)) ? bgm.currentTime : (performance.now()/1000 - softStart) + softBase; return Math.max(0,Math.min(durSec,t)); }
   function judgeClock(){ return hardClock() + (OFFSET/1000); }
 
-  /* ===== 畫面切換 ===== */
-  function showOnly(id){
-    ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>{
-      const el=$("#"+x); if(!el) return; el.style.display=(x===id?'block':'none');
-    });
-    if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); }
-  }
-  function toMenu(){
-    cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio();
-    phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode');
-    showOnly('menuScreen');
-    $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇';
-  }
+  /* 畫面切換 */
+  function showOnly(id){ ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>{ const el=$("#"+x); if(!el) return; el.style.display=(x===id?'block':'none'); }); if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); } }
+  function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; }
   function toOpt(){ showOnly('optionsScreen'); }
   function toMusic(){ showOnly('musicScreen'); }
 
-  /* ===== 曲庫 ===== */
+  /* 曲庫 */
   const S=[
-  "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3",
-  "Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3",
-  "Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3",
-  "Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collab Music Video #BBBBダンス - Creepy Nuts.mp3",
-  "KANA-BOON - Silhouette - KANABOONVEVO.mp3",
-  "Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3",
-  "Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3",
-  "Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3",
-  "ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3",
-  "Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3",
-  "Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3",
-  "Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3",
-  "OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3",
-  "YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3",
-  "yung kai - blue (official music video) - yung kai.mp3",
-  "【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3",
-  "【MV】隙_ゆーり【オリジナル】 - 『ユイカ』.mp3",
-  "【imase】NIGHT DANCER（MV） - imase.mp3",
-  "なとり - Overdose - なとり _ natori.mp3",
-  "好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3",
-  "廻廻奇譚 - Eve MV - Eve.mp3",
-  "青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3",
-  "Toge Toge Sadistic - Enormita (youtube).mp3",
-  "My dream girls - NACHERRY (youtube).mp3",
-  "PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3",
-  "YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3",
-  "YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3",
-  "YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3",
-  "【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3",
-  "Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3",
-  "ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
+  "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3","Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3","Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3","Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collab Music Video #BBBBダンス - Creepy Nuts.mp3","KANA-BOON - Silhouette - KANABOONVEVO.mp3","Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3","Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3","ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3","Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3","Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3","OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3","YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3","yung kai - blue (official music video) - yung kai.mp3","【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3","【MV】隙_ゆーり【オリジナル】 - 『ユイカ』.mp3","【imase】NIGHT DANCER（MV） - imase.mp3","なとり - Overdose - なとり _ natori.mp3","好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3","廻廻奇譚 - Eve MV - Eve.mp3","青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3","Toge Toge Sadistic - Enormita (youtube).mp3","My dream girls - NACHERRY (youtube).mp3","PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3","YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3","YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3","YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3","【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3","Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3","ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
   ];
-  function fillSongs(){
-    const sel=$("#songSelect"); if(sel.dataset.filled) return; sel.innerHTML="";
-    const ph=document.createElement("option"); ph.value=""; ph.textContent="— 請選擇曲目 —"; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph);
-    S.forEach(f=>{ const o=document.createElement("option"); o.value=f; o.textContent=f.replace(/\.mp3$/i,""); if(selectedSongFile===f) o.selected=true; sel.appendChild(o); });
-    addEv(sel,"change",()=>{ $("#chosenSongLabel").textContent = sel.value ? sel.options[sel.selectedIndex].textContent : "尚未選擇"; });
-    sel.dataset.filled="1";
-  }
-  function confirmSong(){
-    const sel=$("#songSelect"); if(!sel.value){ alert("請先選擇音樂"); return; }
-    selectedSongFile=sel.value;
-    $("#chosenSongLabel").textContent = sel.options[sel.selectedIndex].textContent;
-    $("#menuChosenSong").textContent  = sel.options[sel.selectedIndex].textContent;
-    toMenu();
-  }
+  function fillSongs(){ const sel=$("#songSelect"); if(sel.dataset.filled) return; sel.innerHTML=""; const ph=document.createElement("option"); ph.value=""; ph.textContent="— 請選擇曲目 —"; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph); S.forEach(f=>{ const o=document.createElement("option"); o.value=f; o.textContent=f.replace(/\.mp3$/i,""); if(selectedSongFile===f) o.selected=true; sel.appendChild(o); }); addEv(sel,"change",()=>{ $("#chosenSongLabel").textContent = sel.value ? sel.options[sel.selectedIndex].textContent : "尚未選擇"; }); sel.dataset.filled="1"; }
+  function confirmSong(){ const sel=$("#songSelect"); if(!sel.value){ alert("請先選擇音樂"); return; } selectedSongFile=sel.value; $("#chosenSongLabel").textContent = sel.options[sel.selectedIndex].textContent; $("#menuChosenSong").textContent  = sel.options[sel.selectedIndex].textContent; toMenu(); }
 
-  /* ===== 譜面產生 ===== */
+  /* 譜面產生（略，沿用 v6） */
   const LEAD=1.6;
   function genChart(dur){
     chart=[];
@@ -989,106 +718,142 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     remain=chart.length;
   }
 
-  /* ===== HUD 與流程 ===== */
+  /* 偏移 HUD 與設定 */
   function hudOffset(v){ $("#offsetLabel").textContent=`${v} ms`; $("#dockOffset").textContent=`${v} ms`; }
   function setOffset(v){ v=Math.max(-600,Math.min(600,(v|0))); OFFSET=v; localStorage.setItem("dfjk.offsetMs",String(v)); hudOffset(v); }
 
-  function setLanes(n){
-    n = [4,6,8].includes(+n) ? +n : 4;
-    if(n===LANES) return;
-    LANES = n;
-    localStorage.setItem("dfjk.lanes", String(LANES));
-    W = baseLaneW * LANES;
-    fitDPR(); desktopScale(); applyStageLayout();
-    recPulse = new Array(LANES).fill(0);
-    recHitT  = new Array(LANES).fill(0);
-    recomputeLaneDirs();
-    draw({skip:true}); ui(); hud();
-  }
-
-  /* ===== 橫版控制中心 ===== */
+  /* 控制中心 */
   let dockOpenState=false, pausedByDock=false;
-  function updateDockHUD(){
-    $("#dockSong").textContent = currentSong;
-    $("#dockLanes").textContent= String(LANES);
-    $("#dockDiff").textContent = diff.toUpperCase();
-    $("#dockDir").textContent  = (dir==='up'?'上升':'下落');
-    $("#dockJudge").textContent= (jmode==='old'?'Old':'New');
-    $("#dockScore").textContent= String(score);
-    $("#dockCombo").textContent= String(combo);
-    $("#dockMiss").textContent = String(missCount);
-    $("#dockHeatState").textContent = showHeat ? 'ON' : 'OFF';
-  }
-  function openDock(){
-    if(dockOpenState) return;
-    dockOpenState=true;
-    $("#landDock").classList.add('open');
-    $("#dockScrim").classList.add('show');
-    if(phase==='playing'||phase==='countdown'){
-      pausedByDock=true; pauseGame();
-    }else{ pausedByDock=false; }
-    updateDockHUD();
-  }
-  function closeDock(silent){
-    if(!dockOpenState) return;
-    dockOpenState=false;
-    $("#landDock").classList.remove('open');
-    $("#dockScrim").classList.remove('show');
-    if(!silent && pausedByDock){
-      pausedByDock=false; resumeGame();
-    }
-  }
-  function bindDock(){
+  function updateDockHUD(){ $("#dockSong").textContent = currentSong; $("#dockLanes").textContent= String(LANES); $("#dockDiff").textContent = diff.toUpperCase(); $("#dockDir").textContent  = (dir==='up'?'上升':'下落'); $("#dockJudge").textContent= (jmode==='old'?'Old':'New'); $("#dockScore").textContent= String(score); $("#dockCombo").textContent= String(combo); $("#dockMiss").textContent = String(missCount); $("#dockHeatState").textContent = showHeat ? 'ON' : 'OFF'; }
+  function openDock(){ if(dockOpenState) return; dockOpenState=true; $("#landDock").classList.add('open'); $("#dockScrim").classList.add('show'); if(phase==='playing'||phase==='countdown'){ pausedByDock=true; pauseGame(); }else{ pausedByDock=false; } updateDockHUD(); }
+  function closeDock(silent){ if(!dockOpenState) return; dockOpenState=false; $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show'); if(!silent && pausedByDock){ pausedByDock=false; resumeGame(); } }
+  function bindDock(){ const LANDSCAPE = isLandscapeNow(); const handle = $("#dockHandle"); const topHandle = $("#dockTopHandle"); if (IS_MOBILE && LANDSCAPE) topHandle.classList.add('show'); else topHandle.classList.remove('show'); const toggle = ()=>{ dockOpenState?closeDock():openDock(); }; ["click","pointerdown","touchstart"].forEach(ev=>{ addEv(topHandle, ev, toggle, {passive:true}); addEv(handle, ev, toggle, {passive:true}); }); addEv($("#dockScrim"),'click', ()=> closeDock() ); addEv($("#dockResume"),'click', ()=> closeDock() ); addEv($("#dockHeatToggle"),'click', ()=>{ showHeat=!showHeat; ui(); $("#dockHeatState").textContent = showHeat?'ON':'OFF'; }); }
+
+  function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; localStorage.setItem("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
+
+  /* 版面套用 */
+  function applyStageLayout(){
+    const wrap = $("#stageWrap");
+    const topbar = $("#gameScreen .topbar");
+    const vw = Math.min(window.innerWidth, document.documentElement.clientWidth||window.innerWidth);
+    const vh = window.innerHeight || document.documentElement.clientHeight || 640;
     const LANDSCAPE = isLandscapeNow();
-    const area = $("#dockHandleArea");
-    const handle = $("#dockHandle");
-    if (IS_MOBILE && LANDSCAPE) area.classList.add('show'); else area.classList.remove('show');
-
-    const toggle = ()=>{ dockOpenState?closeDock():openDock(); };
-    ["click","pointerdown","touchstart"].forEach(ev=>{
-      addEv(area, ev, toggle, {passive:true});
-      addEv(handle, ev, toggle, {passive:true});
-    });
-    addEv($("#dockScrim"),'click', ()=> closeDock() );
-    addEv($("#dockResume"),'click', ()=> closeDock() );
-    addEv($("#dockHeatToggle"),'click', ()=>{
-      showHeat=!showHeat; ui();
-      $("#dockHeatState").textContent = showHeat?'ON':'OFF';
-    });
+    if (!IS_MOBILE){
+      wrap.classList.remove('landscape','fullH');
+      const desiredW = Math.round(baseLaneW*LANES*uiScale);
+      const targetW  = Math.min(desiredW, Math.floor(vw*0.98));
+      wrap.style.width  = targetW + 'px'; wrap.style.height = '';
+      if(topbar) topbar.style.display='flex';
+      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show'); if (dockOpenState) closeDock(true);
+    } else if (LANDSCAPE){
+      wrap.classList.add('landscape'); wrap.classList.remove('fullH');
+      const scale = Math.min(vw / H, vh / W);
+      const w = Math.max(320, Math.floor(scale * W));
+      const h = Math.max(480, Math.floor(scale * H));
+      wrap.style.width  = w + 'px'; wrap.style.height = h + 'px';
+      if(topbar) topbar.style.display='none';
+      $("#dockTopHandle").classList.add('show'); $("#landDock").style.display='block';
+    } else {
+      wrap.classList.remove('landscape'); $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show'); if (dockOpenState) closeDock(true); if(topbar) topbar.style.display='flex';
+      if (MOBILE_FULL && LANES>4){ wrap.classList.add('fullH'); const targetH = Math.max(360, Math.round(vh * 0.86)); const targetW = Math.round(targetH * (W / H)); wrap.style.width  = Math.min(targetW, Math.round(vw*0.98)) + 'px'; wrap.style.height = targetH + 'px'; } else { wrap.classList.remove('fullH'); const targetW = Math.min(vw*0.98, baseLaneW*LANES); wrap.style.width  = Math.round(targetW) + 'px'; wrap.style.height = ''; }
+    }
+    layout(); draw({skip:true}); ui();
   }
 
+  /* 輸入處理 */
+  const VIB = IS_MOBILE && ("vibrate" in navigator);
+  function laneKeyFromChar(k){
+    k=k.toLowerCase();
+    if(LANES===4){
+      if(k==='d')return 0; if(k==='f')return 1; if(k==='j')return 2; if(k==='k')return 3;
+      if(k==='arrowleft')return 0; if(k==='arrowdown')return 1; if(k==='arrowup')return 2; if(k==='arrowright')return 3;
+      return null;
+    }
+    if(LANES===6){ if(k==='s')return 0; if(k==='d')return 1; if(k==='f')return 2; if(k==='j')return 3; if(k==='k')return 4; if(k==='l')return 5; return null; }
+    if(k==='a')return 0; if(k==='s')return 1; if(k==='d')return 2; if(k==='f')return 3; if(k==='j')return 4; if(k==='k')return 5; if(k==='l')return 6; if(k===';')return 7; return null;
+  }
+  function lanePtrFromClient(clientX, clientY){
+    const r = c.getBoundingClientRect();
+    const LANDSCAPE = isLandscapeNow();
+    let xCss, denom;
+    if (!LANDSCAPE){ xCss = clientX - r.left; denom = r.width; }
+    else { xCss = clientY - r.top; denom = r.height; }
+    const x = xCss / denom * W;
+    let best=0, bd=1e9; for(let i=0;i<LANES;i++){ const d=Math.abs(x-laneX(i)); if(d<bd){ bd=d; best=i; } } return best;
+  }
+  function onPress(l){
+    if(!running) return;
+    tapSfx();
+    const t=judgeClock(); let bi=-1, ba=1e9;
+    for(let i=0;i<chart.length;i++){
+      const n=chart[i]; if(n.hit||n.lane!==l) continue;
+      const dt=(t-n.t)*1000, ad=Math.abs(dt);
+      if(ad<=WIN.shit && ad<ba){ ba=ad; bi=i; }
+    }
+    if(bi>=0){
+      const n=chart[bi]; n.hit=true; remain--;
+      const dt=(t-n.t)*1000; let r="";
+      if(Math.abs(dt)<=WIN.sick){ r='SICK!'; score=Math.max(0,score+SC.sick); stats.sick++; combo++; }
+      else if(Math.abs(dt)<=WIN.good){ r='GOOD'; score=Math.max(0,score+SC.good); stats.good++; combo++; }
+      else if(Math.abs(dt)<=WIN.bad){ r='BAD'; score=Math.max(0,score+SC.bad); stats.bad++; combo++; }
+      else { r='SHIT'; score=Math.max(0,score+SC.shit); stats.shit++; combo=Math.max(0,combo-1); }
+      lastJudge=r; recDt(dt); hud(); const key=r.replace('!',''); if(['SICK','GOOD','BAD','SHIT'].includes(key)) hpAdd(hpDelta(key)); if(combo>0 && combo%10===0) comboFlashNow(); addHit(l); impact(l); if(VIB){ try{ navigator.vibrate(10);}catch{} }
+    }else{ if(jmode==='old'){ lastJudge='WRONG'; wrongCount++; hpAdd(-2); } else lastJudge='-'; hud(); recPulse[l]=Math.max(recPulse[l],1.0); addHit(l); impact(l); }
+  }
+  addEv(window,"keydown", e=>{
+    if(e.repeat) return; const k=e.key.toLowerCase();
+    if(k==='h'){ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); e.preventDefault(); return; }
+    if(k==='r'){ heatMode=(heatMode+1)%3; banner(`熱圖位置：${heatMode===0?'自動':(heatMode===1?'置頂':'置底')}`); ui(); e.preventDefault(); return; }
+    const l=laneKeyFromChar(k);
+    if(l!==null){ if(running&&!paused){ onPress(l); } e.preventDefault(); return; }
+    if(k==='escape'){ if(phase==='playing') pauseGame(); else if(phase==='paused') resumeGame();
+      else if(phase==='countdown'){ cancelCountdown(); pauseGame(true); } e.preventDefault(); }
+  });
+  addEv(c,"pointerdown", e=>{ if(!running||paused) return; e.preventDefault(); const l=lanePtrFromClient(e.clientX, e.clientY); onPress(l); }, {passive:false});
+  addEv(c,"touchstart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
+  addEv(c,"touchmove",  e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
+  addEv(window,"dblclick",     e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
+  addEv(window,"gesturestart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
+
+  /* 倒數 */
+  let counting=false;
+  function countdown(startCb,opt={}){
+    const show=!!opt.show, pv=(typeof opt.t==='number')?opt.t:0;
+    cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block';
+    const lab=['Ready','3','2','1','Go!'], dur=[600,800,800,800,600], t0=performance.now();
+    function step(now){
+      if(!counting) return; const e=now-t0; let acc=0, idx=lab.length-1;
+      for(let i=0;i<lab.length;i++){ acc+=dur[i]; if(e<acc){ idx=i; break; } }
+      el.textContent=(idx<lab.length?lab[idx]:'Go!'); el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
+      if(show){ drawPreview(pv); } else { draw({skip:true}); } ui();
+      const total=dur.reduce((a,b)=>a+b,0);
+      if(e>=total){ el.style.display='none'; counting=false; startCb(); return; }
+      cRAF=requestAnimationFrame(step);
+    }
+    cRAF=requestAnimationFrame(step);
+  }
+  function cancelCountdown(){ if(!counting && !cRAF) return; counting=false; try{ cancelAnimationFrame(cRAF);}catch{} cRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; }
+
+  /* 遊戲流程 */
   function startGame(){
     if(!selectedSongFile){ toMusic(); alert("請先選擇音樂"); return; }
     diff=$("#difficultySelect").value; dir=$("#noteDirection").value; jmode=$("#judgeMode").value;
     document.body.classList.toggle('ex-mode', diff==='ex');
-
     let mul=parseFloat($("#speedMultiplier").value);
     if(diff==='beginner') mul=0.8; else if(diff==='easy') mul=0.9;
-
-    score=0; combo=0; lastJudge='-'; missCount=0;
-    stats={sick:0,good:0,bad:0,shit:0,miss:0}; wrongCount=0;
-    chart=[]; remain=0; dts.length=0;
-    recPulse=new Array(LANES).fill(0); recHitT=new Array(LANES).fill(0);
-    comboFlash=""; hits.length=0; parts.length=0;
-
-    spd=baseSpd*mul;
-    currentSong=selectedSongFile.replace(/\.mp3$/i,'');
-    hud();
-
+    score=0; combo=0; lastJudge='-'; missCount=0; stats={sick:0,good:0,bad:0,shit:0,miss:0}; wrongCount=0;
+    chart=[]; remain=0; dts.length=0; recPulse=new Array(LANES).fill(0); recHitT=new Array(LANES).fill(0);
+    comboFlash=""; hits.length=0; parts.length=0; spd=baseSpd*mul; currentSong=selectedSongFile.replace(/\.mp3$/i,''); hud();
     HP=HP_MAX; hpShow(HP_ON); hpUpdate();
-
     showOnly('gameScreen'); phase='countdown';
     fitDPR(); desktopScale(); applyStageLayout();
     draw({skip:true}); ui();
-
     const url='music/'+encodeURIComponent(selectedSongFile);
     stopAudio(); bgm.src=url; try{ bgm.load(); }catch{}
     durSec = isFinite(bgm.duration) ? bgm.duration : 120;
     genChart(durSec||120);
-
     countdown(()=>{ phase='playing'; running=true; startAt(0); loopId=requestAnimationFrame(loop); }, {show:false});
   }
-
   let pausedAt=0;
   function pauseGame(fromC){
     if(phase==='countdown' && fromC!==true) cancelCountdown();
@@ -1111,70 +876,22 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   }
   function stopLoop(){ try{ cancelAnimationFrame(loopId);}catch{} loopId=null; }
 
-  /* ===== 校正 ===== */
+  /* 校正 */
   const pnl=$("#calibOverlay"), cbStart=$("#calibStart"), cbDone=$("#calibFinish"), cbCancel=$("#calibCancel"), cbBig=$("#calibBig"), cbDot=$("#calibBeatDot"), cbStat=$("#calibStat");
   let cal=false, beatInt=1.0, beats=16, taps=[], tapH=null, syncP0=0, syncC0=0, t0C=0;
-
-  async function openCalib(){
-    if(phase==='playing' || phase==='countdown'){ banner("請先退出或暫停遊戲再校正"); return; }
-    pnl.style.display='block'; cbBig.textContent='待機'; cbStat.textContent='0/10 建議偏移：—'; taps=[]; cbDone.disabled=true; await ensureAC().catch(()=>{});
-  }
-  function closeCalib(){
-    pnl.style.display='none';
-    cancelCalibAudio();
-    cal=false;
-    if(tapH){
-      window.removeEventListener('keydown',tapH);
-      pnl.removeEventListener('pointerdown',tapH);
-      tapH=null;
-    }
-  }
-  function robust(arr){
-    if(!arr.length) return 0;
-    const s=[...arr].sort((a,b)=>a-b), m=s[Math.floor(s.length/2)];
-    const dev=s.map(v=>Math.abs(v-m)).sort((a,b)=>a-b), MAD=dev[Math.floor(dev.length/2)]||1;
-    const keep=arr.filter(v=>Math.abs(v-m)<=Math.max(3*MAD,120));
-    const t=keep.sort((a,b)=>a-b), lo=Math.floor(t.length*0.2), hi=Math.ceil(t.length*0.8), core=t.slice(lo,hi);
-    const mean=core.reduce((a,c)=>a+c,0)/Math.max(1,core.length);
-    return Math.max(-600,Math.min(600,Math.round(mean)));
-  }
-  function startCalib(){
-    try{ timers.forEach(id=>clearTimeout(id)); }catch{} timers=[]; taps=[]; cbDone.disabled=true; cal=true;
-    try{ AC.resume(); }catch{}
-    if(!Gcal){ Gcal = AC.createGain(); Gcal.gain.value = 1; Gcal.connect(Gsfx||Gm); }
-    syncP0=performance.now()/1000; syncC0=AC.currentTime;
-    const lead=.70; t0C=AC.currentTime+lead;
-    for(let i=0;i<beats;i++){
-      const t=t0C+i*beatInt;
-      const o=AC.createOscillator(), g=AC.createGain();
-      o.type='sine'; o.frequency.value=880;
-      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.45,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.08);
-      o.connect(g); g.connect(Gcal); o.start(t); o.stop(t+0.09);
-      const d=(t-AC.currentTime)*1000;
-      const id=setTimeout(()=>{ cbDot.style.transform='scale(1.28)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,1)'; setTimeout(()=>{ cbDot.style.transform='scale(1)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,.9)'; },120); }, d);
-      timers.push(id);
-    }
-    tapH=(e)=>{
-      if(e.type==='keydown'){
-        const k=e.key.toLowerCase();
-        if(!['d','f','j','k','s','a','l',';'].includes(k)) return;
-        e.preventDefault();
-      }
-      const tp=performance.now()/1000, tC=syncC0 + (tp - syncP0);
-      if(tC < t0C - 0.15) return;
-      const k=Math.round((tC - t0C)/beatInt), tB=t0C + k*beatInt, dMs=(tC - tB)*1000;
-      if(Math.abs(dMs)<=600) taps.push(dMs);
-      const need=10, nowN=Math.min(taps.length,need);
-      let adv='—'; if(nowN>=4){ const rec=robust(taps); adv=(rec>0?'+':'')+rec+' ms'; }
-      cbBig.textContent = nowN + '/' + need; cbStat.textContent = `${nowN}/${need} 建議偏移：${adv}`;
-      if(nowN>=need) cbDone.disabled=false;
-    };
-    addEv(window,'keydown', tapH);
-    addEv(pnl,'pointerdown', tapH, {passive:true});
-  }
+  async function openCalib(){ if(phase==='playing' || phase==='countdown'){ banner("請先退出或暫停遊戲再校正"); return; } pnl.style.display='block'; cbBig.textContent='待機'; cbStat.textContent='0/10 建議偏移：—'; taps=[]; cbDone.disabled=true; await ensureAC().catch(()=>{}); }
+  function closeCalib(){ pnl.style.display='none'; cancelCalibAudio(); cal=false; if(tapH){ window.removeEventListener('keydown',tapH); pnl.removeEventListener('pointerdown',tapH); tapH=null; } }
+  function robust(arr){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b), m=s[Math.floor(s.length/2)]; const dev=s.map(v=>Math.abs(v-m)).sort((a,b)=>a-b), MAD=dev[Math.floor(dev.length/2)]||1; const keep=arr.filter(v=>Math.abs(v-m)<=Math.max(3*MAD,120)); const t=keep.sort((a,b)=>a-b), lo=Math.floor(t.length*0.2), hi=Math.ceil(t.length*0.8), core=t.slice(lo,hi); const mean=core.reduce((a,c)=>a+c,0)/Math.max(1,core.length); return Math.max(-600,Math.min(600,Math.round(mean))); }
+  function startCalib(){ try{ timers.forEach(id=>clearTimeout(id)); }catch{} timers=[]; taps=[]; cbDone.disabled=true; cal=true; try{ AC.resume(); }catch{} if(!Gcal){ Gcal = AC.createGain(); Gcal.gain.value = 1; Gcal.connect(Gsfx||Gm); } syncP0=performance.now()/1000; syncC0=AC.currentTime; const lead=.70; t0C=AC.currentTime+lead;
+    for(let i=0;i<beats;i++){ const t=t0C+i*beatInt; const o=AC.createOscillator(), g=AC.createGain(); o.type='sine'; o.frequency.value=880; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.45,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.08); o.connect(g); g.connect(Gcal); o.start(t); o.stop(t+0.09);
+      const d=(t-AC.currentTime)*1000; const id=setTimeout(()=>{ cbDot.style.transform='scale(1.28)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,1)'; setTimeout(()=>{ cbDot.style.transform='scale(1)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,.9)'; },120); }, d); timers.push(id); }
+    tapH=(e)=>{ if(e.type==='keydown'){ const k=e.key.toLowerCase(); if(!['d','f','j','k','s','a','l',';'].includes(k)) return; e.preventDefault(); }
+      const tp=performance.now()/1000, tC=syncC0 + (tp - syncP0); if(tC < t0C - 0.15) return; const k=Math.round((tC - t0C)/beatInt), tB=t0C + k*beatInt, dMs=(tC - tB)*1000; if(Math.abs(dMs)<=600) taps.push(dMs);
+      const need=10, nowN=Math.min(taps.length,need); let adv='—'; if(nowN>=4){ const rec=robust(taps); adv=(rec>0?'+':'')+rec+' ms'; } cbBig.textContent = nowN + '/' + need; cbStat.textContent = `${nowN}/${need} 建議偏移：${adv}`; if(nowN>=need) cbDone.disabled=false; };
+    addEv(window,'keydown', tapH); addEv(pnl,'pointerdown', tapH, {passive:true}); }
   function finishCalib(){ if(!taps.length){ closeCalib(); return; } const rec=robust(taps); setOffset(rec); banner(`已套用偏移：${rec} ms`); closeCalib(); }
 
-  /* ===== 綁定 / 初始化 ===== */
+  /* 綁定 */
   function bind(){
     addEv($("#btnStart"),"click", startGame);
     addEv($("#btnMusic"),"click", toMusic);
@@ -1216,27 +933,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     /* 鍵數選擇 */
     const keySel=$("#keyModeSelect");
     keySel.value = String(LANES);
-    addEv(keySel,"change", ()=>{
-      const n=+keySel.value;
-      setLanes(n);
-      banner(`鍵數切換為 ${n}`);
-    });
+    addEv(keySel,"change", ()=>{ const n=+keySel.value; setLanes(n); banner(`鍵數切換為 ${n}`); });
 
     /* 手機全高與橫板（橫板未勾選時自動依螢幕方向） */
     const full=$("#mobileFullHeight"), land=$("#mobileLandscape");
     full.checked=MOBILE_FULL; land.checked=LANDSCAPE_FORCE;
-    addEv(full,'change',()=>{
-      if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); full.checked=MOBILE_FULL; return; }
-      MOBILE_FULL=full.checked; localStorage.setItem('dfjk.mobileFull', MOBILE_FULL?'1':'0'); applyStageLayout();
-    });
-    addEv(land,'change',()=>{
-      if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); land.checked=LANDSCAPE_FORCE; return; }
-      LANDSCAPE_FORCE=land.checked; localStorage.setItem('dfjk.landscape', LANDSCAPE_FORCE?'1':'0'); applyStageLayout(); bindDock();
-    });
+    addEv(full,'change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); full.checked=MOBILE_FULL; return; } MOBILE_FULL=full.checked; localStorage.setItem('dfjk.mobileFull', MOBILE_FULL?'1':'0'); applyStageLayout(); });
+    addEv(land,'change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); land.checked=LANDSCAPE_FORCE; return; } LANDSCAPE_FORCE=land.checked; localStorage.setItem('dfjk.landscape', LANDSCAPE_FORCE?'1':'0'); applyStageLayout(); bindDock(); });
 
     bindDock();
 
-    /* 選項保底點擊（舊環境的相容性） */
+    /* 選項保底點擊（舊環境相容） */
     addEv(document,'click', (e)=>{
       const t = e.target;
       const hit = t && (t.id === 'btnOptions' || (t.closest && t.closest('#btnOptions')));
@@ -1254,22 +961,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     fitDPR(); desktopScale(); applyStageLayout();
     fillSongs(); bind(); hpShow(HP_ON); hpUpdate(); hud();
     showOnly("menuScreen");
-
-    /* 自動偵測螢幕方向 */
-    addEv(window,"resize", ()=>{
-      fitDPR(); desktopScale(); applyStageLayout(); bindDock();
-      if(phase==='countdown'){ draw({skip:true}); ui(); }
-    });
-    addEv(window,"orientationchange", ()=>{
-      setTimeout(()=>{ fitDPR(); desktopScale(); applyStageLayout(); bindDock(); }, 50);
-    });
+    addEv(window,"resize", ()=>{ fitDPR(); desktopScale(); applyStageLayout(); bindDock(); if(phase==='countdown'){ draw({skip:true}); ui(); } });
+    addEv(window,"orientationchange", ()=>{ setTimeout(()=>{ fitDPR(); desktopScale(); applyStageLayout(); bindDock(); }, 50); });
   }
-
-  if (document.readyState === "loading") {
-    addEv(document, "DOMContentLoaded", init);
-  } else {
-    init();
-  }
+  if (document.readyState === "loading") addEv(document, "DOMContentLoaded", init); else init();
 })(); // end IIFE
 </script>
 </body>
