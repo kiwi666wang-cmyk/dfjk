@@ -257,7 +257,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <canvas id="uiCanvas"   width="420" height="640"></canvas>
       <div id="edgeFade"></div>
       <div class="hitbar"><div></div><div></div><div></div><div></div></div>
-      <div id="countdownText">Ready</div>␊
+      <div id="countdownText">Ready</div>
     </div>
   </div>
 </div>
@@ -269,9 +269,9 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <div id="dockScrim"></div>
 <div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
 <div id="landDock" aria-label="控制中心" data-i18n="ctrlButton" data-i18n-attr="aria-label">
-  <div class="sheet">␊
-    <div class="handleBar" id="dockHandle"></div>␊
-    <div class="grid" id="dockGrid">␊
+  <div class="sheet">
+    <div class="handleBar" id="dockHandle"></div>
+    <div class="grid" id="dockGrid">
       <div class="kv"><b data-i18n="dockSong">曲目</b><span id="dockSong">-</span></div>
       <div class="kv"><b data-i18n="dockLanes">鍵數</b><span id="dockLanes">4</span></div>
       <div class="kv"><b data-i18n="dockDiff">難度</b><span id="dockDiff">-</span></div>
@@ -282,24 +282,24 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <div class="kv"><b data-i18n="dockCombo">連擊</b><span id="dockCombo">0</span></div>
       <div class="kv"><b data-i18n="dockMiss">MISS</b><span id="dockMiss">0</span></div>
       <div class="kv"><b data-i18n="dockHeat">HEAT</b><span id="dockHeatState">ON</span></div>
-    </div>␊
-    <div class="actions">␊
+    </div>
+    <div class="actions">
       <button id="dockResume" data-i18n="dockResume">返回遊戲（321）</button>
       <button id="dockHeatToggle" data-i18n="dockHeatToggle">HEAT 開/關</button>
       <button id="dockToMenu" data-i18n="dockToMenu">返回主畫面</button>
-    </div>␊
-  </div>␊
-</div>␊
+    </div>
+  </div>
+</div>
 
 <!-- ===== 暫停（保留頁面，但不再用按鈕進入；由控制中心取代） ===== -->
-<div id="pauseScreen" style="display:none;">␊
+<div id="pauseScreen" style="display:none;">
   <h2 data-i18n="pauseTitle">⏸️ 遊戲暫停</h2>
   <button id="btnResume" data-i18n="btnResume">▶️ 繼續</button>
   <button class="btnBackMenu" data-i18n="btnBackMenu">回主選單</button>
-</div>␊
-␊
-<!-- ===== 結束 ===== -->␊
-<div id="endScreen" style="display:none;">␊
+</div>
+
+<!-- ===== 結束 ===== -->
+<div id="endScreen" style="display:none;">
   <h2 data-i18n="endTitle">🎮 遊戲結束！</h2>
   <p><span data-i18n="finalSongLabel">曲目：</span><span id="finalSong">-</span></p>
   <p><span data-i18n="finalDiffLabel">難度：</span><span id="finalDiff">-</span></p>
@@ -313,25 +313,25 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   <p><span data-i18n="statMissLabel">MISS：</span><span id="statMiss">0</span></p>
   <button id="btnRestart" data-i18n="btnRestart">再玩一次</button>
   <button class="btnBackMenu" data-i18n="btnBackMenu">回主選單</button>
-</div>␊
-␊
-<!-- ===== 校正覆蓋層 ===== -->␊
-<div id="calibOverlay" style="position:fixed; inset:0; display:none; z-index:220; background:rgba(3,7,15,.86); backdrop-filter:blur(2px);">␊
-  <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(520px,92vw); padding:18px 16px; border-radius:12px; background:rgba(10,16,30,.9); box-shadow:0 10px 40px rgba(0,0,0,.4); border:1px solid rgba(120,213,255,.3);">␊
+</div>
+
+<!-- ===== 校正覆蓋層 ===== -->
+<div id="calibOverlay" style="position:fixed; inset:0; display:none; z-index:220; background:rgba(3,7,15,.86); backdrop-filter:blur(2px);">
+  <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(520px,92vw); padding:18px 16px; border-radius:12px; background:rgba(10,16,30,.9); box-shadow:0 10px 40px rgba(0,0,0,.4); border:1px solid rgba(120,213,255,.3);">
     <div style="font-size:22px; margin:6px 0 4px;" data-i18n="calibrationTitle">🎯 快速校正</div>
     <div style="opacity:.85; font-size:14px; margin-bottom:8px;" data-i18n="calibrationHint">跟著節拍（每拍 1000ms）按 DFJK 或點畫面，至少 10 次後可完成。中位數 + MAD 去極值。</div>
-    <div id="calibBeatDot" style="width:26px; height:26px; border-radius:50%; margin:12px auto; background:#78d5ff; box-shadow:0 0 30px rgba(120,213,255,.95);"></div>␊
-    <div id="calibBig" style="font:700 44px/1.2 'Fredoka One',sans-serif; margin:8px 0 2px;">待機</div>␊
-    <div id="calibStat" style="font:14px/1.4 monospace; opacity:.95; margin:2px 0 10px;">0/10　建議偏移：—</div>␊
-    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">␊
+    <div id="calibBeatDot" style="width:26px; height:26px; border-radius:50%; margin:12px auto; background:#78d5ff; box-shadow:0 0 30px rgba(120,213,255,.95);"></div>
+    <div id="calibBig" style="font:700 44px/1.2 'Fredoka One',sans-serif; margin:8px 0 2px;">待機</div>
+    <div id="calibStat" style="font:14px/1.4 monospace; opacity:.95; margin:2px 0 10px;">0/10　建議偏移：—</div>
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
       <button id="calibStart"  class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#78d5ff; cursor:pointer;" data-i18n="calibStart">開始</button>
       <button id="calibFinish" class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#ffc857; cursor:pointer;" disabled data-i18n="calibFinish">完成</button>
       <button id="calibCancel" class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#ff6b6b; cursor:pointer;" data-i18n="calibCancel">取消</button>
-    </div>␊
-  </div>␊
-</div>␊
-␊
-<audio id="bgm" preload="auto"></audio>␊
+    </div>
+  </div>
+</div>
+
+<audio id="bgm" preload="auto"></audio>
 <div id="warnBanner" data-i18n="warnBanner">⚠️ 提示</div>
 
 <script>
@@ -2299,10 +2299,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const l=laneKeyFromChar(k);
     if(l!==null){ if(running&&!paused){ onPress(l); } e.preventDefault(); return; }
     if(k==='escape' || k==='enter'){
-      if(dockOpenState){ closeDock(); }␊
-      else{ if(phase==='countdown') cancelCountdown(); openDock(); }␊
-      e.preventDefault();␊
-    }␊
+      if(dockOpenState){ closeDock(); }
+      else{ if(phase==='countdown') cancelCountdown(); openDock(); }
+      e.preventDefault();
+    }
   });
   addEv(c,"pointerdown", e=>{ if(!running||paused) return; e.preventDefault(); const l=lanePtrFromClient(e.clientX, e.clientY); onPress(l); }, {passive:false});
   addEv(c,"touchstart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
@@ -2495,6 +2495,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
