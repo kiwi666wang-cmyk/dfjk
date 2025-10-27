@@ -73,9 +73,10 @@ canvas{ display:block; width:100%; height:auto; max-width:100%; background:#0c13
 
 /* 橫版 HP 浮動（固定靠右上） */
 #hpFloat{
-  position:fixed; z-index:186; display:none;
+  position:absolute; z-index:186; display:none;
   height:18px; min-width:160px; background:rgba(255,255,255,.18);
   border-radius:999px; box-shadow:0 6px 20px rgba(0,0,0,.35);
+  right:16px; top:52px; pointer-events:none;
 }
 #hpFloatFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
 #hpFloatText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
@@ -106,9 +107,10 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 
 /* 控制中心開關把手（定位由 JS 依舞台位置動態設定；僅手機橫版顯示） */
 #dockTopHandle{
-  position:fixed; z-index:185; border-radius:999px;
+  position:absolute; z-index:185; border-radius:999px;
   width:200px; height:28px; background:rgba(255,255,255,.08); backdrop-filter:blur(2px);
   display:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25);
+  left:50%; top:16px; transform:translate(-50%,0);
 }
 #dockTopHandle.show{ display:block; }
 #dockTopHandle::after{
@@ -243,31 +245,29 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
 <!-- ===== 遊戲畫面 ===== -->
 <div id="gameScreen" style="display:none;position:relative;">
-  <div class="topbar">
-    <button id="ctrlButton" data-i18n="ctrlButton">⚙️ 控制中心</button>
-    <div class="top-mid">
-      <div id="hpBar"><div id="hpFill"></div><div id="hpText">100/100</div></div>
+    <div class="topbar">
+      <button id="ctrlButton" data-i18n="ctrlButton">⚙️ 控制中心</button>
+      <div class="top-mid">
+        <div id="hpBar"><div id="hpFill"></div><div id="hpText">100/100</div></div>
+      </div>
+      <!-- 右側留白，維持置中對稱 -->
+      <div style="width:84px"></div>
     </div>
-    <!-- 右側留白，維持置中對稱 -->
-    <div style="width:84px"></div>
-  </div>
-  <div id="stageWrap">
-    <div id="stage">
-      <canvas id="gameCanvas" width="420" height="640"></canvas>
-      <canvas id="uiCanvas"   width="420" height="640"></canvas>
-      <div id="edgeFade"></div>
-      <div class="hitbar"><div></div><div></div><div></div><div></div></div>
-      <div id="countdownText">Ready</div>
+    <div id="stageWrap">
+      <div id="stage">
+        <canvas id="gameCanvas" width="420" height="640"></canvas>
+        <canvas id="uiCanvas"   width="420" height="640"></canvas>
+        <div id="edgeFade"></div>
+        <div class="hitbar"><div></div><div></div><div></div><div></div></div>
+        <div id="countdownText">Ready</div>
+      </div>
+      <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
+      <div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
     </div>
   </div>
-</div>
-
-<!-- 橫版 HP 浮動條 -->
-<div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
 
 <!-- ===== 控制中心（桌機與手機皆可） ===== -->
 <div id="dockScrim"></div>
-<div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
 <div id="landDock" aria-label="控制中心" data-i18n="ctrlButton" data-i18n-attr="aria-label">
   <div class="sheet">
     <div class="handleBar" id="dockHandle"></div>
@@ -1983,33 +1983,71 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     uix.clearRect(0,0,W,H); if(!showHeat) return;
     const bins=36, mn=-300, mx=300, step=(mx-mn)/bins, hist=new Array(bins).fill(0);
     for(const v of dts){ const i=Math.floor((v-mn)/step); if(i>=0&&i<bins) hist[i]++; }
-    const w=230, h=74, bw=w/bins;
-
     const LANDSCAPE = isLandscapeNow();
-    let x0 = 14, y0 = 24; // 通用預設：舞台左上角
-    if(!LANDSCAPE){
-      // 直向或桌機，嘗試貼齊 topbar 下緣
-      const cr = c.getBoundingClientRect();
-      const tb = document.querySelector('.topbar');
-      const tr = tb ? tb.getBoundingClientRect() : null;
-      if(cr && tr){
-        const xCss = 14;
-        const yCss = Math.min(cr.height - h - 8, (tr.bottom - cr.top) + 8);
-        x0 = xCss / cr.width  * W;
-        y0 = yCss / cr.height * H;
+    const marginX = Math.max(12, W * (IS_MOBILE ? 0.04 : 0.035));
+    const marginY = Math.max(18, H * (IS_MOBILE ? 0.045 : 0.035));
+    const padX = 8;
+    const padTop = 12;
+    const padBottom = 32;
+    let w = Math.min(260, Math.max(180, W - marginX * 2));
+    if(IS_MOBILE) w = Math.min(w, Math.round(W * 0.62));
+    let h = Math.round(Math.max(72, Math.min(110, H * 0.16)));
+    const bw=w/bins;
+
+    let x0 = marginX;
+    let y0 = marginY;
+    const leftBound = marginX;
+    let rightBound = W - w - marginX;
+    const topBound = marginY + padTop;
+    let bottomBound = H - h - (marginY + padBottom);
+    if(rightBound < leftBound) rightBound = leftBound;
+    if(bottomBound < topBound) bottomBound = topBound;
+
+    if(IS_MOBILE){
+      const autoY = (dir==='up') ? bottomBound : topBound;
+      if(heatMode===1) y0 = topBound;
+      else if(heatMode===2) y0 = bottomBound;
+      else y0 = autoY;
+
+      if(LANDSCAPE){
+        x0 = (dir==='up') ? rightBound : leftBound;
+      } else {
+        x0 = leftBound;
       }
-    }else{
-      let yAuto=(dir==='up') ? (H-h-24) : (24 + (matchMedia("(pointer: coarse)").matches?6:0));
-      y0 = (heatMode===1)?24 : (heatMode===2 ? (H-h-24) : yAuto);
-      x0 = 14;
+    } else {
+      if(!LANDSCAPE){
+        const cr = c.getBoundingClientRect();
+        const tb = document.querySelector('.topbar');
+        const tr = tb ? tb.getBoundingClientRect() : null;
+        if(cr && tr){
+          const hCss = h / H * cr.height;
+          const marginCss = marginY / H * cr.height;
+          const yCandidate = Math.max(marginCss, (tr.bottom - cr.top) + 8);
+          const yCss = Math.min(cr.height - hCss - marginCss, yCandidate);
+          x0 = leftBound;
+          y0 = (yCss / cr.height) * H;
+        }
+      } else {
+        const autoY = (dir==='up') ? bottomBound : topBound;
+        if(heatMode===1) y0 = topBound;
+        else if(heatMode===2) y0 = bottomBound;
+        else y0 = autoY;
+        x0 = leftBound;
+      }
     }
 
-    uix.save(); uix.globalAlpha=.98; uix.fillStyle='rgba(0,0,0,.58)'; uix.fillRect(x0-8,y0-10,w+16,h+46);
-    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(getDynamic('heatmapTitle'), x0, y0-12);
+    x0 = Math.max(leftBound, Math.min(rightBound, x0));
+    y0 = Math.max(topBound, Math.min(bottomBound, y0));
+    x0 = Math.round(x0);
+    y0 = Math.round(y0);
+
+    uix.save(); uix.globalAlpha=.98; uix.fillStyle='rgba(0,0,0,.58)';
+    uix.fillRect(x0-padX, y0-padTop, w + padX*2, h + padTop + padBottom);
+    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(getDynamic('heatmapTitle'), x0, y0-(padTop-2));
     const maxc=Math.max(1,...hist);
     for(let i=0;i<bins;i++){ const v=hist[i], bh=(v/maxc)*h, xx=Math.floor(x0+i*bw); uix.fillStyle='#78d5ff'; uix.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); }
     const {avg,std}=dtStats();
-    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(getDynamic('heatmapStats',{avg:avg.toFixed(1),std:std.toFixed(1),offset:OFFSET}), x0, y0+h+16);
+    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(getDynamic('heatmapStats',{avg:avg.toFixed(1),std:std.toFixed(1),offset:OFFSET}), x0, y0+h+20);
     uix.strokeStyle='#ffd966'; uix.beginPath(); const mid=x0 + (-mn)/step * bw; uix.moveTo(mid,y0); uix.lineTo(mid,y0+h); uix.stroke();
     uix.restore();
   }
@@ -2041,6 +2079,12 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       pages.forEach(x=>{ const el = document.getElementById(x); if(!el) return; el.style.display = (x===id?'block':'none'); });
     // 無論如何移除遊戲模糊
     document.getElementById('gameScreen')?.classList.remove('blur');
+    const langSwitcher = document.getElementById('languageSwitcher');
+    if(langSwitcher){
+      const showLang = (id === 'menuScreen');
+      langSwitcher.style.display = showLang ? 'flex' : 'none';
+      langSwitcher.setAttribute('aria-hidden', showLang ? 'false' : 'true');
+    }
     const notGame = (id !== 'gameScreen');
     if(notGame){
       // 關任何可能遮住點擊的覆蓋層
@@ -2209,10 +2253,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function applyStageLayout(){
     const wrap = $("#stageWrap");
     const topbar = $("#gameScreen .topbar");
+    const dockHandleEl = $("#dockTopHandle");
     const vw = Math.min(window.innerWidth, document.documentElement.clientWidth||window.innerWidth);
     const vh = window.innerHeight || document.documentElement.clientHeight || 640;
     const LANDSCAPE = isLandscapeNow();
-
+    
     // 依目前 lanes 實際畫布寬高比
     const aspect = W / H;
 
@@ -2223,8 +2268,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       const targetH  = Math.round(targetW * (H / W));  // 確保容器高度與 canvas 比例一致
       wrap.style.width  = targetW + 'px';
       wrap.style.height = targetH + 'px';
+      wrap.style.margin = '20px auto';
       if(topbar) topbar.style.display='flex';
-      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
+      if(dockHandleEl){ dockHandleEl.classList.remove('show'); dockHandleEl.style.display='none'; }
+      $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
       $("#hpFloat").style.display='none';
     } else if (LANDSCAPE){
       wrap.classList.add('landscape');
@@ -2233,6 +2280,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       const h = Math.max(480, Math.floor(scale * H));
       wrap.style.width  = w + 'px';
       wrap.style.height = h + 'px';
+      wrap.style.margin = '0';
       if(topbar) topbar.style.display='none';
       // 控制中心在手機橫版用把手
       positionDockHandle();
@@ -2243,20 +2291,28 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       const maxW = Math.floor(vw * 0.98);
       let targetW = Math.min(maxW, Math.round(baseLaneW*LANES)); // 小螢幕自動縮小
       let targetH = Math.round(targetW * (H / W));
+      let marginTop = 20;
 
       if (MOBILE_FULL && LANES>4){
-        // 以可視高為基礎，但二階段檢查寬是否超框；超過則回退以寬為基準
-        const maxH = Math.round(vh * 0.86);
-        let h1 = Math.max(360, maxH);
+        const topPad = (()=>{
+          if(!topbar) return 24;
+          const tr = topbar.getBoundingClientRect();
+          return Math.max(24, Math.round(tr.height + 24));
+        })();
+        const availableH = Math.max(360, Math.floor(vh - topPad - 20));
+        let h1 = Math.min(Math.floor(vh * 0.96), availableH);
         let w1 = Math.round(h1 * aspect);
         if (w1 > maxW){ w1 = maxW; h1 = Math.round(w1 / aspect); }
         targetW = w1; targetH = h1;
+        marginTop = Math.max(8, topPad);
       }
 
       wrap.style.width  = targetW + 'px';
       wrap.style.height = targetH + 'px';
+      wrap.style.margin = `${marginTop}px auto 20px`;
       if(topbar) topbar.style.display='flex';
-      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
+      if(dockHandleEl){ dockHandleEl.classList.remove('show'); dockHandleEl.style.display='none'; }
+      $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
       $("#hpFloat").style.display='none';
     }
     layout(); draw({skip:true}); ui();
@@ -2273,13 +2329,9 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       handle.classList.remove('show');
       return;
     }
-    const wrap = $("#stageWrap");
-    const r = wrap.getBoundingClientRect();
-    const width = 200; const height = 28;
     handle.style.display='block';
     handle.classList.add('show');
-    handle.style.left = (r.left + r.width/2 - width/2) + 'px';
-    handle.style.top  = (r.top + 6) + 'px';
+    positionHpFloat();
   }
 
   /* 將浮動 HP 條定位到旋轉舞台的相對右上 */
@@ -2288,11 +2340,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const f = $("#hpFloat");
     if(!(IS_MOBILE && LANDSCAPE && f.style.display==='block')) return;
     const wrap = $("#stageWrap");
-    const r = wrap.getBoundingClientRect();
-    const w = Math.max(180, Math.min(280, Math.floor(r.width*0.55)));
-    f.style.width = w + 'px';
-    f.style.left  = (r.right - w - 14) + 'px';
-    f.style.top   = (r.top + 40) + 'px';
+    if(!wrap) return;
+    const baseW = wrap.offsetWidth || W;
+    const width = Math.max(180, Math.min(280, Math.floor(baseW * 0.55)));
+    const margin = Math.max(14, Math.round(baseW * 0.04));
+    f.style.width = width + 'px';
+    f.style.right = margin + 'px';
+    f.style.left = 'auto';
+    const handle = $("#dockTopHandle");
+    const handleGap = (handle && handle.classList.contains('show')) ? ((handle.offsetHeight||0) + 18) : 0;
+    const top = Math.max(margin + handleGap, 16);
+    f.style.top = top + 'px';
   }
 
   /* 輸入處理 */
@@ -2546,6 +2604,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
