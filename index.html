@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<title>DFJK — 直版 6/8 鍵不超框 & 不壓縮（v9, no redeclare）</title>
+<title>DFJK — 桌機也有控制中心（v11, desktop+mobile, hard single-instance）</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 /* ===== 基礎 ===== */
@@ -43,18 +43,14 @@ canvas{ display:block; width:100%; height:auto; max-width:100%; background:#0c13
   display:flex; align-items:center; justify-content:space-between; gap:8px; padding:0 10px;
 }
 .top-mid{ flex:1 1 auto; display:flex; justify-content:center; }
-#toggleHeatBtn{
-  padding:6px 10px; font-size:12px; background:#1c293e;
-  border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; opacity:.95; cursor:pointer;
-}
-#pauseButton{ padding:6px 10px; font-size:14px; border:none; border-radius:8px; background:#78d5ff; cursor:pointer; }
+#ctrlButton{ padding:6px 10px; font-size:14px; border:none; border-radius:8px; background:#78d5ff; cursor:pointer; }
 
 /* 血條（置中顯示） */
 #hpBar{ position:relative; height:18px; background:rgba(255,255,255,.18); border-radius:999px; display:none; min-width:160px; }
 #hpFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
 #hpText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
 
-/* 橫版 HP 浮動（不旋轉，固定貼在旋轉後舞台的相對頂部中央） */
+/* 橫版 HP 浮動（固定靠右上） */
 #hpFloat{
   position:fixed; z-index:186; display:none;
   height:18px; min-width:160px; background:rgba(255,255,255,.18);
@@ -76,9 +72,9 @@ canvas{ display:block; width:100%; height:auto; max-width:100%; background:#0c13
 select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid #445; background:#12152a; color:#fff; }
 #songSelect{ width:90%; max-width:420px; height:280px; }
 
-/* ===== 橫版控制中心（點擊滑出面板） ===== */
-#landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; display:none; }
-#landDock.open{ transform:translate(-50%,0); pointer-events:auto; display:block; }
+/* ===== 控制中心（任何版面都可用；用 transform 隱藏/顯示） ===== */
+#landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; display:block; }
+#landDock.open{ transform:translate(-50%,0); pointer-events:auto; }
 #landDock .sheet{ margin:10px auto; background:rgba(20,26,44,.62); backdrop-filter:blur(10px); border:1px solid rgba(120,213,255,.20); border-radius:14px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
 #landDock .handleBar{ width:64px; height:6px; border-radius:999px; background:rgba(255,255,255,.65); margin:10px auto 12px; }
 #landDock .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px 12px; text-align:left; }
@@ -87,7 +83,7 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 #landDock .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-top:8px; }
 #landDock .actions button{ flex:1 1 180px; margin:0; }
 
-/* 控制中心開關把手（定位由 JS 依舞台位置動態設定） */
+/* 控制中心開關把手（定位由 JS 依舞台位置動態設定；僅手機橫版顯示） */
 #dockTopHandle{
   position:fixed; z-index:185; border-radius:999px;
   width:200px; height:28px; background:rgba(255,255,255,.08); backdrop-filter:blur(2px);
@@ -101,6 +97,8 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 
 /* 遮罩 */
 #dockScrim{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.12); z-index:170; }
+/* 確保主選單層級比任何殘留覆蓋層高（若有 CSS 邏輯失誤時仍可點） */
+#menuScreen,#optionsScreen,#musicScreen,#pauseScreen,#endScreen{ position:relative; z-index:200; }
 #dockScrim.show{ display:block; }
 
 /* 畫面切換頁面 */
@@ -115,9 +113,9 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <div id="menuScreen">
   <h1>🎵 DFJK</h1>
   <div class="row">
-    <button id="btnStart">開始遊戲</button>
-    <button id="btnMusic">音樂</button>
-    <button id="btnOptions">選項</button>
+    <button id="btnStart" onclick="window.__DFJK_API__?.startGame?.()">開始遊戲</button>
+    <button id="btnMusic" onclick="window.__DFJK_API__?.toMusic?.()">音樂</button>
+    <button id="btnOptions" onclick="window.__DFJK_API__?.toOpt?.()">選項</button>
   </div>
   <div class="row">已選曲目：<span id="menuChosenSong">尚未選擇</span></div>
 </div>
@@ -219,11 +217,12 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <!-- ===== 遊戲畫面 ===== -->
 <div id="gameScreen" style="display:none;position:relative;">
   <div class="topbar">
-    <button id="toggleHeatBtn">HEAT</button>
+    <button id="ctrlButton">⚙️ 控制中心</button>
     <div class="top-mid">
       <div id="hpBar"><div id="hpFill"></div><div id="hpText">100/100</div></div>
     </div>
-    <button id="pauseButton">⏸️</button>
+    <!-- 右側留白，維持置中對稱 -->
+    <div style="width:84px"></div>
   </div>
   <div id="stageWrap">
     <div id="stage">
@@ -239,7 +238,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <!-- 橫版 HP 浮動條 -->
 <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
 
-<!-- ===== 橫版控制中心 ===== -->
+<!-- ===== 控制中心（桌機與手機皆可） ===== -->
 <div id="dockScrim"></div>
 <div id="dockTopHandle" title="點我展開控制中心"></div>
 <div id="landDock" aria-label="控制中心">
@@ -265,7 +264,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   </div>
 </div>
 
-<!-- ===== 暫停 ===== -->
+<!-- ===== 暫停（保留頁面，但不再用按鈕進入；由控制中心取代） ===== -->
 <div id="pauseScreen" style="display:none;">
   <h2>⏸️ 遊戲暫停</h2>
   <button id="btnResume">▶️ 繼續</button>
@@ -311,11 +310,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <script>
 /* ======================= 防二次宣告：AbortController + 單例狀態 ======================= */
 (() => {
-  try { window.__DFJK_ABORT__?.abort(); } catch {}
+  // 強化單例守衛：任何再次注入會先呼叫舊實例的 abort()，避免「二次宣告」
+  try { window.__DFJK_V11__?.abort(); } catch {}
   const CTRL = new AbortController();
-  window.__DFJK_ABORT__ = CTRL;
+  window.__DFJK_V11__ = { abort: () => CTRL.abort(), version: 'v11' };
   const SIG = CTRL.signal;
-  const addEv = (target, type, handler, opts={}) => { try{ target.addEventListener(type, handler, {...opts, signal: SIG}); }catch{ target.addEventListener(type, handler, opts); } };
+  const addEv = (target, type, handler, opts={}) => {
+    if(!target) return; // 目標不存在就略過，避免錯誤
+    try{ target.addEventListener(type, handler, {...opts, signal: SIG}); }catch{ target.addEventListener(type, handler, opts); }
+  };
 
   /* 共享狀態先宣告，確保 abort 時一定存在 */
   let loopId = null;
@@ -631,12 +634,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const w=230, h=74, bw=w/bins;
 
     const LANDSCAPE = isLandscapeNow();
-    let x0 = 14, y0 = 24; // fallback
+    let x0 = 14, y0 = 24; // 通用預設：舞台左上角
     if(!LANDSCAPE){
-      const btn = $("#toggleHeatBtn"); const cr = c.getBoundingClientRect(); const br = btn ? btn.getBoundingClientRect() : null;
-      if(br && cr){
-        const xCss = Math.max(8, Math.min(cr.width - w - 8, (br.left - cr.left)));
-        const yCss = Math.min(cr.height - h - 8, (br.bottom - cr.top) + 8);
+      // 直向或桌機，嘗試貼齊 topbar 下緣
+      const cr = c.getBoundingClientRect();
+      const tb = document.querySelector('.topbar');
+      const tr = tb ? tb.getBoundingClientRect() : null;
+      if(cr && tr){
+        const xCss = 14;
+        const yCss = Math.min(cr.height - h - 8, (tr.bottom - cr.top) + 8);
         x0 = xCss / cr.width  * W;
         y0 = yCss / cr.height * H;
       }
@@ -677,9 +683,32 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function judgeClock(){ return hardClock() + (OFFSET/1000); }
 
   /* 畫面切換 */
-  function showOnly(id){ ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'].forEach(x=>{ const el=$("#"+x); if(!el) return; el.style.display=(x===id?'block':'none'); }); if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); } }
+  function showOnly(id){
+    const pages=['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'];
+    pages.forEach(x=>{ const el = document.getElementById(x); if(!el) return; el.style.display = (x===id?'block':'none'); });
+    // 無論如何移除遊戲模糊
+    document.getElementById('gameScreen')?.classList.remove('blur');
+    const notGame = (id !== 'gameScreen');
+    if(notGame){
+      // 關任何可能遮住點擊的覆蓋層
+      try{ closeDock(true); }catch{}
+      const scrim = document.getElementById('dockScrim'); if(scrim) scrim.classList.remove('show');
+      const dock = document.getElementById('landDock'); if(dock) dock.classList.remove('open');
+      // 直橫版 HP 漂浮條都關
+      try{ hpShow(false); }catch{}
+    }
+  }); if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); } }
   function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; closeDock(true); }
-  function toOpt(){ showOnly('optionsScreen'); }
+  function toOpt(){
+    // 確保任何遮罩/控制中心都關閉，避免擋住點擊
+    try{ closeDock(true); }catch{}
+    cancelCountdown();
+    stopLoop();
+    stopAudio();
+    document.body.classList.remove('ex-mode');
+    phase='menu'; // 在選單語境下瀏覽選項
+    showOnly('optionsScreen');
+  }
   function toMusic(){ showOnly('musicScreen'); }
 
   /* 曲庫 */
@@ -743,8 +772,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   /* 控制中心 */
   let dockOpenState=false, pausedByDock=false;
   function updateDockHUD(){ $("#dockSong").textContent = currentSong; $("#dockLanes").textContent= String(LANES); $("#dockDiff").textContent = diff.toUpperCase(); $("#dockDir").textContent  = (dir==='up'?'上升':'下落'); $("#dockJudge").textContent= (jmode==='old'?'Old':'New'); $("#dockScore").textContent= String(score); $("#dockCombo").textContent= String(combo); $("#dockMiss").textContent = String(missCount); $("#dockHeatState").textContent = showHeat ? 'ON' : 'OFF'; }
-  function openDock(){ if(dockOpenState) return; dockOpenState=true; $("#landDock").classList.add('open'); $("#dockScrim").classList.add('show'); if(phase==='playing'||phase==='countdown'){ pausedByDock=true; pauseGame(); }else{ pausedByDock=false; } updateDockHUD(); }
-  function closeDock(silent){ if(!dockOpenState) return; dockOpenState=false; $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show'); if(!silent && pausedByDock){ pausedByDock=false; resumeGame(); } }
+  function openDock(){ if(dockOpenState) return; dockOpenState=true; $("#landDock").classList.add('open'); $("#dockScrim").classList.add('show'); if(phase==='playing'||phase==='countdown'){ pausedByDock=true; pauseForDock(); } else { pausedByDock=false; } updateDockHUD(); }else{ pausedByDock=false; } updateDockHUD(); }
+  function closeDock(silent){ if(!dockOpenState) return; dockOpenState=false; $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show'); if(!silent && pausedByDock){ pausedByDock=false; resumeFromDock(); } } }
   function bindDock(){ const LANDSCAPE = isLandscapeNow(); const handle = $("#dockHandle"); const topHandle = $("#dockTopHandle"); if (IS_MOBILE && LANDSCAPE) topHandle.classList.add('show'); else topHandle.classList.remove('show'); positionDockHandle(); const toggle = ()=>{ dockOpenState?closeDock():openDock(); }; ["click","pointerdown","touchstart"].forEach(ev=>{ addEv(topHandle, ev, toggle, {passive:true}); addEv(handle, ev, toggle, {passive:true}); }); addEv($("#dockScrim"),'click', ()=> closeDock() ); addEv($("#dockResume"),'click', ()=> closeDock() ); addEv($("#dockHeatToggle"),'click', ()=>{ showHeat=!showHeat; ui(); $("#dockHeatState").textContent = showHeat?'ON':'OFF'; }); addEv($("#dockToMenu"),'click', ()=>{ closeDock(true); toMenu(); }); }
 
   function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; localStorage.setItem("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
@@ -768,7 +797,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       wrap.style.width  = targetW + 'px';
       wrap.style.height = targetH + 'px';
       if(topbar) topbar.style.display='flex';
-      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show');
+      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
       $("#hpFloat").style.display='none';
     } else if (LANDSCAPE){
       wrap.classList.add('landscape');
@@ -778,7 +807,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       wrap.style.width  = w + 'px';
       wrap.style.height = h + 'px';
       if(topbar) topbar.style.display='none';
-      $("#landDock").style.display='block';
+      // 控制中心在手機橫版用把手
       positionDockHandle();
       hpShow(HP_ON);
     } else {
@@ -800,7 +829,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       wrap.style.width  = targetW + 'px';
       wrap.style.height = targetH + 'px';
       if(topbar) topbar.style.display='flex';
-      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#landDock").style.display='none'; $("#dockScrim").classList.remove('show');
+      $("#dockTopHandle").classList.remove('show'); $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
       $("#hpFloat").style.display='none';
     }
     layout(); draw({skip:true}); ui();
@@ -821,18 +850,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     handle.style.top  = (r.top + 6) + 'px';
   }
 
-  /* 將浮動 HP 條定位到旋轉舞台的相對頂部中央 */
+  /* 將浮動 HP 條定位到旋轉舞台的相對右上 */
   function positionHpFloat(){
     const LANDSCAPE = isLandscapeNow();
     const f = $("#hpFloat");
     if(!(IS_MOBILE && LANDSCAPE && f.style.display==='block')) return;
     const wrap = $("#stageWrap");
     const r = wrap.getBoundingClientRect();
-    const pad = 40;
     const w = Math.max(180, Math.min(280, Math.floor(r.width*0.55)));
     f.style.width = w + 'px';
-    f.style.left  = (r.left + r.width/2 - w/2) + 'px';
-    f.style.top   = (r.top + pad) + 'px';
+    f.style.left  = (r.right - w - 14) + 'px';
+    f.style.top   = (r.top + 40) + 'px';
   }
 
   /* 輸入處理 */
@@ -881,8 +909,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     if(k==='r'){ heatMode=(heatMode+1)%3; banner(`熱圖位置：${heatMode===0?'自動':(heatMode===1?'置頂':'置底')}`); ui(); e.preventDefault(); return; }
     const l=laneKeyFromChar(k);
     if(l!==null){ if(running&&!paused){ onPress(l); } e.preventDefault(); return; }
-    if(k==='escape'){ if(phase==='playing') pauseGame(); else if(phase==='paused') resumeGame();
-      else if(phase==='countdown'){ cancelCountdown(); pauseGame(true); } e.preventDefault(); }
+    if(k==='escape'){
+      if(dockOpenState){ closeDock(); }
+      else{ if(phase==='countdown') cancelCountdown(); openDock(); }
+      e.preventDefault();
+    }
   });
   addEv(c,"pointerdown", e=>{ if(!running||paused) return; e.preventDefault(); const l=lanePtrFromClient(e.clientX, e.clientY); onPress(l); }, {passive:false});
   addEv(c,"touchstart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
@@ -930,6 +961,25 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     countdown(()=>{ phase='playing'; running=true; startAt(0); loopId=requestAnimationFrame(loop); }, {show:false});
   }
   let pausedAt=0;
+  // === Dock專用的「軟暫停」：保留遊戲畫面與音符在背後 ===
+  function pauseForDock(){
+    if(phase==='countdown') cancelCountdown();
+    if(!running && phase!=='countdown') return;
+    paused=true; phase='paused';
+    $("#gameScreen").classList.remove('blur'); // 不要模糊，也不要切到暫停頁
+    showOnly('gameScreen');                      // 保持遊戲畫面在背後
+    pausedAt=hardClock();
+    stopLoop();
+    stopAudio();
+    // 不清畫布，保留剩餘音符在當前影格
+  }
+  function resumeFromDock(){
+    if(!paused) return;
+    paused=false; phase='countdown';
+    showOnly('gameScreen');
+    const t=pausedAt;
+    countdown(()=>{ phase='playing'; running=true; startAt(t); loopId=requestAnimationFrame(loop); }, {show:true,t});
+  }
   function pauseGame(fromC){
     if(phase==='countdown' && fromC!==true) cancelCountdown();
     if(!running && phase!=='countdown') return;
@@ -973,7 +1023,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     addEv($("#btnOptions"),"click", toOpt);
     addEv($("#btnSongConfirm"),"click", confirmSong);
     $$(".btnBackMenu").forEach(b=> addEv(b,"click", toMenu) );
-    addEv($("#pauseButton"),"click", ()=>{ if(phase==='countdown') cancelCountdown(); pauseGame(); });
+
+    // 補強：任何情況下點到 #btnOptions 都會進入選項（避免環境怪異導致原綁定失效）
+    addEv(document,'click', (e)=>{ const t=e.target; const hit = t && (t.id==='btnOptions' || (t.closest && t.closest('#btnOptions'))); if(hit){ e.preventDefault(); toOpt(); } }, {capture:true});
+    addEv(document,'pointerup', (e)=>{ const t=e.target; const hit = t && (t.id==='btnOptions' || (t.closest && t.closest('#btnOptions'))); if(hit){ e.preventDefault(); toOpt(); } }, {capture:true});
+    addEv(document,'touchend', (e)=>{ const t=e.target; const hit = t && (t.id==='btnOptions' || (t.closest && t.closest('#btnOptions'))); if(hit){ e.preventDefault(); toOpt(); } }, {capture:true});
+
+    // 直向/桌機：控制中心入口按鈕（取代 HEAT 與 暫停鍵）
+    const ctrlBtn = $("#ctrlButton");
+    addEv(ctrlBtn, "click", ()=>{ if(phase==='countdown') cancelCountdown(); openDock(); });
+
+    // 暫停頁仍保留快捷鍵（從控制中心 resume 時會用到）
     addEv($("#btnResume"),"click", resumeGame);
     addEv($("#btnRestart"),"click", startGame);
 
@@ -1002,9 +1062,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const hpC=$("#hpToggle"); hpC.checked=HP_ON;
     addEv(hpC,"change", ()=>{ HP_ON=hpC.checked; localStorage.setItem("dfjk.hpOn", HP_ON?'1':'0'); hpShow(HP_ON); });
 
-    /* 熱圖按鈕（直向 topbar 用） */
-    addEv($("#toggleHeatBtn"),"click", ()=>{ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); });
-
     /* 鍵數選擇 */
     const keySel=$("#keyModeSelect");
     keySel.value = String(LANES);
@@ -1032,6 +1089,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   }
 
   function init(){
+    // 對外暴露保底 API，讓 HTML 按鈕可直接呼叫
+    window.__DFJK_API__ = { toOpt, toMenu, toMusic, startGame, openDock, closeDock };
     recomputeLaneDirs();
     fitDPR(); desktopScale(); applyStageLayout();
     fillSongs(); bind(); hpShow(HP_ON); hpUpdate(); hud();
