@@ -2036,11 +2036,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function judgeClock(){ return hardClock() + (OFFSET/1000); }
 
   /* 畫面切換 */
-  function showOnly(id){␊
-    const pages=['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'];␊
-      pages.forEach(x=>{ const el = document.getElementById(x); if(!el) return; el.style.display = (x===id?'block':'none'); });␊
-    // 無論如何移除遊戲模糊␊
-    document.getElementById('gameScreen')?.classList.remove('blur');␊
+  function showOnly(id){
+    const pages=['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen'];
+      pages.forEach(x=>{ const el = document.getElementById(x); if(!el) return; el.style.display = (x===id?'block':'none'); });
+    // 無論如何移除遊戲模糊
+    document.getElementById('gameScreen')?.classList.remove('blur');
     const notGame = (id !== 'gameScreen');
     if(notGame){
       // 關任何可能遮住點擊的覆蓋層
@@ -2546,6 +2546,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
