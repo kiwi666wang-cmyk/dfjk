@@ -11,6 +11,27 @@ html,body{ margin:0; touch-action:manipulation; overscroll-behavior:none; backgr
 body{ color:#fff; font-family:sans-serif; text-align:center; transition:background .3s ease; }
 body.ex-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #000 100%); }
 
+/* ===== 語言切換 ===== */
+#languageSwitcher{
+  position:fixed; top:16px; right:16px; z-index:240;
+  display:flex; align-items:center; gap:8px;
+  background:rgba(12,19,34,.72); backdrop-filter:blur(10px);
+  border:1px solid rgba(120,213,255,.3); border-radius:999px;
+  padding:6px 12px; font-size:14px; line-height:1;
+  box-shadow:0 10px 24px rgba(0,0,0,.35);
+}
+#languageSwitcher label{ display:flex; align-items:center; gap:6px; cursor:pointer; font-weight:600; }
+#languageLabelText{ white-space:nowrap; }
+#languageSwitcher select{
+  border:none; background:rgba(9,14,26,.9); color:#fff; border-radius:999px;
+  padding:6px 10px; font-size:14px; outline:none; appearance:none;
+}
+#languageSwitcher select:focus{ box-shadow:0 0 0 2px rgba(120,213,255,.45); }
+.lang-globe{
+  width:18px; height:18px; display:inline-block; flex:0 0 18px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 3a9 9 0 010 18M3 12h18M6.5 7.5a17 17 0 0011 0M6.5 16.5a17 17 0 0111 0'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+
 /* ===== 舞台包裹：可切換尺寸/旋轉 ===== */
 #stageWrap{
   position:relative; margin:20px auto; width:min(95vw, 840px);
@@ -109,115 +130,121 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </head>
 <body>
 
+<div id="languageSwitcher">
+  <span class="lang-globe" aria-hidden="true"></span>
+  <label for="languageSelect" id="languageLabel"><span id="languageLabelText" data-i18n="languageLabel">語言</span></label>
+  <select id="languageSelect" aria-labelledby="languageLabel"></select>
+</div>
+
 <!-- ===== 主選單 ===== -->
 <div id="menuScreen">
-  <h1>🎵 DFJK</h1>
+  <h1 data-i18n="menuTitle">🎵 DFJK</h1>
   <div class="row">
-    <button id="btnStart" onclick="window.__DFJK_API__?.startGame?.()">開始遊戲</button>
-    <button id="btnMusic" onclick="window.__DFJK_API__?.toMusic?.()">音樂</button>
-    <button id="btnOptions" onclick="window.__DFJK_API__?.toOpt?.()">選項</button>
+    <button id="btnStart" data-i18n="btnStart" onclick="window.__DFJK_API__?.startGame?.()">開始遊戲</button>
+    <button id="btnMusic" data-i18n="btnMusic" onclick="window.__DFJK_API__?.toMusic?.()">音樂</button>
+    <button id="btnOptions" data-i18n="btnOptions" onclick="window.__DFJK_API__?.toOpt?.()">選項</button>
   </div>
-  <div class="row">已選曲目：<span id="menuChosenSong">尚未選擇</span></div>
+  <div class="row"><span data-i18n="menuSelectedLabel">已選曲目：</span><span id="menuChosenSong">尚未選擇</span></div>
 </div>
 
 <!-- ===== 音樂選單 ===== -->
 <div id="musicScreen" style="display:none;">
-  <h2>🎼 選擇本局曲目</h2>
+  <h2 data-i18n="musicTitle">🎼 選擇本局曲目</h2>
   <div class="row"><select id="songSelect" size="12"></select></div>
   <div class="row">
-    <button id="btnSongConfirm">確定</button>
-    <button class="btnBackMenu">回主選單</button>
+    <button id="btnSongConfirm" data-i18n="btnConfirm">確定</button>
+    <button class="btnBackMenu" data-i18n="btnBackMenu">回主選單</button>
   </div>
-  <div class="row">已選：<span id="chosenSongLabel">尚未選擇</span></div>
+  <div class="row"><span data-i18n="musicChosenLabel">已選：</span><span id="chosenSongLabel">尚未選擇</span></div>
 </div>
 
 <!-- ===== 選項 ===== -->
 <div id="optionsScreen" style="display:none;">
-  <h2>⚙️ 遊戲選項</h2>
+  <h2 data-i18n="optionsTitle">⚙️ 遊戲選項</h2>
   <div class="row">
-    <label for="keyModeSelect">鍵數：</label>
+    <label for="keyModeSelect" data-i18n="keyModeLabel">鍵數：</label>
     <select id="keyModeSelect">
-      <option value="4" selected>4 鍵（DFJK / 可用方向鍵）</option>
-      <option value="6">6 鍵（SDF JKL）</option>
-      <option value="8">8 鍵（ASDF JKL;）</option>
+      <option value="4" selected data-i18n="keyOption4">4 鍵（DFJK / 可用方向鍵）</option>
+      <option value="6" data-i18n="keyOption6">6 鍵（SDF JKL）</option>
+      <option value="8" data-i18n="keyOption8">8 鍵（ASDF JKL;）</option>
     </select>
   </div>
   <div class="row">
-    <label for="difficultySelect">難度：</label>
+    <label for="difficultySelect" data-i18n="difficultyLabel">難度：</label>
     <select id="difficultySelect">
-      <option value="ex">EX（極限）</option>
-      <option value="hell">地獄</option>
-      <option value="hard">困難</option>
-      <option value="normal" selected>普通</option>
-      <option value="easy">簡單</option>
-      <option value="beginner">初學者</option>
+      <option value="ex" data-i18n="difficultyEx">EX（極限）</option>
+      <option value="hell" data-i18n="difficultyHell">地獄</option>
+      <option value="hard" data-i18n="difficultyHard">困難</option>
+      <option value="normal" data-i18n="difficultyNormal" selected>普通</option>
+      <option value="easy" data-i18n="difficultyEasy">簡單</option>
+      <option value="beginner" data-i18n="difficultyBeginner">初學者</option>
     </select>
   </div>
   <div class="row">
-    <label for="speedMultiplier">速度倍率：</label>
+    <label for="speedMultiplier" data-i18n="speedLabel">速度倍率：</label>
     <select id="speedMultiplier">
-      <option value="1">1.0x（標準）</option><option value="1.1">1.1x</option><option value="1.2">1.2x</option>
-      <option value="1.3">1.3x</option><option value="1.6">1.6x</option><option value="2.0">2.0x</option>
-      <option value="2.2">2.2x</option><option value="2.4">2.4x</option><option value="2.6">2.6x</option>
-      <option value="2.8">2.8x</option><option value="3.0">3.0x</option>
+      <option value="1" data-i18n="speedOptionStandard">1.0x（標準）</option><option value="1.1" data-i18n="speedOption11">1.1x</option><option value="1.2" data-i18n="speedOption12">1.2x</option>
+      <option value="1.3" data-i18n="speedOption13">1.3x</option><option value="1.6" data-i18n="speedOption16">1.6x</option><option value="2.0" data-i18n="speedOption20">2.0x</option>
+      <option value="2.2" data-i18n="speedOption22">2.2x</option><option value="2.4" data-i18n="speedOption24">2.4x</option><option value="2.6" data-i18n="speedOption26">2.6x</option>
+      <option value="2.8" data-i18n="speedOption28">2.8x</option><option value="3.0" data-i18n="speedOption30">3.0x</option>
     </select>
   </div>
   <div class="row">
-    <label for="noteDirection">音符方向：</label>
+    <label for="noteDirection" data-i18n="noteDirectionLabel">音符方向：</label>
     <select id="noteDirection">
-      <option value="down" selected>下落打擊</option>
-      <option value="up">上升打擊</option>
+      <option value="down" data-i18n="noteDirectionDown" selected>下落打擊</option>
+      <option value="up" data-i18n="noteDirectionUp">上升打擊</option>
     </select>
   </div>
   <div class="row">
-    <label for="judgeMode">判定模式：</label>
+    <label for="judgeMode" data-i18n="judgeModeLabel">判定模式：</label>
     <select id="judgeMode">
-      <option value="old" selected>Old Input（含 WRONG）</option>
-      <option value="new">New Input</option>
+      <option value="old" data-i18n="judgeModeOld" selected>Old Input（含 WRONG）</option>
+      <option value="new" data-i18n="judgeModeNew">New Input</option>
     </select>
   </div>
   <div class="row">
-    <label for="volumeSlider">主音量（BGM）：</label>
+    <label for="volumeSlider" data-i18n="volumeLabel">主音量（BGM）：</label>
     <input id="volumeSlider" type="range" min="0" max="100" value="80"/>
     <span id="volumeLabel">80%</span>
   </div>
   <div class="row">
-    <label for="sfxSlider">敲擊聲音量：</label>
+    <label for="sfxSlider" data-i18n="sfxLabel">敲擊聲音量：</label>
     <input id="sfxSlider" type="range" min="0" max="100" value="70"/>
     <span id="sfxLabel">70%</span>
   </div>
   <hr class="row" style="opacity:.2"/>
-  <h3>🎯 命中延遲校正</h3>
+  <h3 data-i18n="calibrationHeading">🎯 命中延遲校正</h3>
   <div class="row">
-    <label for="offsetSlider">全域偏移 (ms)：</label>
+    <label for="offsetSlider" data-i18n="offsetLabel">全域偏移 (ms)：</label>
     <input id="offsetSlider" type="range" min="-600" max="600" value="0"/>
     <span id="offsetLabel">0 ms</span>
-    <button id="offsetCalibBtn" type="button">快速校正</button>
+    <button id="offsetCalibBtn" type="button" data-i18n="offsetCalibBtn">快速校正</button>
   </div>
   <hr class="row" style="opacity:.2"/>
   <div class="row">
-    <label for="rgbCycleToggle">RGB 循環箭頭色：</label>
+    <label for="rgbCycleToggle" data-i18n="rgbLabel">RGB 循環箭頭色：</label>
     <input id="rgbCycleToggle" type="checkbox"/>
   </div>
   <div class="row">
-    <label for="hpToggle">血條模式：</label>
+    <label for="hpToggle" data-i18n="hpLabel">血條模式：</label>
     <input id="hpToggle" type="checkbox"/>
   </div>
   <div class="row">
-    <label for="mobileFullHeight">手機全高（>4鍵推薦）：</label>
+    <label for="mobileFullHeight" data-i18n="mobileFullLabel">手機全高（>4鍵推薦）：</label>
     <input id="mobileFullHeight" type="checkbox"/>
   </div>
   <div class="row">
-    <label for="mobileLandscape">手機橫板模式（β，未勾選則自動依螢幕方向）：</label>
+    <label for="mobileLandscape" data-i18n="mobileLandscapeLabel">手機橫板模式（β，未勾選則自動依螢幕方向）：</label>
     <input id="mobileLandscape" type="checkbox"/>
   </div>
-  <div class="row"><button class="btnBackMenu">回主選單</button></div>
+  <div class="row"><button class="btnBackMenu" data-i18n="btnBackMenu">回主選單</button></div>
 </div>
 
 <!-- ===== 遊戲畫面 ===== -->
 <div id="gameScreen" style="display:none;position:relative;">
   <div class="topbar">
-    <button id="ctrlButton">⚙️ 控制中心</button>
+    <button id="ctrlButton" data-i18n="ctrlButton">⚙️ 控制中心</button>
     <div class="top-mid">
       <div id="hpBar"><div id="hpFill"></div><div id="hpText">100/100</div></div>
     </div>
@@ -230,7 +257,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <canvas id="uiCanvas"   width="420" height="640"></canvas>
       <div id="edgeFade"></div>
       <div class="hitbar"><div></div><div></div><div></div><div></div></div>
-      <div id="countdownText">Ready</div>
+      <div id="countdownText">Ready</div>␊
     </div>
   </div>
 </div>
@@ -240,72 +267,72 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
 <!-- ===== 控制中心（桌機與手機皆可） ===== -->
 <div id="dockScrim"></div>
-<div id="dockTopHandle" title="點我展開控制中心"></div>
-<div id="landDock" aria-label="控制中心">
-  <div class="sheet">
-    <div class="handleBar" id="dockHandle"></div>
-    <div class="grid" id="dockGrid">
-      <div class="kv"><b>曲目</b><span id="dockSong">-</span></div>
-      <div class="kv"><b>鍵數</b><span id="dockLanes">4</span></div>
-      <div class="kv"><b>難度</b><span id="dockDiff">-</span></div>
-      <div class="kv"><b>方向</b><span id="dockDir">-</span></div>
-      <div class="kv"><b>判定</b><span id="dockJudge">-</span></div>
-      <div class="kv"><b>偏移</b><span id="dockOffset">0 ms</span></div>
-      <div class="kv"><b>分數</b><span id="dockScore">0</span></div>
-      <div class="kv"><b>連擊</b><span id="dockCombo">0</span></div>
-      <div class="kv"><b>MISS</b><span id="dockMiss">0</span></div>
-      <div class="kv"><b>HEAT</b><span id="dockHeatState">ON</span></div>
-    </div>
-    <div class="actions">
-      <button id="dockResume">返回遊戲（321）</button>
-      <button id="dockHeatToggle">HEAT 開/關</button>
-      <button id="dockToMenu">返回主畫面</button>
-    </div>
-  </div>
-</div>
+<div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
+<div id="landDock" aria-label="控制中心" data-i18n="ctrlButton" data-i18n-attr="aria-label">
+  <div class="sheet">␊
+    <div class="handleBar" id="dockHandle"></div>␊
+    <div class="grid" id="dockGrid">␊
+      <div class="kv"><b data-i18n="dockSong">曲目</b><span id="dockSong">-</span></div>
+      <div class="kv"><b data-i18n="dockLanes">鍵數</b><span id="dockLanes">4</span></div>
+      <div class="kv"><b data-i18n="dockDiff">難度</b><span id="dockDiff">-</span></div>
+      <div class="kv"><b data-i18n="dockDir">方向</b><span id="dockDir">-</span></div>
+      <div class="kv"><b data-i18n="dockJudge">判定</b><span id="dockJudge">-</span></div>
+      <div class="kv"><b data-i18n="dockOffset">偏移</b><span id="dockOffset">0 ms</span></div>
+      <div class="kv"><b data-i18n="dockScore">分數</b><span id="dockScore">0</span></div>
+      <div class="kv"><b data-i18n="dockCombo">連擊</b><span id="dockCombo">0</span></div>
+      <div class="kv"><b data-i18n="dockMiss">MISS</b><span id="dockMiss">0</span></div>
+      <div class="kv"><b data-i18n="dockHeat">HEAT</b><span id="dockHeatState">ON</span></div>
+    </div>␊
+    <div class="actions">␊
+      <button id="dockResume" data-i18n="dockResume">返回遊戲（321）</button>
+      <button id="dockHeatToggle" data-i18n="dockHeatToggle">HEAT 開/關</button>
+      <button id="dockToMenu" data-i18n="dockToMenu">返回主畫面</button>
+    </div>␊
+  </div>␊
+</div>␊
 
 <!-- ===== 暫停（保留頁面，但不再用按鈕進入；由控制中心取代） ===== -->
-<div id="pauseScreen" style="display:none;">
-  <h2>⏸️ 遊戲暫停</h2>
-  <button id="btnResume">▶️ 繼續</button>
-  <button class="btnBackMenu">回主選單</button>
-</div>
-
-<!-- ===== 結束 ===== -->
-<div id="endScreen" style="display:none;">
-  <h2>🎮 遊戲結束！</h2>
-  <p>曲目：<span id="finalSong">-</span></p>
-  <p>難度：<span id="finalDiff">-</span></p>
-  <p>方向：<span id="finalDir">-</span></p>
-  <p>判定：<span id="finalJudge">-</span></p>
-  <p>分數：<span id="finalScore">0</span></p>
-  <p>SICK：<span id="statSick">0</span></p>
-  <p>GOOD：<span id="statGood">0</span></p>
-  <p>BAD：<span id="statBad">0</span></p>
-  <p>SHIT：<span id="statShit">0</span></p>
-  <p>MISS：<span id="statMiss">0</span></p>
-  <button id="btnRestart">再玩一次</button>
-  <button class="btnBackMenu">回主選單</button>
-</div>
-
-<!-- ===== 校正覆蓋層 ===== -->
-<div id="calibOverlay" style="position:fixed; inset:0; display:none; z-index:220; background:rgba(3,7,15,.86); backdrop-filter:blur(2px);">
-  <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(520px,92vw); padding:18px 16px; border-radius:12px; background:rgba(10,16,30,.9); box-shadow:0 10px 40px rgba(0,0,0,.4); border:1px solid rgba(120,213,255,.3);">
-    <div style="font-size:22px; margin:6px 0 4px;">🎯 快速校正</div>
-    <div style="opacity:.85; font-size:14px; margin-bottom:8px;">跟著節拍（每拍 1000ms）按 DFJK 或點畫面，至少 10 次後可完成。中位數 + MAD 去極值。</div>
-    <div id="calibBeatDot" style="width:26px; height:26px; border-radius:50%; margin:12px auto; background:#78d5ff; box-shadow:0 0 30px rgba(120,213,255,.95);"></div>
-    <div id="calibBig" style="font:700 44px/1.2 'Fredoka One',sans-serif; margin:8px 0 2px;">待機</div>
-    <div id="calibStat" style="font:14px/1.4 monospace; opacity:.95; margin:2px 0 10px;">0/10　建議偏移：—</div>
-    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
-      <button id="calibStart"  class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#78d5ff; cursor:pointer;">開始</button>
-      <button id="calibFinish" class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#ffc857; cursor:pointer;" disabled>完成</button>
-      <button id="calibCancel" class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#ff6b6b; cursor:pointer;">取消</button>
-    </div>
-  </div>
-</div>
-
-<audio id="bgm" preload="auto"></audio>
-<div id="warnBanner">⚠️ 提示</div>
+<div id="pauseScreen" style="display:none;">␊
+  <h2 data-i18n="pauseTitle">⏸️ 遊戲暫停</h2>
+  <button id="btnResume" data-i18n="btnResume">▶️ 繼續</button>
+  <button class="btnBackMenu" data-i18n="btnBackMenu">回主選單</button>
+</div>␊
+␊
+<!-- ===== 結束 ===== -->␊
+<div id="endScreen" style="display:none;">␊
+  <h2 data-i18n="endTitle">🎮 遊戲結束！</h2>
+  <p><span data-i18n="finalSongLabel">曲目：</span><span id="finalSong">-</span></p>
+  <p><span data-i18n="finalDiffLabel">難度：</span><span id="finalDiff">-</span></p>
+  <p><span data-i18n="finalDirLabel">方向：</span><span id="finalDir">-</span></p>
+  <p><span data-i18n="finalJudgeLabel">判定：</span><span id="finalJudge">-</span></p>
+  <p><span data-i18n="finalScoreLabel">分數：</span><span id="finalScore">0</span></p>
+  <p><span data-i18n="statSickLabel">SICK：</span><span id="statSick">0</span></p>
+  <p><span data-i18n="statGoodLabel">GOOD：</span><span id="statGood">0</span></p>
+  <p><span data-i18n="statBadLabel">BAD：</span><span id="statBad">0</span></p>
+  <p><span data-i18n="statShitLabel">SHIT：</span><span id="statShit">0</span></p>
+  <p><span data-i18n="statMissLabel">MISS：</span><span id="statMiss">0</span></p>
+  <button id="btnRestart" data-i18n="btnRestart">再玩一次</button>
+  <button class="btnBackMenu" data-i18n="btnBackMenu">回主選單</button>
+</div>␊
+␊
+<!-- ===== 校正覆蓋層 ===== -->␊
+<div id="calibOverlay" style="position:fixed; inset:0; display:none; z-index:220; background:rgba(3,7,15,.86); backdrop-filter:blur(2px);">␊
+  <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(520px,92vw); padding:18px 16px; border-radius:12px; background:rgba(10,16,30,.9); box-shadow:0 10px 40px rgba(0,0,0,.4); border:1px solid rgba(120,213,255,.3);">␊
+    <div style="font-size:22px; margin:6px 0 4px;" data-i18n="calibrationTitle">🎯 快速校正</div>
+    <div style="opacity:.85; font-size:14px; margin-bottom:8px;" data-i18n="calibrationHint">跟著節拍（每拍 1000ms）按 DFJK 或點畫面，至少 10 次後可完成。中位數 + MAD 去極值。</div>
+    <div id="calibBeatDot" style="width:26px; height:26px; border-radius:50%; margin:12px auto; background:#78d5ff; box-shadow:0 0 30px rgba(120,213,255,.95);"></div>␊
+    <div id="calibBig" style="font:700 44px/1.2 'Fredoka One',sans-serif; margin:8px 0 2px;">待機</div>␊
+    <div id="calibStat" style="font:14px/1.4 monospace; opacity:.95; margin:2px 0 10px;">0/10　建議偏移：—</div>␊
+    <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">␊
+      <button id="calibStart"  class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#78d5ff; cursor:pointer;" data-i18n="calibStart">開始</button>
+      <button id="calibFinish" class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#ffc857; cursor:pointer;" disabled data-i18n="calibFinish">完成</button>
+      <button id="calibCancel" class="calibBtn" style="flex:1 1 140px; padding:14px 12px; font-size:18px; border-radius:10px; border:none; background:#ff6b6b; cursor:pointer;" data-i18n="calibCancel">取消</button>
+    </div>␊
+  </div>␊
+</div>␊
+␊
+<audio id="bgm" preload="auto"></audio>␊
+<div id="warnBanner" data-i18n="warnBanner">⚠️ 提示</div>
 
 <script>
 /* ======================= 防二次宣告：AbortController + 單例狀態 ======================= */
@@ -320,6 +347,1326 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     try{ target.addEventListener(type, handler, {...opts, signal: SIG}); }catch{ target.addEventListener(type, handler, opts); }
   };
 
+  const LANG_ORDER = ['en','zh-Hant','zh-Hans','de','ja','ko','fr','ru','th','vi'];
+  const I18N = {};
+  const DEFAULT_LANG = 'zh-Hant';
+  const SPEED_KEYS = ['11','12','13','16','20','22','24','26','28','30'];
+
+  function defineLang(code, data){ I18N[code] = data; }
+  function fallbackLang(){ return I18N[DEFAULT_LANG]; }
+  function formatStr(str, params={}){
+    if(typeof str !== 'string') return '';
+    return str.replace(/\{\{(\w+)\}\}/g, (_,k)=> (params && Object.prototype.hasOwnProperty.call(params,k)) ? String(params[k]) : '');
+  }
+  function getLang(){ return I18N[currentLang] || fallbackLang(); }
+  function getString(key){
+    const lang = getLang();
+    if(lang?.strings && Object.prototype.hasOwnProperty.call(lang.strings,key)) return lang.strings[key];
+    const fb = fallbackLang();
+    return fb?.strings?.[key] ?? '';
+  }
+  function getDynamic(key, params){
+    const lang = getLang();
+    let str = lang?.dynamic && Object.prototype.hasOwnProperty.call(lang.dynamic,key) ? lang.dynamic[key] : undefined;
+    if(str === undefined){
+      const fb = fallbackLang();
+      str = fb?.dynamic?.[key];
+    }
+    return formatStr(str ?? '', params);
+  }
+
+  function formatOffset(value, opts={}){
+    const num = Number(value);
+    const safe = Number.isFinite(num) ? num : 0;
+    const key = opts.signed ? 'offsetSigned' : 'offsetValue';
+    const formattedValue = opts.signed
+      ? (safe > 0 ? `+${safe}` : safe < 0 ? `${safe}` : '0')
+      : String(safe);
+    return getDynamic(key, { value: formattedValue });
+  }
+
+  defineLang('zh-Hant', {
+    nativeName: '繁體中文',
+    languageWord: '語言',
+    htmlLang: 'zh-Hant',
+    fontFamily: "'Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — 控制中心節奏遊戲',
+    strings: {
+      docTitle: 'DFJK — 控制中心節奏遊戲',
+      languageLabel: '語言',
+      menuTitle: '🎵 DFJK',
+      btnStart: '開始遊戲',
+      btnMusic: '音樂',
+      btnOptions: '選項',
+      menuSelectedLabel: '已選曲目：',
+      musicTitle: '🎼 選擇本局曲目',
+      btnConfirm: '確定',
+      btnBackMenu: '回主選單',
+      musicChosenLabel: '已選：',
+      optionsTitle: '⚙️ 遊戲選項',
+      keyModeLabel: '鍵數：',
+      keyOption4: '4 鍵（DFJK / 可用方向鍵）',
+      keyOption6: '6 鍵（SDF JKL）',
+      keyOption8: '8 鍵（ASDF JKL;）',
+      difficultyLabel: '難度：',
+      difficultyEx: 'EX（極限）',
+      difficultyHell: '地獄',
+      difficultyHard: '困難',
+      difficultyNormal: '普通',
+      difficultyEasy: '簡單',
+      difficultyBeginner: '初學者',
+      speedLabel: '速度倍率：',
+      speedOptionStandard: '1.0x（標準）',
+      noteDirectionLabel: '音符方向：',
+      noteDirectionDown: '下落打擊',
+      noteDirectionUp: '上升打擊',
+      judgeModeLabel: '判定模式：',
+      judgeModeOld: 'Old Input（含 WRONG）',
+      judgeModeNew: 'New Input',
+      volumeLabel: '主音量（BGM）：',
+      sfxLabel: '敲擊聲音量：',
+      calibrationHeading: '🎯 命中延遲校正',
+      offsetLabel: '全域偏移 (ms)：',
+      offsetCalibBtn: '快速校正',
+      rgbLabel: 'RGB 循環箭頭色：',
+      hpLabel: '血條模式：',
+      mobileFullLabel: '手機全高（>4鍵推薦）：',
+      mobileLandscapeLabel: '手機橫板模式（β，未勾選則自動依螢幕方向）：',
+      ctrlButton: '⚙️ 控制中心',
+      dockHandleTitle: '點我展開控制中心',
+      dockSong: '曲目',
+      dockLanes: '鍵數',
+      dockDiff: '難度',
+      dockDir: '方向',
+      dockJudge: '判定',
+      dockOffset: '偏移',
+      dockScore: '分數',
+      dockCombo: '連擊',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: '返回遊戲（321）',
+      dockHeatToggle: 'HEAT 開/關',
+      dockToMenu: '返回主畫面',
+      pauseTitle: '⏸️ 遊戲暫停',
+      btnResume: '▶️ 繼續',
+      endTitle: '🎮 遊戲結束！',
+      finalSongLabel: '曲目：',
+      finalDiffLabel: '難度：',
+      finalDirLabel: '方向：',
+      finalJudgeLabel: '判定：',
+      finalScoreLabel: '分數：',
+      statSickLabel: 'SICK：',
+      statGoodLabel: 'GOOD：',
+      statBadLabel: 'BAD：',
+      statShitLabel: 'SHIT：',
+      statMissLabel: 'MISS：',
+      btnRestart: '再玩一次',
+      calibrationTitle: '🎯 快速校正',
+      calibrationHint: '跟著節拍（每拍 1000ms）按 DFJK 或點畫面，至少 10 次後可完成。中位數 + MAD 去極值。',
+      calibStart: '開始',
+      calibFinish: '完成',
+      calibCancel: '取消',
+      warnBanner: '⚠️ 提示'
+    },
+    dynamic: {
+      menuSelectedNone: '尚未選擇',
+      musicPlaceholder: '— 請選擇曲目 —',
+      alertSelectSong: '請先選擇音樂',
+      countdownReady: '準備',
+      countdownGo: '開始！',
+      heatOn: '熱圖：ON',
+      heatOff: '熱圖：OFF',
+      heatPosition: '熱圖位置：{{position}}',
+      heatAuto: '自動',
+      heatTop: '置頂',
+      heatBottom: '置底',
+      appliedOffset: '已套用偏移：{{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: '鍵數切換為 {{value}}',
+      mobileOnly: '此選項只在行動裝置生效',
+      needPauseForCalib: '請先退出或暫停遊戲再校正',
+      calibrationReady: '待機',
+      calibrationStats: '{{count}}/{{total}} 建議偏移：{{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: '你輸了！EX MISS > 15',
+      hpDepleted: 'HP 耗盡',
+      heatStatusOn: 'ON',
+      heatStatusOff: 'OFF',
+      directionUp: '上升',
+      directionDown: '下落',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Hit 偏移熱圖 (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} 偏移:{{offset}}ms'
+    }
+  });
+
+  defineLang('zh-Hans', {
+    nativeName: '简体中文',
+    languageWord: '语言',
+    htmlLang: 'zh-Hans',
+    fontFamily: "'Noto Sans SC','Microsoft YaHei','PingFang SC','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — 控制中心节奏游戏',
+    strings: {
+      docTitle: 'DFJK — 控制中心节奏游戏',
+      languageLabel: '语言',
+      menuTitle: '🎵 DFJK',
+      btnStart: '开始游戏',
+      btnMusic: '音乐',
+      btnOptions: '选项',
+      menuSelectedLabel: '已选曲目：',
+      musicTitle: '🎼 选择本局曲目',
+      btnConfirm: '确定',
+      btnBackMenu: '回主菜单',
+      musicChosenLabel: '已选：',
+      optionsTitle: '⚙️ 游戏选项',
+      keyModeLabel: '键数：',
+      keyOption4: '4 键（DFJK / 可用方向键）',
+      keyOption6: '6 键（SDF JKL）',
+      keyOption8: '8 键（ASDF JKL;）',
+      difficultyLabel: '难度：',
+      difficultyEx: 'EX（极限）',
+      difficultyHell: '地狱',
+      difficultyHard: '困难',
+      difficultyNormal: '普通',
+      difficultyEasy: '简单',
+      difficultyBeginner: '初学者',
+      speedLabel: '速度倍率：',
+      speedOptionStandard: '1.0x（标准）',
+      noteDirectionLabel: '音符方向：',
+      noteDirectionDown: '下落打击',
+      noteDirectionUp: '上升打击',
+      judgeModeLabel: '判定模式：',
+      judgeModeOld: 'Old Input（含 WRONG）',
+      judgeModeNew: 'New Input',
+      volumeLabel: '主音量（BGM）：',
+      sfxLabel: '敲击声音量：',
+      calibrationHeading: '🎯 命中延迟校正',
+      offsetLabel: '全域偏移 (ms)：',
+      offsetCalibBtn: '快速校正',
+      rgbLabel: 'RGB 循环箭头色：',
+      hpLabel: '血条模式：',
+      mobileFullLabel: '手机全高（>4键推荐）：',
+      mobileLandscapeLabel: '手机横屏模式（β，未勾选则自动依屏幕方向）：',
+      ctrlButton: '⚙️ 控制中心',
+      dockHandleTitle: '点我展开控制中心',
+      dockSong: '曲目',
+      dockLanes: '键数',
+      dockDiff: '难度',
+      dockDir: '方向',
+      dockJudge: '判定',
+      dockOffset: '偏移',
+      dockScore: '分数',
+      dockCombo: '连击',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: '返回游戏（321）',
+      dockHeatToggle: 'HEAT 开/关',
+      dockToMenu: '返回主画面',
+      pauseTitle: '⏸️ 游戏暂停',
+      btnResume: '▶️ 继续',
+      endTitle: '🎮 游戏结束！',
+      finalSongLabel: '曲目：',
+      finalDiffLabel: '难度：',
+      finalDirLabel: '方向：',
+      finalJudgeLabel: '判定：',
+      finalScoreLabel: '分数：',
+      statSickLabel: 'SICK：',
+      statGoodLabel: 'GOOD：',
+      statBadLabel: 'BAD：',
+      statShitLabel: 'SHIT：',
+      statMissLabel: 'MISS：',
+      btnRestart: '再玩一次',
+      calibrationTitle: '🎯 快速校正',
+      calibrationHint: '跟着节拍（每拍 1000ms）按 DFJK 或点画面，至少 10 次后可完成。中位数 + MAD 去极值。',
+      calibStart: '开始',
+      calibFinish: '完成',
+      calibCancel: '取消',
+      warnBanner: '⚠️ 提示'
+    },
+    dynamic: {
+      menuSelectedNone: '尚未选择',
+      musicPlaceholder: '— 请选择曲目 —',
+      alertSelectSong: '请先选择音乐',
+      countdownReady: '准备',
+      countdownGo: '开始！',
+      heatOn: '热图：ON',
+      heatOff: '热图：OFF',
+      heatPosition: '热图位置：{{position}}',
+      heatAuto: '自动',
+      heatTop: '置顶',
+      heatBottom: '置底',
+      appliedOffset: '已套用偏移：{{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: '键数切换为 {{value}}',
+      mobileOnly: '此选项只在行动装置生效',
+      needPauseForCalib: '请先退出或暂停游戏再校正',
+      calibrationReady: '待机',
+      calibrationStats: '{{count}}/{{total}} 建议偏移：{{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: '你输了！EX MISS > 15',
+      hpDepleted: 'HP 耗尽',
+      heatStatusOn: 'ON',
+      heatStatusOff: 'OFF',
+      directionUp: '上升',
+      directionDown: '下落',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Hit 偏移热图 (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} 偏移:{{offset}}ms'
+    }
+  });
+
+  defineLang('en', {
+    nativeName: 'English',
+    zhLabel: '英文',
+    languageWord: 'Language',
+    htmlLang: 'en',
+    fontFamily: "'Segoe UI','Helvetica Neue',Arial,'Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — Rhythm Control Center',
+    strings: {
+      docTitle: 'DFJK — Rhythm Control Center',
+      languageLabel: 'Language',
+      menuTitle: '🎵 DFJK',
+      btnStart: 'Start Game',
+      btnMusic: 'Music',
+      btnOptions: 'Options',
+      menuSelectedLabel: 'Selected song:',
+      musicTitle: '🎼 Choose a Track',
+      btnConfirm: 'Confirm',
+      btnBackMenu: 'Back to Menu',
+      musicChosenLabel: 'Picked:',
+      optionsTitle: '⚙️ Game Options',
+      keyModeLabel: 'Keys:',
+      keyOption4: '4 Keys (DFJK / arrow keys usable)',
+      keyOption6: '6 Keys (SDF JKL)',
+      keyOption8: '8 Keys (ASDF JKL;)',
+      difficultyLabel: 'Difficulty:',
+      difficultyEx: 'EX (Extreme)',
+      difficultyHell: 'Hell',
+      difficultyHard: 'Hard',
+      difficultyNormal: 'Normal',
+      difficultyEasy: 'Easy',
+      difficultyBeginner: 'Beginner',
+      speedLabel: 'Scroll Speed:',
+      speedOptionStandard: '1.0x (Standard)',
+      noteDirectionLabel: 'Note Direction:',
+      noteDirectionDown: 'Falling notes',
+      noteDirectionUp: 'Rising notes',
+      judgeModeLabel: 'Judgement Mode:',
+      judgeModeOld: 'Old Input (with WRONG)',
+      judgeModeNew: 'New Input',
+      volumeLabel: 'Master Volume (BGM):',
+      sfxLabel: 'Hit Sound Volume:',
+      calibrationHeading: '🎯 Timing Calibration',
+      offsetLabel: 'Global Offset (ms):',
+      offsetCalibBtn: 'Quick Calibrate',
+      rgbLabel: 'RGB cycling arrow colors:',
+      hpLabel: 'HP mode:',
+      mobileFullLabel: 'Mobile full height (>4 keys recommended):',
+      mobileLandscapeLabel: 'Mobile landscape mode (beta, auto by orientation when off):',
+      ctrlButton: '⚙️ Control Center',
+      dockHandleTitle: 'Tap to open Control Center',
+      dockSong: 'Song',
+      dockLanes: 'Keys',
+      dockDiff: 'Difficulty',
+      dockDir: 'Direction',
+      dockJudge: 'Judge',
+      dockOffset: 'Offset',
+      dockScore: 'Score',
+      dockCombo: 'Combo',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: 'Back to Game (321)',
+      dockHeatToggle: 'Toggle HEAT',
+      dockToMenu: 'Return to Menu',
+      pauseTitle: '⏸️ Game Paused',
+      btnResume: '▶️ Resume',
+      endTitle: '🎮 Game Over!',
+      finalSongLabel: 'Song:',
+      finalDiffLabel: 'Difficulty:',
+      finalDirLabel: 'Direction:',
+      finalJudgeLabel: 'Judgement:',
+      finalScoreLabel: 'Score:',
+      statSickLabel: 'SICK:',
+      statGoodLabel: 'GOOD:',
+      statBadLabel: 'BAD:',
+      statShitLabel: 'SHIT:',
+      statMissLabel: 'MISS:',
+      btnRestart: 'Play Again',
+      calibrationTitle: '🎯 Quick Calibration',
+      calibrationHint: 'Follow the beat (1000 ms per beat) and tap DFJK or the screen at least 10 times. Median + MAD removes outliers.',
+      calibStart: 'Start',
+      calibFinish: 'Finish',
+      calibCancel: 'Cancel',
+      warnBanner: '⚠️ Notice'
+    },
+    dynamic: {
+      menuSelectedNone: 'Not selected yet',
+      musicPlaceholder: '— Choose a track —',
+      alertSelectSong: 'Please select a song first',
+      countdownReady: 'Ready',
+      countdownGo: 'Go!',
+      heatOn: 'Heatmap: ON',
+      heatOff: 'Heatmap: OFF',
+      heatPosition: 'Heatmap position: {{position}}',
+      heatAuto: 'Auto',
+      heatTop: 'Top',
+      heatBottom: 'Bottom',
+      appliedOffset: 'Offset applied: {{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: 'Key mode switched to {{value}}',
+      mobileOnly: 'This option only works on mobile devices',
+      needPauseForCalib: 'Please leave or pause the game before calibrating',
+      calibrationReady: 'Standby',
+      calibrationStats: '{{count}}/{{total}} Suggested offset: {{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: 'You lost! EX MISS > 15',
+      hpDepleted: 'HP depleted',
+      heatStatusOn: 'ON',
+      heatStatusOff: 'OFF',
+      directionUp: 'Upward',
+      directionDown: 'Downward',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Hit Offset Heatmap (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} offset:{{offset}}ms'
+    }
+  });
+
+  defineLang('de', {
+    nativeName: 'Deutsch',
+    zhLabel: '德文',
+    languageWord: 'Sprache',
+    htmlLang: 'de',
+    fontFamily: "'Fira Sans','Segoe UI','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — Rhythmus-Kontrollzentrum',
+    strings: {
+      docTitle: 'DFJK — Rhythmus-Kontrollzentrum',
+      languageLabel: 'Sprache',
+      menuTitle: '🎵 DFJK',
+      btnStart: 'Spiel starten',
+      btnMusic: 'Musik',
+      btnOptions: 'Optionen',
+      menuSelectedLabel: 'Gewählter Titel:',
+      musicTitle: '🎼 Titel auswählen',
+      btnConfirm: 'Bestätigen',
+      btnBackMenu: 'Zurück zum Menü',
+      musicChosenLabel: 'Ausgewählt:',
+      optionsTitle: '⚙️ Spieleinstellungen',
+      keyModeLabel: 'Tasten:',
+      keyOption4: '4 Tasten (DFJK / Pfeiltasten möglich)',
+      keyOption6: '6 Tasten (SDF JKL)',
+      keyOption8: '8 Tasten (ASDF JKL;)',
+      difficultyLabel: 'Schwierigkeit:',
+      difficultyEx: 'EX (Extrem)',
+      difficultyHell: 'Hölle',
+      difficultyHard: 'Schwer',
+      difficultyNormal: 'Normal',
+      difficultyEasy: 'Leicht',
+      difficultyBeginner: 'Anfänger',
+      speedLabel: 'Scroll-Geschwindigkeit:',
+      speedOptionStandard: '1.0x (Standard)',
+      noteDirectionLabel: 'Notenrichtung:',
+      noteDirectionDown: 'Fallende Noten',
+      noteDirectionUp: 'Steigende Noten',
+      judgeModeLabel: 'Bewertungsmodus:',
+      judgeModeOld: 'Old Input (mit WRONG)',
+      judgeModeNew: 'New Input',
+      volumeLabel: 'Master-Lautstärke (BGM):',
+      sfxLabel: 'Trefferlautstärke:',
+      calibrationHeading: '🎯 Timing-Kalibrierung',
+      offsetLabel: 'Globaler Offset (ms):',
+      offsetCalibBtn: 'Schnell kalibrieren',
+      rgbLabel: 'RGB-Farbwechsel für Pfeile:',
+      hpLabel: 'HP-Modus:',
+      mobileFullLabel: 'Vollhöhe auf Mobilgeräten (>4 Tasten empfohlen):',
+      mobileLandscapeLabel: 'Mobiles Querformat (Beta, sonst automatisch):',
+      ctrlButton: '⚙️ Kontrollzentrum',
+      dockHandleTitle: 'Zum Öffnen des Kontrollzentrums tippen',
+      dockSong: 'Titel',
+      dockLanes: 'Tasten',
+      dockDiff: 'Schwierigkeit',
+      dockDir: 'Richtung',
+      dockJudge: 'Bewertung',
+      dockOffset: 'Offset',
+      dockScore: 'Punkte',
+      dockCombo: 'Combo',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: 'Zurück zum Spiel (321)',
+      dockHeatToggle: 'HEAT umschalten',
+      dockToMenu: 'Zum Hauptmenü',
+      pauseTitle: '⏸️ Spiel pausiert',
+      btnResume: '▶️ Fortsetzen',
+      endTitle: '🎮 Spiel vorbei!',
+      finalSongLabel: 'Titel:',
+      finalDiffLabel: 'Schwierigkeit:',
+      finalDirLabel: 'Richtung:',
+      finalJudgeLabel: 'Bewertung:',
+      finalScoreLabel: 'Punkte:',
+      statSickLabel: 'SICK:',
+      statGoodLabel: 'GOOD:',
+      statBadLabel: 'BAD:',
+      statShitLabel: 'SHIT:',
+      statMissLabel: 'MISS:',
+      btnRestart: 'Erneut spielen',
+      calibrationTitle: '🎯 Schnellkalibrierung',
+      calibrationHint: 'Folge dem Beat (1000 ms pro Schlag) und tippe mindestens 10-mal DFJK oder den Bildschirm. Median + MAD entfernt Ausreißer.',
+      calibStart: 'Start',
+      calibFinish: 'Fertig',
+      calibCancel: 'Abbrechen',
+      warnBanner: '⚠️ Hinweis'
+    },
+    dynamic: {
+      menuSelectedNone: 'Noch nichts gewählt',
+      musicPlaceholder: '— Titel auswählen —',
+      alertSelectSong: 'Bitte zuerst einen Titel wählen',
+      countdownReady: 'Bereit',
+      countdownGo: 'Los!',
+      heatOn: 'Heatmap: AN',
+      heatOff: 'Heatmap: AUS',
+      heatPosition: 'Heatmap-Position: {{position}}',
+      heatAuto: 'Auto',
+      heatTop: 'Oben',
+      heatBottom: 'Unten',
+      appliedOffset: 'Offset gesetzt: {{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: 'Tastenanzahl auf {{value}} geändert',
+      mobileOnly: 'Diese Option funktioniert nur auf Mobilgeräten',
+      needPauseForCalib: 'Bitte Spiel verlassen oder pausieren, bevor kalibriert wird',
+      calibrationReady: 'Bereit',
+      calibrationStats: '{{count}}/{{total}} Empfohlener Offset: {{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: 'Du hast verloren! EX MISS > 15',
+      hpDepleted: 'HP aufgebraucht',
+      heatStatusOn: 'AN',
+      heatStatusOff: 'AUS',
+      directionUp: 'Aufwärts',
+      directionDown: 'Abwärts',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Hit-Offset-Heatmap (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} Offset:{{offset}}ms'
+    }
+  });
+
+  defineLang('ja', {
+    nativeName: '日本語',
+    zhLabel: '日文',
+    languageWord: '言語',
+    htmlLang: 'ja',
+    fontFamily: "'Noto Sans JP','Hiragino Kaku Gothic ProN','Yu Gothic','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — コントロールセンター',
+    strings: {
+      docTitle: 'DFJK — コントロールセンター',
+      languageLabel: '言語',
+      menuTitle: '🎵 DFJK',
+      btnStart: 'ゲーム開始',
+      btnMusic: '楽曲',
+      btnOptions: '設定',
+      menuSelectedLabel: '選択中の曲：',
+      musicTitle: '🎼 楽曲を選択',
+      btnConfirm: '決定',
+      btnBackMenu: 'メニューへ戻る',
+      musicChosenLabel: '選択：',
+      optionsTitle: '⚙️ ゲーム設定',
+      keyModeLabel: 'キー数：',
+      keyOption4: '4キー（DFJK / 矢印キー対応）',
+      keyOption6: '6キー（SDF JKL）',
+      keyOption8: '8キー（ASDF JKL;）',
+      difficultyLabel: '難易度：',
+      difficultyEx: 'EX（エクストリーム）',
+      difficultyHell: 'ヘル',
+      difficultyHard: 'ハード',
+      difficultyNormal: 'ノーマル',
+      difficultyEasy: 'イージー',
+      difficultyBeginner: 'ビギナー',
+      speedLabel: 'スクロール速度：',
+      speedOptionStandard: '1.0x（標準）',
+      noteDirectionLabel: 'ノーツ方向：',
+      noteDirectionDown: '下から落下',
+      noteDirectionUp: '上へ上昇',
+      judgeModeLabel: '判定モード：',
+      judgeModeOld: 'Old Input（WRONG含む）',
+      judgeModeNew: 'New Input',
+      volumeLabel: 'マスターボリューム (BGM)：',
+      sfxLabel: 'ヒット音量：',
+      calibrationHeading: '🎯 タイミング調整',
+      offsetLabel: '全体オフセット (ms)：',
+      offsetCalibBtn: 'クイック調整',
+      rgbLabel: 'RGB 矢印カラー：',
+      hpLabel: 'HP モード：',
+      mobileFullLabel: 'モバイル全画面（4キー以上推奨）：',
+      mobileLandscapeLabel: 'モバイル横向きモード（β・未選択時は自動）：',
+      ctrlButton: '⚙️ コントロールセンター',
+      dockHandleTitle: 'タップでコントロールセンターを開く',
+      dockSong: '曲',
+      dockLanes: 'キー数',
+      dockDiff: '難易度',
+      dockDir: '方向',
+      dockJudge: '判定',
+      dockOffset: 'オフセット',
+      dockScore: 'スコア',
+      dockCombo: 'コンボ',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: 'ゲームに戻る (321)',
+      dockHeatToggle: 'HEAT 切替',
+      dockToMenu: 'メニューに戻る',
+      pauseTitle: '⏸️ 一時停止',
+      btnResume: '▶️ 再開',
+      endTitle: '🎮 ゲーム終了！',
+      finalSongLabel: '曲：',
+      finalDiffLabel: '難易度：',
+      finalDirLabel: '方向：',
+      finalJudgeLabel: '判定：',
+      finalScoreLabel: 'スコア：',
+      statSickLabel: 'SICK：',
+      statGoodLabel: 'GOOD：',
+      statBadLabel: 'BAD：',
+      statShitLabel: 'SHIT：',
+      statMissLabel: 'MISS：',
+      btnRestart: 'もう一度遊ぶ',
+      calibrationTitle: '🎯 クイック調整',
+      calibrationHint: 'ビート（1拍1000ms）に合わせて DFJK か画面を最低10回タップしてください。中央値+MADで外れ値を除去します。',
+      calibStart: '開始',
+      calibFinish: '完了',
+      calibCancel: 'キャンセル',
+      warnBanner: '⚠️ お知らせ'
+    },
+    dynamic: {
+      menuSelectedNone: '未選択',
+      musicPlaceholder: '— 曲を選択 —',
+      alertSelectSong: '先に楽曲を選択してください',
+      countdownReady: 'レディ',
+      countdownGo: 'ゴー！',
+      heatOn: 'ヒートマップ：ON',
+      heatOff: 'ヒートマップ：OFF',
+      heatPosition: 'ヒートマップ位置：{{position}}',
+      heatAuto: '自動',
+      heatTop: '上',
+      heatBottom: '下',
+      appliedOffset: 'オフセットを適用：{{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: 'キー数を {{value}} に変更',
+      mobileOnly: 'このオプションはモバイルのみ有効です',
+      needPauseForCalib: '調整前にゲームを終了または一時停止してください',
+      calibrationReady: '待機中',
+      calibrationStats: '{{count}}/{{total}} 推奨オフセット：{{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: '失敗！EX MISS > 15',
+      hpDepleted: 'HP がゼロになりました',
+      heatStatusOn: 'ON',
+      heatStatusOff: 'OFF',
+      directionUp: '上昇',
+      directionDown: '下降',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Hit オフセットヒートマップ (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} オフセット:{{offset}}ms'
+    }
+  });
+
+  defineLang('ko', {
+    nativeName: '한국어',
+    zhLabel: '韓文',
+    languageWord: '언어',
+    htmlLang: 'ko',
+    fontFamily: "'Noto Sans KR','Malgun Gothic','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — 컨트롤 센터',
+    strings: {
+      docTitle: 'DFJK — 컨트롤 센터',
+      languageLabel: '언어',
+      menuTitle: '🎵 DFJK',
+      btnStart: '게임 시작',
+      btnMusic: '음악',
+      btnOptions: '옵션',
+      menuSelectedLabel: '선택한 곡:',
+      musicTitle: '🎼 곡 선택',
+      btnConfirm: '확인',
+      btnBackMenu: '메뉴로 돌아가기',
+      musicChosenLabel: '선택:',
+      optionsTitle: '⚙️ 게임 설정',
+      keyModeLabel: '키 수:',
+      keyOption4: '4키 (DFJK / 방향키 사용 가능)',
+      keyOption6: '6키 (SDF JKL)',
+      keyOption8: '8키 (ASDF JKL;)',
+      difficultyLabel: '난이도:',
+      difficultyEx: 'EX (익스트림)',
+      difficultyHell: '헬',
+      difficultyHard: '하드',
+      difficultyNormal: '노멀',
+      difficultyEasy: '이지',
+      difficultyBeginner: '비기너',
+      speedLabel: '스크롤 속도:',
+      speedOptionStandard: '1.0x (표준)',
+      noteDirectionLabel: '노트 방향:',
+      noteDirectionDown: '위에서 내려옴',
+      noteDirectionUp: '아래에서 올라감',
+      judgeModeLabel: '판정 모드:',
+      judgeModeOld: 'Old Input (WRONG 포함)',
+      judgeModeNew: 'New Input',
+      volumeLabel: '마스터 볼륨 (BGM):',
+      sfxLabel: '타격음 볼륨:',
+      calibrationHeading: '🎯 타이밍 보정',
+      offsetLabel: '전역 오프셋 (ms):',
+      offsetCalibBtn: '빠른 보정',
+      rgbLabel: 'RGB 화살표 색상 순환:',
+      hpLabel: 'HP 모드:',
+      mobileFullLabel: '모바일 전체 높이 (4키 이상 권장):',
+      mobileLandscapeLabel: '모바일 가로 모드 (베타, 미선택 시 자동):',
+      ctrlButton: '⚙️ 컨트롤 센터',
+      dockHandleTitle: '탭하여 컨트롤 센터 열기',
+      dockSong: '곡',
+      dockLanes: '키 수',
+      dockDiff: '난이도',
+      dockDir: '방향',
+      dockJudge: '판정',
+      dockOffset: '오프셋',
+      dockScore: '점수',
+      dockCombo: '콤보',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: '게임으로 돌아가기 (321)',
+      dockHeatToggle: 'HEAT 전환',
+      dockToMenu: '메뉴로 돌아가기',
+      pauseTitle: '⏸️ 일시 정지',
+      btnResume: '▶️ 재개',
+      endTitle: '🎮 게임 종료!',
+      finalSongLabel: '곡:',
+      finalDiffLabel: '난이도:',
+      finalDirLabel: '방향:',
+      finalJudgeLabel: '판정:',
+      finalScoreLabel: '점수:',
+      statSickLabel: 'SICK:',
+      statGoodLabel: 'GOOD:',
+      statBadLabel: 'BAD:',
+      statShitLabel: 'SHIT:',
+      statMissLabel: 'MISS:',
+      btnRestart: '다시 플레이',
+      calibrationTitle: '🎯 빠른 보정',
+      calibrationHint: '박자(한 박 1000ms)에 맞춰 DFJK 또는 화면을 최소 10회 이상 누르세요. 중앙값 + MAD로 이상치를 제거합니다.',
+      calibStart: '시작',
+      calibFinish: '완료',
+      calibCancel: '취소',
+      warnBanner: '⚠️ 알림'
+    },
+    dynamic: {
+      menuSelectedNone: '선택되지 않음',
+      musicPlaceholder: '— 곡을 선택 —',
+      alertSelectSong: '먼저 곡을 선택하세요',
+      countdownReady: '준비',
+      countdownGo: '시작!',
+      heatOn: '히트맵: ON',
+      heatOff: '히트맵: OFF',
+      heatPosition: '히트맵 위치: {{position}}',
+      heatAuto: '자동',
+      heatTop: '위',
+      heatBottom: '아래',
+      appliedOffset: '오프셋 적용: {{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: '키 수가 {{value}}로 변경됨',
+      mobileOnly: '이 옵션은 모바일에서만 작동합니다',
+      needPauseForCalib: '보정하기 전에 게임을 종료하거나 일시 정지하세요',
+      calibrationReady: '대기 중',
+      calibrationStats: '{{count}}/{{total}} 권장 오프셋: {{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: '패배! EX MISS > 15',
+      hpDepleted: 'HP가 소진되었습니다',
+      heatStatusOn: 'ON',
+      heatStatusOff: 'OFF',
+      directionUp: '상향',
+      directionDown: '하향',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Hit 오프셋 히트맵 (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} 오프셋:{{offset}}ms'
+    }
+  });
+
+  defineLang('fr', {
+    nativeName: 'Français',
+    zhLabel: '法文',
+    languageWord: 'Langue',
+    htmlLang: 'fr',
+    fontFamily: "'Fira Sans','Segoe UI','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — Centre de contrôle rythmique',
+    strings: {
+      docTitle: 'DFJK — Centre de contrôle rythmique',
+      languageLabel: 'Langue',
+      menuTitle: '🎵 DFJK',
+      btnStart: 'Commencer',
+      btnMusic: 'Musique',
+      btnOptions: 'Options',
+      menuSelectedLabel: 'Morceau choisi :',
+      musicTitle: '🎼 Choisir un morceau',
+      btnConfirm: 'Valider',
+      btnBackMenu: 'Retour au menu',
+      musicChosenLabel: 'Sélection :',
+      optionsTitle: '⚙️ Options du jeu',
+      keyModeLabel: 'Touches :',
+      keyOption4: '4 touches (DFJK / flèches possibles)',
+      keyOption6: '6 touches (SDF JKL)',
+      keyOption8: '8 touches (ASDF JKL;)',
+      difficultyLabel: 'Difficulté :',
+      difficultyEx: 'EX (Extrême)',
+      difficultyHell: 'Enfer',
+      difficultyHard: 'Difficile',
+      difficultyNormal: 'Normal',
+      difficultyEasy: 'Facile',
+      difficultyBeginner: 'Débutant',
+      speedLabel: 'Vitesse de défilement :',
+      speedOptionStandard: '1.0x (Standard)',
+      noteDirectionLabel: 'Direction des notes :',
+      noteDirectionDown: 'Notes descendantes',
+      noteDirectionUp: 'Notes montantes',
+      judgeModeLabel: 'Mode de jugement :',
+      judgeModeOld: 'Old Input (avec WRONG)',
+      judgeModeNew: 'New Input',
+      volumeLabel: 'Volume principal (BGM) :',
+      sfxLabel: 'Volume des impacts :',
+      calibrationHeading: '🎯 Calibration du timing',
+      offsetLabel: 'Décalage global (ms) :',
+      offsetCalibBtn: 'Calibration rapide',
+      rgbLabel: 'Couleurs RGB cycliques :',
+      hpLabel: 'Mode HP :',
+      mobileFullLabel: 'Hauteur totale mobile (>4 touches conseillé) :',
+      mobileLandscapeLabel: 'Mode paysage mobile (bêta, auto sinon) :',
+      ctrlButton: '⚙️ Centre de contrôle',
+      dockHandleTitle: 'Touchez pour ouvrir le centre de contrôle',
+      dockSong: 'Morceau',
+      dockLanes: 'Touches',
+      dockDiff: 'Difficulté',
+      dockDir: 'Direction',
+      dockJudge: 'Jugement',
+      dockOffset: 'Décalage',
+      dockScore: 'Score',
+      dockCombo: 'Combo',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: 'Retour au jeu (321)',
+      dockHeatToggle: 'Basculer HEAT',
+      dockToMenu: 'Retour menu principal',
+      pauseTitle: '⏸️ Jeu en pause',
+      btnResume: '▶️ Reprendre',
+      endTitle: '🎮 Fin de partie !',
+      finalSongLabel: 'Morceau :',
+      finalDiffLabel: 'Difficulté :',
+      finalDirLabel: 'Direction :',
+      finalJudgeLabel: 'Jugement :',
+      finalScoreLabel: 'Score :',
+      statSickLabel: 'SICK :',
+      statGoodLabel: 'GOOD :',
+      statBadLabel: 'BAD :',
+      statShitLabel: 'SHIT :',
+      statMissLabel: 'MISS :',
+      btnRestart: 'Rejouer',
+      calibrationTitle: '🎯 Calibration rapide',
+      calibrationHint: 'Suivez le rythme (1000 ms par battement) et appuyez sur DFJK ou l’écran au moins 10 fois. Médiane + MAD supprime les valeurs aberrantes.',
+      calibStart: 'Démarrer',
+      calibFinish: 'Terminer',
+      calibCancel: 'Annuler',
+      warnBanner: '⚠️ Alerte'
+    },
+    dynamic: {
+      menuSelectedNone: 'Aucune sélection',
+      musicPlaceholder: '— Choisir un morceau —',
+      alertSelectSong: 'Veuillez d’abord choisir un morceau',
+      countdownReady: 'Prêt',
+      countdownGo: 'Go !',
+      heatOn: 'Heatmap : ON',
+      heatOff: 'Heatmap : OFF',
+      heatPosition: 'Position de la heatmap : {{position}}',
+      heatAuto: 'Auto',
+      heatTop: 'Haut',
+      heatBottom: 'Bas',
+      appliedOffset: 'Décalage appliqué : {{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: 'Nombre de touches changé en {{value}}',
+      mobileOnly: 'Cette option fonctionne uniquement sur mobile',
+      needPauseForCalib: 'Veuillez quitter ou mettre en pause avant de calibrer',
+      calibrationReady: 'Prêt',
+      calibrationStats: '{{count}}/{{total}} Décalage conseillé : {{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: 'Défaite ! EX MISS > 15',
+      hpDepleted: 'HP épuisés',
+      heatStatusOn: 'ON',
+      heatStatusOff: 'OFF',
+      directionUp: 'Montant',
+      directionDown: 'Descendant',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Heatmap des décalages (ms)',
+      heatmapStats: 'moy:{{avg}} σ:{{std}} décalage:{{offset}}ms'
+    }
+  });
+
+  defineLang('ru', {
+    nativeName: 'Русский',
+    zhLabel: '俄文',
+    languageWord: 'Язык',
+    htmlLang: 'ru',
+    fontFamily: "'PT Sans','Segoe UI','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — Центр управления ритмом',
+    strings: {
+      docTitle: 'DFJK — Центр управления ритмом',
+      languageLabel: 'Язык',
+      menuTitle: '🎵 DFJK',
+      btnStart: 'Начать игру',
+      btnMusic: 'Музыка',
+      btnOptions: 'Настройки',
+      menuSelectedLabel: 'Выбранный трек:',
+      musicTitle: '🎼 Выберите трек',
+      btnConfirm: 'Подтвердить',
+      btnBackMenu: 'В меню',
+      musicChosenLabel: 'Выбор:',
+      optionsTitle: '⚙️ Параметры игры',
+      keyModeLabel: 'Клавиши:',
+      keyOption4: '4 клавиши (DFJK / стрелки)',
+      keyOption6: '6 клавиш (SDF JKL)',
+      keyOption8: '8 клавиш (ASDF JKL;)',
+      difficultyLabel: 'Сложность:',
+      difficultyEx: 'EX (Экстрим)',
+      difficultyHell: 'Ад',
+      difficultyHard: 'Сложно',
+      difficultyNormal: 'Нормально',
+      difficultyEasy: 'Легко',
+      difficultyBeginner: 'Новичок',
+      speedLabel: 'Скорость прокрутки:',
+      speedOptionStandard: '1.0x (Стандарт)',
+      noteDirectionLabel: 'Направление нот:',
+      noteDirectionDown: 'Падают вниз',
+      noteDirectionUp: 'Поднимаются вверх',
+      judgeModeLabel: 'Режим оценки:',
+      judgeModeOld: 'Old Input (с WRONG)',
+      judgeModeNew: 'New Input',
+      volumeLabel: 'Основная громкость (BGM):',
+      sfxLabel: 'Громкость ударов:',
+      calibrationHeading: '🎯 Калибровка тайминга',
+      offsetLabel: 'Глобальный сдвиг (мс):',
+      offsetCalibBtn: 'Быстрая калибровка',
+      rgbLabel: 'RGB смена цвета стрелок:',
+      hpLabel: 'Режим HP:',
+      mobileFullLabel: 'Полная высота на мобильных (>4 клавиш):',
+      mobileLandscapeLabel: 'Горизонтальный режим (бета, иначе авто):',
+      ctrlButton: '⚙️ Центр управления',
+      dockHandleTitle: 'Нажмите, чтобы открыть центр',
+      dockSong: 'Трек',
+      dockLanes: 'Клавиши',
+      dockDiff: 'Сложность',
+      dockDir: 'Направление',
+      dockJudge: 'Оценка',
+      dockOffset: 'Сдвиг',
+      dockScore: 'Очки',
+      dockCombo: 'Комбо',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: 'Назад в игру (321)',
+      dockHeatToggle: 'Переключить HEAT',
+      dockToMenu: 'В главное меню',
+      pauseTitle: '⏸️ Пауза',
+      btnResume: '▶️ Продолжить',
+      endTitle: '🎮 Игра окончена!',
+      finalSongLabel: 'Трек:',
+      finalDiffLabel: 'Сложность:',
+      finalDirLabel: 'Направление:',
+      finalJudgeLabel: 'Оценка:',
+      finalScoreLabel: 'Очки:',
+      statSickLabel: 'SICK:',
+      statGoodLabel: 'GOOD:',
+      statBadLabel: 'BAD:',
+      statShitLabel: 'SHIT:',
+      statMissLabel: 'MISS:',
+      btnRestart: 'Играть снова',
+      calibrationTitle: '🎯 Быстрая калибровка',
+      calibrationHint: 'Следуйте ритму (1000 мс на долю) и нажмите DFJK или экран минимум 10 раз. Медиана + MAD удаляют выбросы.',
+      calibStart: 'Старт',
+      calibFinish: 'Готово',
+      calibCancel: 'Отмена',
+      warnBanner: '⚠️ Внимание'
+    },
+    dynamic: {
+      menuSelectedNone: 'Пока не выбрано',
+      musicPlaceholder: '— Выберите трек —',
+      alertSelectSong: 'Сначала выберите трек',
+      countdownReady: 'Готово',
+      countdownGo: 'Вперёд!',
+      heatOn: 'Heatmap: ВКЛ',
+      heatOff: 'Heatmap: ВЫКЛ',
+      heatPosition: 'Положение heatmap: {{position}}',
+      heatAuto: 'Авто',
+      heatTop: 'Сверху',
+      heatBottom: 'Снизу',
+      appliedOffset: 'Сдвиг применён: {{value}} мс',
+      offsetValue: '{{value}} мс',
+      offsetSigned: '{{value}} мс',
+      keyChanged: 'Число клавиш: {{value}}',
+      mobileOnly: 'Опция работает только на мобильных устройствах',
+      needPauseForCalib: 'Выйдите или поставьте игру на паузу перед калибровкой',
+      calibrationReady: 'Ожидание',
+      calibrationStats: '{{count}}/{{total}} Рекомендуемый сдвиг: {{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: 'Поражение! EX MISS > 15',
+      hpDepleted: 'HP исчерпан',
+      heatStatusOn: 'ВКЛ',
+      heatStatusOff: 'ВЫКЛ',
+      directionUp: 'Вверх',
+      directionDown: 'Вниз',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Тепловая карта смещений (мс)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} смещение:{{offset}}мс'
+    }
+  });
+
+  defineLang('th', {
+    nativeName: 'ไทย',
+    zhLabel: '泰文',
+    languageWord: 'ภาษา',
+    htmlLang: 'th',
+    fontFamily: "'Noto Sans Thai','Sarabun','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — ศูนย์ควบคุมจังหวะ',
+    strings: {
+      docTitle: 'DFJK — ศูนย์ควบคุมจังหวะ',
+      languageLabel: 'ภาษา',
+      menuTitle: '🎵 DFJK',
+      btnStart: 'เริ่มเกม',
+      btnMusic: 'เพลง',
+      btnOptions: 'ตัวเลือก',
+      menuSelectedLabel: 'เพลงที่เลือก:',
+      musicTitle: '🎼 เลือกเพลงสำหรับรอบนี้',
+      btnConfirm: 'ยืนยัน',
+      btnBackMenu: 'กลับเมนูหลัก',
+      musicChosenLabel: 'เลือกแล้ว:',
+      optionsTitle: '⚙️ ตั้งค่าเกม',
+      keyModeLabel: 'จำนวนปุ่ม:',
+      keyOption4: '4 ปุ่ม (DFJK / ใช้ปุ่มลูกศรได้)',
+      keyOption6: '6 ปุ่ม (SDF JKL)',
+      keyOption8: '8 ปุ่ม (ASDF JKL;)',
+      difficultyLabel: 'ความยาก:',
+      difficultyEx: 'EX (โหดสุด)',
+      difficultyHell: 'นรก',
+      difficultyHard: 'ยาก',
+      difficultyNormal: 'ปกติ',
+      difficultyEasy: 'ง่าย',
+      difficultyBeginner: 'ผู้เริ่มต้น',
+      speedLabel: 'ความเร็วเลื่อน:',
+      speedOptionStandard: '1.0x (มาตรฐาน)',
+      noteDirectionLabel: 'ทิศทางโน้ต:',
+      noteDirectionDown: 'ตกจากด้านบน',
+      noteDirectionUp: 'พุ่งจากด้านล่าง',
+      judgeModeLabel: 'โหมดตัดสิน:',
+      judgeModeOld: 'Old Input (มี WRONG)',
+      judgeModeNew: 'New Input',
+      volumeLabel: 'เสียงหลัก (BGM):',
+      sfxLabel: 'เสียงกดปุ่ม:',
+      calibrationHeading: '🎯 ปรับเวลาให้ตรงจังหวะ',
+      offsetLabel: 'ค่า Offset รวม (มิลลิวินาที):',
+      offsetCalibBtn: 'ปรับเร็ว',
+      rgbLabel: 'ลูกศรไล่สี RGB:',
+      hpLabel: 'โหมด HP:',
+      mobileFullLabel: 'สูงเต็มจอบนมือถือ (>4 ปุ่มแนะนำ):',
+      mobileLandscapeLabel: 'โหมดแนวนอนมือถือ (เบต้า ปล่อยว่างให้หมุนอัตโนมัติ):',
+      ctrlButton: '⚙️ ศูนย์ควบคุม',
+      dockHandleTitle: 'แตะเพื่อเปิดศูนย์ควบคุม',
+      dockSong: 'เพลง',
+      dockLanes: 'ปุ่ม',
+      dockDiff: 'ความยาก',
+      dockDir: 'ทิศทาง',
+      dockJudge: 'ตัดสิน',
+      dockOffset: 'ออฟเซ็ต',
+      dockScore: 'คะแนน',
+      dockCombo: 'คอมโบ',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: 'กลับสู่เกม (321)',
+      dockHeatToggle: 'สลับ HEAT',
+      dockToMenu: 'กลับหน้าเมนู',
+      pauseTitle: '⏸️ หยุดชั่วคราว',
+      btnResume: '▶️ เล่นต่อ',
+      endTitle: '🎮 จบเกม!',
+      finalSongLabel: 'เพลง:',
+      finalDiffLabel: 'ความยาก:',
+      finalDirLabel: 'ทิศทาง:',
+      finalJudgeLabel: 'ตัดสิน:',
+      finalScoreLabel: 'คะแนน:',
+      statSickLabel: 'SICK:',
+      statGoodLabel: 'GOOD:',
+      statBadLabel: 'BAD:',
+      statShitLabel: 'SHIT:',
+      statMissLabel: 'MISS:',
+      btnRestart: 'เล่นอีกครั้ง',
+      calibrationTitle: '🎯 ปรับจูนอย่างรวดเร็ว',
+      calibrationHint: 'กดตามจังหวะ (ทุก 1000 มิลลิวินาทีต่อจังหวะ) ด้วย DFJK หรือแตะหน้าจออย่างน้อย 10 ครั้ง ค่ามัธยฐาน + MAD จะตัดค่าผิดปกติออก',
+      calibStart: 'เริ่ม',
+      calibFinish: 'เสร็จ',
+      calibCancel: 'ยกเลิก',
+      warnBanner: '⚠️ แจ้งเตือน'
+    },
+    dynamic: {
+      menuSelectedNone: 'ยังไม่ได้เลือก',
+      musicPlaceholder: '— เลือกเพลง —',
+      alertSelectSong: 'โปรดเลือกเพลงก่อน',
+      countdownReady: 'พร้อม',
+      countdownGo: 'ลุย!',
+      heatOn: 'Heatmap: เปิด',
+      heatOff: 'Heatmap: ปิด',
+      heatPosition: 'ตำแหน่ง Heatmap: {{position}}',
+      heatAuto: 'อัตโนมัติ',
+      heatTop: 'ด้านบน',
+      heatBottom: 'ด้านล่าง',
+      appliedOffset: 'ตั้งออฟเซ็ตแล้ว: {{value}} มส.',
+      offsetValue: '{{value}} มส.',
+      offsetSigned: '{{value}} มส.',
+      keyChanged: 'สลับจำนวนปุ่มเป็น {{value}}',
+      mobileOnly: 'ตัวเลือกนี้ใช้ได้เฉพาะบนมือถือ',
+      needPauseForCalib: 'กรุณาออกหรือพักเกมก่อนปรับเทียบ',
+      calibrationReady: 'พร้อมปรับ',
+      calibrationStats: '{{count}}/{{total}} ออฟเซ็ตแนะนำ: {{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: 'แพ้! EX MISS > 15',
+      hpDepleted: 'HP หมดแล้ว',
+      heatStatusOn: 'เปิด',
+      heatStatusOff: 'ปิด',
+      directionUp: 'ขึ้น',
+      directionDown: 'ลง',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Heatmap ค่าคลาดเคลื่อน (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} ออฟเซ็ต:{{offset}}ms'
+    }
+  });
+
+  defineLang('vi', {
+    nativeName: 'Tiếng Việt',
+    zhLabel: '越南文',
+    languageWord: 'Ngôn ngữ',
+    htmlLang: 'vi',
+    fontFamily: "'Noto Sans','Segoe UI','Noto Sans TC','Microsoft JhengHei','PingFang TC',sans-serif",
+    docTitle: 'DFJK — Trung tâm điều khiển nhịp điệu',
+    strings: {
+      docTitle: 'DFJK — Trung tâm điều khiển nhịp điệu',
+      languageLabel: 'Ngôn ngữ',
+      menuTitle: '🎵 DFJK',
+      btnStart: 'Bắt đầu chơi',
+      btnMusic: 'Bài hát',
+      btnOptions: 'Tùy chọn',
+      menuSelectedLabel: 'Bài đã chọn:',
+      musicTitle: '🎼 Chọn bài cho ván này',
+      btnConfirm: 'Xác nhận',
+      btnBackMenu: 'Về menu chính',
+      musicChosenLabel: 'Đã chọn:',
+      optionsTitle: '⚙️ Cài đặt trò chơi',
+      keyModeLabel: 'Số phím:',
+      keyOption4: '4 phím (DFJK / dùng phím mũi tên)',
+      keyOption6: '6 phím (SDF JKL)',
+      keyOption8: '8 phím (ASDF JKL;)',
+      difficultyLabel: 'Độ khó:',
+      difficultyEx: 'EX (Cực khó)',
+      difficultyHell: 'Địa ngục',
+      difficultyHard: 'Khó',
+      difficultyNormal: 'Thường',
+      difficultyEasy: 'Dễ',
+      difficultyBeginner: 'Mới chơi',
+      speedLabel: 'Tốc độ cuộn:',
+      speedOptionStandard: '1.0x (Chuẩn)',
+      noteDirectionLabel: 'Hướng nốt:',
+      noteDirectionDown: 'Rơi từ trên xuống',
+      noteDirectionUp: 'Đi từ dưới lên',
+      judgeModeLabel: 'Chế độ chấm điểm:',
+      judgeModeOld: 'Old Input (kèm WRONG)',
+      judgeModeNew: 'New Input',
+      volumeLabel: 'Âm lượng chính (BGM):',
+      sfxLabel: 'Âm thanh nhấn phím:',
+      calibrationHeading: '🎯 Căn chỉnh thời gian',
+      offsetLabel: 'Độ lệch tổng (ms):',
+      offsetCalibBtn: 'Căn nhanh',
+      rgbLabel: 'Màu mũi tên RGB tuần hoàn:',
+      hpLabel: 'Chế độ HP:',
+      mobileFullLabel: 'Chiều cao đầy đủ trên di động (>4 phím khuyên dùng):',
+      mobileLandscapeLabel: 'Chế độ ngang di động (beta, bỏ chọn để tự xoay):',
+      ctrlButton: '⚙️ Trung tâm điều khiển',
+      dockHandleTitle: 'Nhấn để mở trung tâm điều khiển',
+      dockSong: 'Bài hát',
+      dockLanes: 'Phím',
+      dockDiff: 'Độ khó',
+      dockDir: 'Hướng',
+      dockJudge: 'Chấm điểm',
+      dockOffset: 'Độ lệch',
+      dockScore: 'Điểm',
+      dockCombo: 'Combo',
+      dockMiss: 'MISS',
+      dockHeat: 'HEAT',
+      dockResume: 'Quay lại game (321)',
+      dockHeatToggle: 'Bật/tắt HEAT',
+      dockToMenu: 'Quay về menu',
+      pauseTitle: '⏸️ Tạm dừng',
+      btnResume: '▶️ Tiếp tục',
+      endTitle: '🎮 Kết thúc trò chơi!',
+      finalSongLabel: 'Bài hát:',
+      finalDiffLabel: 'Độ khó:',
+      finalDirLabel: 'Hướng:',
+      finalJudgeLabel: 'Chấm điểm:',
+      finalScoreLabel: 'Điểm:',
+      statSickLabel: 'SICK:',
+      statGoodLabel: 'GOOD:',
+      statBadLabel: 'BAD:',
+      statShitLabel: 'SHIT:',
+      statMissLabel: 'MISS:',
+      btnRestart: 'Chơi lại',
+      calibrationTitle: '🎯 Căn chỉnh nhanh',
+      calibrationHint: 'Hãy gõ theo nhịp (1000 ms mỗi phách) bằng DFJK hoặc chạm màn hình ít nhất 10 lần. Trung vị + MAD để loại bỏ ngoại lệ.',
+      calibStart: 'Bắt đầu',
+      calibFinish: 'Hoàn tất',
+      calibCancel: 'Hủy',
+      warnBanner: '⚠️ Thông báo'
+    },
+    dynamic: {
+      menuSelectedNone: 'Chưa chọn',
+      musicPlaceholder: '— Chọn bài —',
+      alertSelectSong: 'Vui lòng chọn bài hát trước',
+      countdownReady: 'Sẵn sàng',
+      countdownGo: 'Bắt đầu!',
+      heatOn: 'Heatmap: BẬT',
+      heatOff: 'Heatmap: TẮT',
+      heatPosition: 'Vị trí Heatmap: {{position}}',
+      heatAuto: 'Tự động',
+      heatTop: 'Trên',
+      heatBottom: 'Dưới',
+      appliedOffset: 'Đã áp dụng độ lệch: {{value}} ms',
+      offsetValue: '{{value}} ms',
+      offsetSigned: '{{value}} ms',
+      keyChanged: 'Đổi số phím thành {{value}}',
+      mobileOnly: 'Tùy chọn này chỉ dùng trên thiết bị di động',
+      needPauseForCalib: 'Hãy thoát hoặc tạm dừng game trước khi căn chỉnh',
+      calibrationReady: 'Sẵn sàng căn chỉnh',
+      calibrationStats: '{{count}}/{{total}} Độ lệch gợi ý: {{advice}}',
+      calibrationAdviceNone: '—',
+      exFailed: 'Thua cuộc! EX MISS > 15',
+      hpDepleted: 'HP đã cạn',
+      heatStatusOn: 'BẬT',
+      heatStatusOff: 'TẮT',
+      directionUp: 'Hướng lên',
+      directionDown: 'Hướng xuống',
+      judgeOld: 'Old',
+      judgeNew: 'New',
+      heatmapTitle: 'Heatmap độ lệch (ms)',
+      heatmapStats: 'avg:{{avg}} σ:{{std}} độ lệch:{{offset}}ms'
+    }
+  });
+
+  for(const code of Object.keys(I18N)){
+    const data = I18N[code];
+    if(!data.strings) data.strings = {};
+    SPEED_KEYS.forEach(sk => {
+      const key = `speedOption${sk}`;
+      if(!Object.prototype.hasOwnProperty.call(data.strings, key)){
+        data.strings[key] = `${(Number(sk)/10).toFixed(1)}x`;
+      }
+    });
+  }
+
+  let currentLang = DEFAULT_LANG;
+
+  function detectInitialLanguage(){
+    try{
+      const stored = localStorage.getItem('dfjk.language');
+      if(stored && I18N[stored]) return stored;
+    }catch{}
+    const prefs = [];
+    if(Array.isArray(navigator.languages)) prefs.push(...navigator.languages);
+    if(navigator.language) prefs.push(navigator.language);
+    const map = [
+      ['zh-hant','zh-Hant'],['zh-tw','zh-Hant'],['zh-hk','zh-Hant'],
+      ['zh-cn','zh-Hans'],['zh-sg','zh-Hans'],['zh','zh-Hans'],
+      ['en','en'],['de','de'],['ja','ja'],['ko','ko'],['fr','fr'],
+      ['ru','ru'],['th','th'],['vi','vi']
+    ];
+    for(const pref of prefs){
+      if(!pref) continue; const lower = pref.toLowerCase();
+      for(const [pattern, target] of map){ if(lower.startsWith(pattern) && I18N[target]) return target; }
+    }
+    return DEFAULT_LANG;
+  }
+
+  currentLang = detectInitialLanguage();
+
+  function applyStaticStrings(){
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.dataset.i18n;
+      if(!key) return;
+      const attr = el.dataset.i18nAttr;
+      const text = getString(key);
+      if(attr){ el.setAttribute(attr, text); return; }
+      if(el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') el.value = text;
+      else el.textContent = text;
+    });
+  }
+
+  function updateSongLabels(){
+    const menuLabel = $("#menuChosenSong");
+    const chosenLabel = $("#chosenSongLabel");
+    const fallback = getDynamic('menuSelectedNone');
+    if(menuLabel){ menuLabel.textContent = selectedSongFile ? menuLabel.textContent : fallback; }
+    if(chosenLabel){ chosenLabel.textContent = selectedSongFile ? chosenLabel.textContent : fallback; }
+  }
+
+  function updateLanguageDependentUI(){
+    const langData = getLang();
+    document.documentElement.lang = langData.htmlLang || 'en';
+    document.body.style.fontFamily = langData.fontFamily || "sans-serif";
+    document.title = langData.docTitle || 'DFJK';
+    const label = $("#languageLabelText");
+    if(label) label.textContent = langData.languageWord || getString('languageLabel');
+    const countdown = $("#countdownText");
+    if(countdown && countdown.dataset.locked !== '1') countdown.textContent = getDynamic('countdownReady');
+    const calibBig = $("#calibBig");
+    if(calibBig && calibBig.dataset.locked !== '1') calibBig.textContent = getDynamic('calibrationReady');
+    const calibStat = $("#calibStat");
+    if(calibStat && calibStat.dataset.locked !== '1') calibStat.textContent = getDynamic('calibrationStats', {count:0,total:10,advice:getDynamic('calibrationAdviceNone')});
+    const songSel = $("#songSelect");
+    if(songSel){ const opt = songSel.querySelector('option[value=""]'); if(opt) opt.textContent = getDynamic('musicPlaceholder'); }
+    updateSongLabels();
+    updateDockHUD();
+    hudOffset(OFFSET);
+  }
+
+  function setLanguage(code, opts={}){
+    if(!I18N[code]) code = DEFAULT_LANG;
+    currentLang = code;
+    if(!opts.skipStorage){ try{ localStorage.setItem('dfjk.language', code); }catch{} }
+    applyStaticStrings();
+    if(!opts.skipSelect){ const sel=$("#languageSelect"); if(sel) sel.value = code; }
+    updateLanguageDependentUI();
+    ui();
+  }
+
+  function setupLanguageSelect(){
+    const sel = $("#languageSelect");
+    if(!sel) return;
+    sel.innerHTML = '';
+    LANG_ORDER.forEach(code => {
+      const data = I18N[code];
+      if(!data) return;
+      const option = document.createElement('option');
+      option.value = code;
+      const assist = data.zhLabel;
+      const baseName = data.nativeName || code;
+      option.textContent = assist ? `${baseName}（${assist}）` : baseName;
+      sel.appendChild(option);
+    });
+    sel.value = currentLang;
+    addEv(sel, 'change', () => setLanguage(sel.value));
+  }
+  
   /* 共享狀態先宣告，確保 abort 時一定存在 */
   let loopId = null;
   let cRAF = null;
@@ -477,15 +1824,18 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let comboFlash=""; let comboT0=0;
   function comboFlashNow(){ comboFlash=`COMBO x${combo}!!`; comboT0=performance.now()/1000; }
 
-  function endWith(msg){
+ function endWith(msg){
     running=false; stopLoop(); stopAudio();
-    $("#finalSong").textContent=currentSong; $("#finalDiff").textContent=diff.toUpperCase();
-    $("#finalDir").textContent=(dir==='up'?'上升':'下落'); $("#finalJudge").textContent=(jmode==='old'?'Old':'New');
+    const diffOpt=$("#difficultySelect")?.querySelector(`option[value="${diff}"]`);
+    $("#finalSong").textContent=currentSong;
+    $("#finalDiff").textContent=diffOpt ? diffOpt.textContent : diff.toUpperCase();
+    $("#finalDir").textContent=(dir==='up'?getDynamic('directionUp'):getDynamic('directionDown'));
+    $("#finalJudge").textContent=(jmode==='old'?getDynamic('judgeOld'):getDynamic('judgeNew'));
     $("#finalScore").textContent=score; $("#statSick").textContent=stats.sick; $("#statGood").textContent=stats.good;
     $("#statBad").textContent=stats.bad; $("#statShit").textContent=stats.shit; $("#statMiss").textContent=missCount;
     showOnly('endScreen'); phase='menu'; if(msg) banner(msg);
   }
-  function exCheck(){ if(diff==='ex' && missCount>15){ endWith("你輸了！EX MISS > 15"); } }
+  function exCheck(){ if(diff==='ex' && missCount>15){ endWith(getDynamic('exFailed')); } }
 
   function yAt(thit,tnow){ return (dir==='down') ? (judgeY - (thit-tnow)*spd) : (judgeY + (thit-tnow)*spd); }
 
@@ -511,7 +1861,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     ff.style.width=w.toFixed(1)+"%"; ft.textContent=`${HP}/${HP_MAX}`;
     positionHpFloat();
   }
-  function hpSet(v){ HP=Math.max(0,Math.min(HP_MAX,Math.round(v))); hpUpdate(); if(HP<=0 && running){ endWith("HP 耗盡"); } }
+  function hpSet(v){ HP=Math.max(0,Math.min(HP_MAX,Math.round(v))); hpUpdate(); if(HP<=0 && running){ endWith(getDynamic('hpDepleted')); } }
   function hpAdd(d){ if(!HP_ON) return; hpSet(HP+d); }
   function hpDelta(j){ if(j==="SICK") return +15; if(j==="GOOD") return +12; if(j==="BAD") return +6; let missV=0, shitV=0;
     if(diff==='beginner'||diff==='easy'){ missV=-5;  shitV=-3; }
@@ -653,11 +2003,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     }
 
     uix.save(); uix.globalAlpha=.98; uix.fillStyle='rgba(0,0,0,.58)'; uix.fillRect(x0-8,y0-10,w+16,h+46);
-    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText('Hit 偏移熱圖 (ms)', x0, y0-12);
+    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(getDynamic('heatmapTitle'), x0, y0-12);
     const maxc=Math.max(1,...hist);
     for(let i=0;i<bins;i++){ const v=hist[i], bh=(v/maxc)*h, xx=Math.floor(x0+i*bw); uix.fillStyle='#78d5ff'; uix.fillRect(xx, y0+(h-bh), Math.ceil(bw-1), bh); }
     const {avg,std}=dtStats();
-    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(`avg:${avg.toFixed(1)} σ:${std.toFixed(1)} 偏移:${OFFSET}ms`, x0, y0+h+16);
+    uix.fillStyle='#fff'; uix.font='12px sans-serif'; uix.fillText(getDynamic('heatmapStats',{avg:avg.toFixed(1),std:std.toFixed(1),offset:OFFSET}), x0, y0+h+16);
     uix.strokeStyle='#ffd966'; uix.beginPath(); const mid=x0 + (-mn)/step * bw; uix.moveTo(mid,y0); uix.lineTo(mid,y0+h); uix.stroke();
     uix.restore();
   }
@@ -699,7 +2049,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     }
     if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); }
   }
-  function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; closeDock(true); }
+  function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : getDynamic('menuSelectedNone'); closeDock(true); }
   function toOpt(){
     // 確保任何遮罩/控制中心都關閉，避免擋住點擊
     try{ closeDock(true); }catch{}
@@ -716,8 +2066,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   const S=[
   "Charlie Puth - Light Switch [Official Music Video] - Charlie Puth.mp3","Creepy Nuts ”Mirage” × Anime ”Call of the Night” Collaboration Music Video Opening Theme Song - Creepy Nuts.mp3","Creepy Nuts ”Nemure” × Anime ”Call of the Night” Collaboration Music Video Ending Theme Song - Creepy Nuts (1).mp3","Creepy Nuts｢Bling-Bang-Bang-Born｣ × TV Anime｢マッシュル-MASHLE-｣ Collab Music Video #BBBBダンス - Creepy Nuts.mp3","KANA-BOON - Silhouette - KANABOONVEVO.mp3","Wiz Khalifa - See You Again ft. Charlie Puth [Official Video] Furious 7 Soundtrack - Wiz Khalifa Music (youtube).mp3","Maroon 5 - Memories (Official Video) - Maroon5VEVO (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Theme Song FULL IRIS OUT by Kenshi Yonezu (Lyrics) - Jamong (youtube).mp3","ヒグチアイ _ いってらっしゃい【Official Video】 Ai Higuchi ”Itterasshai(See you later)” - ヒグチアイ (youtube).mp3","Chainsaw Man – The Movie Reze Arc - Ending FULL JANE DOE by Kenshi Yonezu, Hikaru Utada (Lyrics) - Jamong (youtube).mp3","Pokémon partners of different generations dancing POKÉDANCE Animation Music Video - Pokémon Asia ENG (youtube).mp3","Lost Sky, Sara Skinner - Dreams pt. II (feat. Sara Skinner) [NCS Release].mp3","OneRepublic - Nobody (from Kaiju No. 8) [Official Music Video] - OneRepublicVEVO.mp3","YOASOBI「Watch me!」Official Music Video - Ayase _ YOASOBI.mp3","yung kai - blue (official music video) - yung kai.mp3","【AKASAKI】Bunny Girl _ バニーガール（Lyric Video） - AKASAKI (19).mp3","【MV】隙_ゆーり【オリジナル】 - 『ユイカ』.mp3","【imase】NIGHT DANCER（MV） - imase.mp3","なとり - Overdose - なとり _ natori.mp3","好きだから。_ 『ユイカ』【MV】 - 『ユイカ』.mp3","廻廻奇譚 - Eve MV - Eve.mp3","青のすみか _ キタニタツヤ - Where Our Blue Is _ Tatsuya Kitani - キタニタツヤ _ Tatsuya Kitani.mp3","Toge Toge Sadistic - Enormita (youtube).mp3","My dream girls - NACHERRY (youtube).mp3","PEACEKEEPER - STEREO DIVE FOUNDATION (youtube).mp3","YOASOBI - Idol「アイドル」Lyrics Video [Kan_Rom_Eng] Oshi no Ko (推しの子) OP - mimanimi (youtube).mp3","YOASOBI – '怪物 (Monster)' Lyrics - Kei Takahashi (youtube).mp3","YOASOBI - Racing Into The Night Lyrics (JPN_ROM_ENG) - rin rin (youtube).mp3","【Hanser】室内系的TrackMaker _ インドア系ならトラックメイカー 【中文翻唱 _ cover】 - OtakuLAB (youtube).mp3","Aimer - Brave Shine - AimerOfficialVEVO (youtube).mp3","ROSA WALTON x HALLIE COGGINS - I REALLY WANT TO STAY AT YOUR HOUSE (LYRIC) AMV CYBERPUNK EDGERUNNERS - Eternity Music (youtube).mp3"
   ];
-  function fillSongs(){ const sel=$("#songSelect"); if(sel.dataset.filled) return; sel.innerHTML=""; const ph=document.createElement("option"); ph.value=""; ph.textContent="— 請選擇曲目 —"; ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph); S.forEach(f=>{ const o=document.createElement("option"); o.value=f; o.textContent=f.replace(/\.mp3$/i,""); if(selectedSongFile===f) o.selected=true; sel.appendChild(o); }); addEv(sel,"change",()=>{ $("#chosenSongLabel").textContent = sel.value ? sel.options[sel.selectedIndex].textContent : "尚未選擇"; }); sel.dataset.filled="1"; }
-  function confirmSong(){ const sel=$("#songSelect"); if(!sel.value){ alert("請先選擇音樂"); return; } selectedSongFile=sel.value; $("#chosenSongLabel").textContent = sel.options[sel.selectedIndex].textContent; $("#menuChosenSong").textContent  = sel.options[sel.selectedIndex].textContent; toMenu(); }
+  function fillSongs(){ const sel=$("#songSelect"); if(sel.dataset.filled) return; sel.innerHTML=""; const ph=document.createElement("option"); ph.value=""; ph.textContent=getDynamic('musicPlaceholder'); ph.disabled=true; ph.selected=!selectedSongFile; sel.appendChild(ph); S.forEach(f=>{ const o=document.createElement("option"); o.value=f; o.textContent=f.replace(/\.mp3$/i,""); if(selectedSongFile===f) o.selected=true; sel.appendChild(o); }); addEv(sel,"change",()=>{ $("#chosenSongLabel").textContent = sel.value ? sel.options[sel.selectedIndex].textContent : getDynamic('menuSelectedNone'); }); sel.dataset.filled="1"; }
+  function confirmSong(){ const sel=$("#songSelect"); if(!sel.value){ alert(getDynamic('alertSelectSong')); return; } selectedSongFile=sel.value; const label=sel.options[sel.selectedIndex].textContent; $("#chosenSongLabel").textContent = label; $("#menuChosenSong").textContent  = label; toMenu(); }
 
   /* 譜面產生 */
   const LEAD=1.6;
@@ -767,12 +2117,29 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   }
 
   /* 偏移 HUD 與設定 */
-  function hudOffset(v){ $("#offsetLabel").textContent=`${v} ms`; $("#dockOffset").textContent=`${v} ms`; }
+  function hudOffset(v){
+    const text = formatOffset(v);
+    const offsetLabel = $("#offsetLabel");
+    if(offsetLabel) offsetLabel.textContent = text;
+    const dockOffset = $("#dockOffset");
+    if(dockOffset) dockOffset.textContent = text;
+  }
   function setOffset(v){ v=Math.max(-600,Math.min(600,(v|0))); OFFSET=v; localStorage.setItem("dfjk.offsetMs",String(v)); hudOffset(v); }
 
   /* 控制中心 */
   let dockOpenState=false, pausedByDock=false;
-  function updateDockHUD(){ $("#dockSong").textContent = currentSong; $("#dockLanes").textContent= String(LANES); $("#dockDiff").textContent = diff.toUpperCase(); $("#dockDir").textContent  = (dir==='up'?'上升':'下落'); $("#dockJudge").textContent= (jmode==='old'?'Old':'New'); $("#dockScore").textContent= String(score); $("#dockCombo").textContent= String(combo); $("#dockMiss").textContent = String(missCount); $("#dockHeatState").textContent = showHeat ? 'ON' : 'OFF'; }
+  function updateDockHUD(){
+    $("#dockSong").textContent = currentSong;
+    $("#dockLanes").textContent= String(LANES);
+    const diffOpt=$("#difficultySelect")?.querySelector(`option[value="${diff}"]`);
+    $("#dockDiff").textContent = diffOpt ? diffOpt.textContent : diff.toUpperCase();
+    $("#dockDir").textContent  = (dir==='up'?getDynamic('directionUp'):getDynamic('directionDown'));
+    $("#dockJudge").textContent= (jmode==='old'?getDynamic('judgeOld'):getDynamic('judgeNew'));
+    $("#dockScore").textContent= String(score);
+    $("#dockCombo").textContent= String(combo);
+    $("#dockMiss").textContent = String(missCount);
+    $("#dockHeatState").textContent = getDynamic(showHeat?'heatStatusOn':'heatStatusOff');
+  }
   function openDock(){
     if(dockOpenState) return;
     dockOpenState=true;
@@ -796,7 +2163,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       resumeFromDock();
     }
   }
-  function bindDock(){ const LANDSCAPE = isLandscapeNow(); const handle = $("#dockHandle"); const topHandle = $("#dockTopHandle"); if (IS_MOBILE && LANDSCAPE) topHandle.classList.add('show'); else topHandle.classList.remove('show'); positionDockHandle(); const toggle = ()=>{ dockOpenState?closeDock():openDock(); }; ["click","pointerdown","touchstart"].forEach(ev=>{ addEv(topHandle, ev, toggle, {passive:true}); addEv(handle, ev, toggle, {passive:true}); }); addEv($("#dockScrim"),'click', ()=> closeDock() ); addEv($("#dockResume"),'click', ()=> closeDock() ); addEv($("#dockHeatToggle"),'click', ()=>{ showHeat=!showHeat; ui(); $("#dockHeatState").textContent = showHeat?'ON':'OFF'; }); addEv($("#dockToMenu"),'click', ()=>{ closeDock(true); toMenu(); }); }
+ function bindDock(){ const LANDSCAPE = isLandscapeNow(); const handle = $("#dockHandle"); const topHandle = $("#dockTopHandle"); if (IS_MOBILE && LANDSCAPE) topHandle.classList.add('show'); else topHandle.classList.remove('show'); positionDockHandle(); const toggle = ()=>{ dockOpenState?closeDock():openDock(); }; ["click","pointerdown","touchstart"].forEach(ev=>{ addEv(topHandle, ev, toggle, {passive:true}); addEv(handle, ev, toggle, {passive:true}); }); addEv($("#dockScrim"),'click', ()=> closeDock() ); addEv($("#dockResume"),'click', ()=> closeDock() ); addEv($("#dockHeatToggle"),'click', ()=>{ showHeat=!showHeat; ui(); const heatState=$("#dockHeatState"); if(heatState) heatState.textContent = getDynamic(showHeat?'heatStatusOn':'heatStatusOff'); }); addEv($("#dockToMenu"),'click', ()=>{ closeDock(true); toMenu(); }); }
 
   function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; localStorage.setItem("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
 
@@ -927,8 +2294,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   }
   addEv(window,"keydown", e=>{
     if(e.repeat) return; const k=e.key.toLowerCase();
-    if(k==='h'){ showHeat=!showHeat; banner(showHeat?'熱圖：ON':'熱圖：OFF'); ui(); e.preventDefault(); return; }
-    if(k==='r'){ heatMode=(heatMode+1)%3; banner(`熱圖位置：${heatMode===0?'自動':(heatMode===1?'置頂':'置底')}`); ui(); e.preventDefault(); return; }
+    if(k==='h'){ showHeat=!showHeat; banner(getDynamic(showHeat?'heatOn':'heatOff')); ui(); e.preventDefault(); return; }
+    if(k==='r'){ heatMode=(heatMode+1)%3; const pos=heatMode===0?getDynamic('heatAuto'):(heatMode===1?getDynamic('heatTop'):getDynamic('heatBottom')); banner(getDynamic('heatPosition',{position:pos})); ui(); e.preventDefault(); return; }
     const l=laneKeyFromChar(k);
     if(l!==null){ if(running&&!paused){ onPress(l); } e.preventDefault(); return; }
     if(k==='escape'){
@@ -947,24 +2314,25 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let counting=false;
   function countdown(startCb,opt={}){
     const show=!!opt.show, pv=(typeof opt.t==='number')?opt.t:0;
-    cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block';
-    const lab=['Ready','3','2','1','Go!'], dur=[600,800,800,800,600], t0=performance.now();
+    cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block'; el.dataset.locked='1';
+    const ready=getDynamic('countdownReady'), go=getDynamic('countdownGo');
+    const lab=[ready,'3','2','1',go], dur=[600,800,800,800,600], t0=performance.now();
     function step(now){
       if(!counting) return; const e=now-t0; let acc=0, idx=lab.length-1;
       for(let i=0;i<lab.length;i++){ acc+=dur[i]; if(e<acc){ idx=i; break; } }
-      el.textContent=(idx<lab.length?lab[idx]:'Go!'); el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
+      el.textContent=(idx<lab.length?lab[idx]:go); el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
       if(show){ drawPreview(pv); } else { draw({skip:true}); } ui();
       const total=dur.reduce((a,b)=>a+b,0);
-      if(e>=total){ el.style.display='none'; counting=false; startCb(); return; }
+      if(e>=total){ el.style.display='none'; counting=false; delete el.dataset.locked; startCb(); return; }
       cRAF=requestAnimationFrame(step);
     }
     cRAF=requestAnimationFrame(step);
   }
-  function cancelCountdown(){ if(!counting && !cRAF) return; counting=false; try{ cancelAnimationFrame(cRAF);}catch{} cRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; }
+  function cancelCountdown(){ if(!counting && !cRAF) return; counting=false; try{ cancelAnimationFrame(cRAF);}catch{} cRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; if(el) delete el.dataset.locked; }
 
   /* 遊戲流程 */
   function startGame(){
-    if(!selectedSongFile){ toMusic(); alert("請先選擇音樂"); return; }
+    if(!selectedSongFile){ toMusic(); alert(getDynamic('alertSelectSong')); return; }
     diff=$("#difficultySelect").value; dir=$("#noteDirection").value; jmode=$("#judgeMode").value;
     document.body.classList.toggle('ex-mode', diff==='ex');
     let mul=parseFloat($("#speedMultiplier").value);
@@ -1026,17 +2394,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   /* 校正 */
   const pnl=$("#calibOverlay"), cbStart=$("#calibStart"), cbDone=$("#calibFinish"), cbCancel=$("#calibCancel"), cbBig=$("#calibBig"), cbDot=$("#calibBeatDot"), cbStat=$("#calibStat");
   let cal=false, beatInt=1.0, beats=16, taps=[], tapH=null, syncP0=0, syncC0=0, t0C=0;
-  async function openCalib(){ if(phase==='playing' || phase==='countdown'){ banner("請先退出或暫停遊戲再校正"); return; } pnl.style.display='block'; cbBig.textContent='待機'; cbStat.textContent='0/10 建議偏移：—'; taps=[]; cbDone.disabled=true; await ensureAC().catch(()=>{}); }
-  function closeCalib(){ pnl.style.display='none'; cancelCalibAudio(); cal=false; if(tapH){ window.removeEventListener('keydown',tapH); pnl.removeEventListener('pointerdown',tapH); tapH=null; } }
+  async function openCalib(){ if(phase==='playing' || phase==='countdown'){ banner(getDynamic('needPauseForCalib')); return; } pnl.style.display='block'; cbBig.dataset.locked='1'; cbStat.dataset.locked='1'; cbBig.textContent=getDynamic('calibrationReady'); cbStat.textContent=getDynamic('calibrationStats',{count:0,total:10,advice:getDynamic('calibrationAdviceNone')}); taps=[]; cbDone.disabled=true; await ensureAC().catch(()=>{}); }
+  function closeCalib(){ pnl.style.display='none'; cancelCalibAudio(); cal=false; if(tapH){ window.removeEventListener('keydown',tapH); pnl.removeEventListener('pointerdown',tapH); tapH=null; } delete cbBig.dataset.locked; delete cbStat.dataset.locked; cbBig.textContent=getDynamic('calibrationReady'); cbStat.textContent=getDynamic('calibrationStats',{count:0,total:10,advice:getDynamic('calibrationAdviceNone')}); }
   function robust(arr){ if(!arr.length) return 0; const s=[...arr].sort((a,b)=>a-b), m=s[Math.floor(s.length/2)]; const dev=s.map(v=>Math.abs(v-m)).sort((a,b)=>a-b), MAD=dev[Math.floor(dev.length/2)]||1; const keep=arr.filter(v=>Math.abs(v-m)<=Math.max(3*MAD,120)); const t=keep.sort((a,b)=>a-b), lo=Math.floor(t.length*0.2), hi=Math.ceil(t.length*0.8), core=t.slice(lo,hi); const mean=core.reduce((a,c)=>a+c,0)/Math.max(1,core.length); return Math.max(-600,Math.min(600,Math.round(mean))); }
   function startCalib(){ try{ timers.forEach(id=>clearTimeout(id)); }catch{} timers=[]; taps=[]; cbDone.disabled=true; cal=true; try{ AC.resume(); }catch{} if(!Gcal){ Gcal = AC.createGain(); Gcal.gain.value = 1; Gcal.connect(Gsfx||Gm); } syncP0=performance.now()/1000; syncC0=AC.currentTime; const lead=.70; t0C=AC.currentTime+lead;
     for(let i=0;i<beats;i++){ const t=t0C+i*beatInt; const o=AC.createOscillator(), g=AC.createGain(); o.type='sine'; o.frequency.value=880; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.45,t+0.005); g.gain.exponentialRampToValueAtTime(0.0001,t+0.08); o.connect(g); g.connect(Gcal); o.start(t); o.stop(t+0.09);
       const d=(t-AC.currentTime)*1000; const id=setTimeout(()=>{ cbDot.style.transform='scale(1.28)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,1)'; setTimeout(()=>{ cbDot.style.transform='scale(1)'; cbDot.style.boxShadow='0 0 30px rgba(120,213,255,.9)'; },120); }, d); timers.push(id); }
     tapH=(e)=>{ if(e.type==='keydown'){ const k=e.key.toLowerCase(); if(!['d','f','j','k','s','a','l',';'].includes(k)) return; e.preventDefault(); }
       const tp=performance.now()/1000, tC=syncC0 + (tp - syncP0); if(tC < t0C - 0.15) return; const k=Math.round((tC - t0C)/beatInt), tB=t0C + k*beatInt, dMs=(tC - tB)*1000; if(Math.abs(dMs)<=600) taps.push(dMs);
-      const need=10, nowN=Math.min(taps.length,need); let adv='—'; if(nowN>=4){ const rec=robust(taps); adv=(rec>0?'+':'')+rec+' ms'; } cbBig.textContent = nowN + '/' + need; cbStat.textContent = `${nowN}/${need} 建議偏移：${adv}`; if(nowN>=need) cbDone.disabled=false; };
+      const need=10, nowN=Math.min(taps.length,need); let adv=getDynamic('calibrationAdviceNone'); if(nowN>=4){ const rec=robust(taps); adv=formatOffset(rec,{signed:true}); } cbBig.textContent = `${nowN}/${need}`; cbStat.textContent = getDynamic('calibrationStats',{count:nowN,total:need,advice:adv}); if(nowN>=need) cbDone.disabled=false; };
     addEv(window,'keydown', tapH); addEv(pnl,'pointerdown', tapH, {passive:true}); }
-  function finishCalib(){ if(!taps.length){ closeCalib(); return; } const rec=robust(taps); setOffset(rec); banner(`已套用偏移：${rec} ms`); closeCalib(); }
+  function finishCalib(){ if(!taps.length){ closeCalib(); return; } const rec=robust(taps); setOffset(rec); banner(getDynamic('appliedOffset',{value:rec})); closeCalib(); }
 
   /* 綁定 */
   function bind(){
@@ -1087,7 +2455,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     /* 鍵數選擇 */
     const keySel=$("#keyModeSelect");
     keySel.value = String(LANES);
-    addEv(keySel,"change", ()=>{ const n=+keySel.value; setLanes(n); banner(`鍵數切換為 ${n}`); });
+    addEv(keySel,"change", ()=>{ const n=+keySel.value; setLanes(n); banner(getDynamic('keyChanged',{value:n})); });
 
     /* 手機全高與橫板（橫板未勾選時自動依螢幕方向） */
     const full=$("#mobileFullHeight"), land=$("#mobileLandscape");
@@ -1113,6 +2481,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function init(){
     // 對外暴露保底 API，讓 HTML 按鈕可直接呼叫
     window.__DFJK_API__ = { toOpt, toMenu, toMusic, startGame, openDock, closeDock };
+    setupLanguageSelect();
+    setLanguage(currentLang, {skipStorage:true});
     recomputeLaneDirs();
     fitDPR(); desktopScale(); applyStageLayout();
     fillSongs(); bind(); hpShow(HP_ON); hpUpdate(); hud();
@@ -1125,4 +2495,5 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
