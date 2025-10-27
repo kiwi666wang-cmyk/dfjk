@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no"/>
-<title>DFJK — 橫版修正＋控制中心（防二次宣告版）</title>
+<title>DFJK — 橫版控制中心＋等底距（防二次宣告）</title>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 /* ===== 基礎 ===== */
@@ -22,8 +22,6 @@ body.ex-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #00
   transform:translate(-50%,-50%) rotate(90deg);
   margin:0;
 }
-/* 橫版時把直向 topbar 收掉（改放到控制中心） */
-#stageWrap.landscape ~ .topbar, .landscape .topbar{ display:none !important; }
 
 /* 真正的舞台容器 */
 #stage{ position:relative; width:100%; height:100%; }
@@ -39,7 +37,7 @@ canvas{ display:block; width:100%; height:auto; background:#0c1322; }
     linear-gradient(to top,   rgba(255,255,255,.16), rgba(255,255,255,0) 40%) bottom/100% 16px no-repeat;
 }
 
-/* ===== 直向 topbar（橫版會隱藏） ===== */
+/* ===== 直向 topbar（橫版會由控制中心接管） ===== */
 .topbar{ position:absolute; top:10px; left:0; right:0; z-index:8; display:flex; align-items:center; gap:8px; padding:0 10px; }
 #toggleHeatBtn{ padding:6px 10px; font-size:12px; background:#1c293e; border:1px solid rgba(255,255,255,.35); border-radius:8px; color:#fff; opacity:.95; cursor:pointer; }
 #pauseButton{ padding:6px 10px; font-size:14px; border:none; border-radius:8px; background:#78d5ff; cursor:pointer; }
@@ -62,7 +60,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 @keyframes popScale{ 0%{transform:translate(-50%,-50%) scale(.85)} 50%{transform:translate(-50%,-50%) scale(1.12)} 100%{transform:translate(-50%,-50%) scale(1)} }
 
 /* 其他 */
-#warnBanner{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:rgba(255,80,80,.95); padding:10px 14px; border-radius:8px; font-size:14px; display:none; z-index:20; }
+#warnBanner{ position:fixed; left:50%; bottom:20px; transform:translateX(-50%); background:rgba(255,80,80,.95); padding:10px 14px; border-radius:8px; font-size:14px; display:none; z-index:200; }
 .row{margin:8px 0} label{margin-right:6px}
 select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid #445; background:#12152a; color:#fff; }
 #songSelect{ width:90%; max-width:420px; height:280px; }
@@ -74,9 +72,9 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 }
 
 /* ===== 橫版控制中心（點擊滑出面板） ===== */
-#landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .25s ease; width:min(92vw, 560px); z-index:50; pointer-events:none; }
+#landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; }
 #landDock.open{ transform:translate(-50%,0); pointer-events:auto; }
-#landDock .sheet{ margin:10px auto; background:rgba(20,26,44,.82); backdrop-filter:blur(6px); border:1px solid rgba(120,213,255,.25); border-radius:14px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
+#landDock .sheet{ margin:10px auto; background:rgba(20,26,44,.82); backdrop-filter:blur(8px); border:1px solid rgba(120,213,255,.25); border-radius:14px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
 #landDock .handleBar{ width:64px; height:6px; border-radius:999px; background:rgba(255,255,255,.55); margin:10px auto 12px; }
 #landDock .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px 12px; text-align:left; }
 #landDock .kv{ display:flex; justify-content:space-between; gap:10px; font-size:14px; }
@@ -85,8 +83,8 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 #landDock .actions button{ flex:1 1 150px; margin:0; }
 
 /* 點擊區域（置中上方） */
-#dockHandleArea{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:200px; height:36px; z-index:51; display:none; }
-#dockScrim{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.12); z-index:49; }
+#dockHandleArea{ position:fixed; left:50%; top:0; transform:translateX(-50%); width:200px; height:36px; z-index:181; display:none; }
+#dockScrim{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.18); z-index:170; }
 #dockScrim.show{ display:block; }
 </style>
 </head>
@@ -205,7 +203,7 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
   </div>
 
   <div class="row">
-    <label for="mobileLandscape">手機橫板模式（β）：</label>
+    <label for="mobileLandscape">手機橫板模式（β，未勾選則自動依螢幕方向）：</label>
     <input id="mobileLandscape" type="checkbox"/>
   </div>
 
@@ -244,9 +242,9 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 </div>
 
 <!-- ===== 橫版控制中心 ===== -->
-<div id="dockHandleArea"></div>
+<div id="dockHandleArea" title="點我展開控制中心"></div>
 <div id="dockScrim"></div>
-<div id="landDock">
+<div id="landDock" aria-label="控制中心">
   <div class="sheet">
     <div class="handleBar" id="dockHandle"></div>
     <div class="grid" id="dockGrid">
@@ -294,7 +292,7 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 </div>
 
 <!-- ===== 校正覆蓋層 ===== -->
-<div id="calibOverlay" style="position:fixed; inset:0; display:none; z-index:60; background:rgba(3,7,15,.86); backdrop-filter:blur(2px);">
+<div id="calibOverlay" style="position:fixed; inset:0; display:none; z-index:220; background:rgba(3,7,15,.86); backdrop-filter:blur(2px);">
   <div style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:min(520px,92vw); padding:18px 16px; border-radius:12px; background:rgba(10,16,30,.9); box-shadow:0 10px 40px rgba(0,0,0,.4); border:1px solid rgba(120,213,255,.3);">
     <div style="font-size:22px; margin:6px 0 4px;">🎯 快速校正</div>
     <div style="opacity:.85; font-size:14px; margin-bottom:8px;">跟著節拍（每拍 1000ms）按 DFJK 或點畫面，至少 10 次後可完成。中位數 + MAD 去極值。</div>
@@ -315,11 +313,12 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 <script>
 /* ======================= 防二次宣告：AbortController 方案 ======================= */
 (() => {
-  // 若舊版腳本存在，先中止所有綁定（自動移除註冊時帶 signal 的事件監聽）
   try { window.__DFJK_ABORT__?.abort(); } catch {}
   const CTRL = new AbortController();
   window.__DFJK_ABORT__ = CTRL;
   const SIG = CTRL.signal;
+  const addEv = (target, type, handler, opts={}) => target.addEventListener(type, handler, {...opts, signal: SIG});
+
   const onAbort = () => {
     try { cancelAnimationFrame(loopId); }catch{}
     try { cancelAnimationFrame(cRAF); }catch{}
@@ -331,7 +330,6 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
   SIG.addEventListener('abort', onAbort, { once:true });
 
   /* ===== 小工具 ===== */
-  const addEv = (target, type, handler, opts={}) => target.addEventListener(type, handler, {...opts, signal: SIG});
   const $  = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
   const banner = (m)=>{ const b=$("#warnBanner"); b.textContent=m; b.style.display="block"; setTimeout(()=>b.style.display="none",1600); };
@@ -350,7 +348,7 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
   /* 行動裝置開關 */
   const IS_MOBILE = matchMedia("(pointer: coarse)").matches;
   let MOBILE_FULL = localStorage.getItem('dfjk.mobileFull') === '1';
-  let LANDSCAPE   = localStorage.getItem('dfjk.landscape')   === '1';
+  let LANDSCAPE_FORCE   = localStorage.getItem('dfjk.landscape')   === '1'; // 勾選時強制橫版
 
   /* DPR */
   function fitDPR(){
@@ -361,11 +359,15 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
     uix.setTransform(d,0,0,d,0,0);
   }
 
+  /* 是否橫向（行動裝置：勾選 or 依螢幕） */
+  const isLandscapeNow = () => IS_MOBILE && (LANDSCAPE_FORCE || (window.innerWidth > window.innerHeight + 20));
+
   /* 布局（桌機維持比例；手機直向可全高；手機橫向旋轉並依螢幕計算縮放） */
   function applyStageLayout(){
     const wrap = $("#stageWrap");
     const vw = Math.min(window.innerWidth, document.documentElement.clientWidth||window.innerWidth);
     const vh = window.innerHeight || document.documentElement.clientHeight || 640;
+    const LANDSCAPE = isLandscapeNow();
 
     if (!IS_MOBILE){
       wrap.classList.remove('landscape','fullH');
@@ -437,7 +439,7 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
   let showHeat = true;
   let heatMode = 0;
 
-  /* 佈局（修正：橫版 4 鍵判定線下沉） */
+  /* 佈局（Landscape 等底距：所有鍵數共用同一個「距離底部的絕對高度」） */
   let rectH = c.getBoundingClientRect().height;
   let scaleY = rectH / H;
   let judgeCss = (HITKEY * uiScale / 2);
@@ -448,10 +450,14 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
     rectH = r.height;
     scaleY = rectH / H;
 
+    const LANDSCAPE = isLandscapeNow();
+
     if (IS_MOBILE && LANDSCAPE){
-      const ratio = (LANES<=4) ? 0.70 : (LANES===6 ? 0.76 : 0.80);
-      judgeCss = (dir==='up') ? rectH*(1-ratio) : rectH*ratio;
+      /* 固定與底部的像素距離（等底距）。你可以微調這個值讓體感更好。 */
+      const BOTTOM_PAD_CSS = Math.max(80, Math.round(0.20 * rectH)); // 20% 高度作為底部留白（約 128px@640 高），不小於 80px
+      judgeCss = (dir==='up') ? BOTTOM_PAD_CSS : (rectH - BOTTOM_PAD_CSS);
     } else {
+      /* 直向或桌機：維持原比例 */
       judgeCss = (dir==='up') ? (HITKEY*uiScale/2) : (rectH - HITKEY*uiScale/2);
     }
     judgeY = judgeCss / scaleY;
@@ -804,6 +810,7 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
   }
   function lanePtrFromClient(clientX, clientY){
     const r = c.getBoundingClientRect();
+    const LANDSCAPE = isLandscapeNow();
     let xCss, denom;
     if (!LANDSCAPE){ xCss = clientX - r.left; denom = r.width; }
     else { xCss = clientY - r.top; denom = r.height; }
@@ -1046,6 +1053,7 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
     }
   }
   function bindDock(){
+    const LANDSCAPE = isLandscapeNow();
     const area = $("#dockHandleArea");
     const handle = $("#dockHandle");
     if (IS_MOBILE && LANDSCAPE) area.style.display='block';
@@ -1233,19 +1241,21 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
       banner(`鍵數切換為 ${n}`);
     });
 
-    /* 手機全高與橫板 */
+    /* 手機全高與橫板（橫板未勾選時自動依螢幕方向） */
     const full=$("#mobileFullHeight"), land=$("#mobileLandscape");
-    full.checked=MOBILE_FULL; land.checked=LANDSCAPE;
+    full.checked=MOBILE_FULL; land.checked=LANDSCAPE_FORCE;
     addEv(full,'change',()=>{
       if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); full.checked=MOBILE_FULL; return; }
       MOBILE_FULL=full.checked; localStorage.setItem('dfjk.mobileFull', MOBILE_FULL?'1':'0'); applyStageLayout();
     });
     addEv(land,'change',()=>{
-      if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); land.checked=LANDSCAPE; return; }
-      LANDSCAPE=land.checked; localStorage.setItem('dfjk.landscape', LANDSCAPE?'1':'0'); applyStageLayout(); bindDock();
+      if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); land.checked=LANDSCAPE_FORCE; return; }
+      LANDSCAPE_FORCE=land.checked; localStorage.setItem('dfjk.landscape', LANDSCAPE_FORCE?'1':'0'); applyStageLayout(); bindDock();
     });
 
-    /* 選項保底：就算瀏覽器怪，點了也會進 */
+    bindDock();
+
+    /* 選項保底點擊 */
     addEv(document,'click', (e)=>{
       const t = e.target;
       const hit = t && (t.id === 'btnOptions' || (t.closest && t.closest('#btnOptions')));
@@ -1256,8 +1266,6 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
       ['menuScreen','musicScreen','optionsScreen','gameScreen','pauseScreen','endScreen']
         .forEach(id => { const el = document.getElementById(id); if(el) el.style.display = (id==='optionsScreen')?'block':'none'; });
     }, {capture:true});
-
-    bindDock();
   }
 
   function init(){
@@ -1265,9 +1273,14 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
     fitDPR(); desktopScale(); applyStageLayout();
     fillSongs(); bind(); hpShow(HP_ON); hpUpdate(); hud();
     showOnly("menuScreen");
+
+    /* 自動偵測螢幕方向：移動端轉向時自動切換橫/直版以及控制中心 */
     addEv(window,"resize", ()=>{
-      fitDPR(); desktopScale(); applyStageLayout();
+      fitDPR(); desktopScale(); applyStageLayout(); bindDock();
       if(phase==='countdown'){ draw({skip:true}); ui(); }
+    });
+    addEv(window,"orientationchange", ()=>{
+      setTimeout(()=>{ fitDPR(); desktopScale(); applyStageLayout(); bindDock(); }, 50);
     });
   }
 
