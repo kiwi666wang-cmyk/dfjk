@@ -697,7 +697,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       // 直橫版 HP 漂浮條都關
       try{ hpShow(false); }catch{}
     }
-  }); if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); } }
+    if(id!=='gameScreen'){ $("#gameScreen")?.classList.remove('blur'); }
+  }
   function toMenu(){ cancelCountdown(); stopLoop(); stopAudio(); cancelCalibAudio(); phase='menu'; running=false; paused=false; document.body.classList.remove('ex-mode'); showOnly('menuScreen'); $("#menuChosenSong").textContent = selectedSongFile ? selectedSongFile.replace(/\.mp3$/i,'') : '尚未選擇'; closeDock(true); }
   function toOpt(){
     // 確保任何遮罩/控制中心都關閉，避免擋住點擊
@@ -772,8 +773,29 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   /* 控制中心 */
   let dockOpenState=false, pausedByDock=false;
   function updateDockHUD(){ $("#dockSong").textContent = currentSong; $("#dockLanes").textContent= String(LANES); $("#dockDiff").textContent = diff.toUpperCase(); $("#dockDir").textContent  = (dir==='up'?'上升':'下落'); $("#dockJudge").textContent= (jmode==='old'?'Old':'New'); $("#dockScore").textContent= String(score); $("#dockCombo").textContent= String(combo); $("#dockMiss").textContent = String(missCount); $("#dockHeatState").textContent = showHeat ? 'ON' : 'OFF'; }
-  function openDock(){ if(dockOpenState) return; dockOpenState=true; $("#landDock").classList.add('open'); $("#dockScrim").classList.add('show'); if(phase==='playing'||phase==='countdown'){ pausedByDock=true; pauseForDock(); } else { pausedByDock=false; } updateDockHUD(); }else{ pausedByDock=false; } updateDockHUD(); }
-  function closeDock(silent){ if(!dockOpenState) return; dockOpenState=false; $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show'); if(!silent && pausedByDock){ pausedByDock=false; resumeFromDock(); } } }
+  function openDock(){
+    if(dockOpenState) return;
+    dockOpenState=true;
+    $("#landDock").classList.add('open');
+    $("#dockScrim").classList.add('show');
+    if(phase==='playing'||phase==='countdown'){
+      pausedByDock=true;
+      pauseForDock();
+    } else {
+      pausedByDock=false;
+    }
+    updateDockHUD();
+  }
+  function closeDock(silent){
+    if(!dockOpenState) return;
+    dockOpenState=false;
+    $("#landDock").classList.remove('open');
+    $("#dockScrim").classList.remove('show');
+    if(!silent && pausedByDock){
+      pausedByDock=false;
+      resumeFromDock();
+    }
+  }
   function bindDock(){ const LANDSCAPE = isLandscapeNow(); const handle = $("#dockHandle"); const topHandle = $("#dockTopHandle"); if (IS_MOBILE && LANDSCAPE) topHandle.classList.add('show'); else topHandle.classList.remove('show'); positionDockHandle(); const toggle = ()=>{ dockOpenState?closeDock():openDock(); }; ["click","pointerdown","touchstart"].forEach(ev=>{ addEv(topHandle, ev, toggle, {passive:true}); addEv(handle, ev, toggle, {passive:true}); }); addEv($("#dockScrim"),'click', ()=> closeDock() ); addEv($("#dockResume"),'click', ()=> closeDock() ); addEv($("#dockHeatToggle"),'click', ()=>{ showHeat=!showHeat; ui(); $("#dockHeatState").textContent = showHeat?'ON':'OFF'; }); addEv($("#dockToMenu"),'click', ()=>{ closeDock(true); toMenu(); }); }
 
   function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; localStorage.setItem("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
