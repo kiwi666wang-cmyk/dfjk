@@ -66,11 +66,21 @@ canvas{ display:block; width:100%; height:auto; max-width:100%; background:#0c13
 .top-mid{ flex:1 1 auto; display:flex; justify-content:center; }
 #ctrlButton{ padding:6px 10px; font-size:14px; border:none; border-radius:8px; background:#78d5ff; cursor:pointer; }
 
-/* 血條（置中顯示） */
 #hpBar{ position:relative; height:18px; background:rgba(255,255,255,.18); border-radius:999px; display:none; min-width:160px; }
 #hpFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
 #hpText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
-
+#hpBottomSlot{
+  position:absolute; left:0; right:0; bottom:14px;
+  display:none; justify-content:center; pointer-events:none;
+  z-index:8;
+}
+body.dir-up #hpBottomSlot{ display:flex; }
+body.dir-up #hpBar{
+  min-width:220px; width:clamp(220px,60vw,320px);
+  height:20px;
+}
+body.dir-up #hpText{ font-size:13px; }
+  
 /* 橫版 HP 浮動（固定靠右上） */
 #hpFloat{
   position:absolute; z-index:186; display:none;
@@ -97,6 +107,11 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 /* ===== 控制中心（任何版面都可用；用 transform 隱藏/顯示） ===== */
 #landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; display:block; }
 #landDock.open{ transform:translate(-50%,0); pointer-events:auto; }
+body.mobile-landscape #landDock{
+  top:50%; left:auto; right:0;
+  transform:translate(100%,-50%);
+}
+body.mobile-landscape #landDock.open{ transform:translate(0,-50%); }
 #landDock .sheet{ margin:10px auto; background:rgba(20,26,44,.62); backdrop-filter:blur(10px); border:1px solid rgba(120,213,255,.20); border-radius:14px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
 #landDock .handleBar{ width:64px; height:6px; border-radius:999px; background:rgba(255,255,255,.65); margin:10px auto 12px; }
 #landDock .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px 12px; text-align:left; }
@@ -253,6 +268,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <!-- 右側留白，維持置中對稱 -->
       <div style="width:84px"></div>
     </div>
+    <div id="hpBottomSlot"></div>
     <div id="stageWrap">
       <div id="stage">
         <canvas id="gameCanvas" width="420" height="640"></canvas>
@@ -1842,8 +1858,22 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function yAt(thit,tnow){ return (dir==='down') ? (judgeY - (thit-tnow)*spd) : (judgeY + (thit-tnow)*spd); }
 
   /* ===== 血條 ===== */
+  function placeHpBar(){
+    const bar = $("#hpBar");
+    const topSlot = $("#gameScreen .top-mid");
+    const bottomSlot = $("#hpBottomSlot");
+    if(!bar || !topSlot || !bottomSlot) return;
+    const useBottom = (dir === 'up');
+    document.body.classList.toggle('dir-up', useBottom);
+    if(useBottom){
+      if(bottomSlot !== bar.parentElement) bottomSlot.appendChild(bar);
+    } else {
+      if(topSlot !== bar.parentElement) topSlot.appendChild(bar);
+    }
+  }
   const HP_MAX=100; let HP_ON=(localStorage.getItem("dfjk.hpOn")==="1"); let HP=HP_MAX;
   function hpShow(b){
+    placeHpBar();
     const LANDSCAPE = isLandscapeNow();
     if(LANDSCAPE){
       const f = $("#hpFloat");
@@ -1979,6 +2009,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   /* ===== 熱圖（UI Canvas） ===== */
   let showHeat = true;
   let heatMode = 0;
+  let diff="normal", dir="down", jmode="old";
   function ui(){
     uix.clearRect(0,0,W,H); if(!showHeat) return;
     const bins=36, mn=-300, mx=300, step=(mx-mn)/bins, hist=new Array(bins).fill(0);
@@ -2022,10 +2053,18 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
         if(cr && tr){
           const hCss = h / H * cr.height;
           const marginCss = marginY / H * cr.height;
-          const yCandidate = Math.max(marginCss, (tr.bottom - cr.top) + 8);
-          const yCss = Math.min(cr.height - hCss - marginCss, yCandidate);
+          let yCss;
+          if(dir==='up'){
+            yCss = cr.height - hCss - marginCss;
+          } else {
+            const yCandidate = Math.max(marginCss, (tr.bottom - cr.top) + 8);
+            yCss = Math.min(cr.height - hCss - marginCss, yCandidate);
+          }
           x0 = leftBound;
           y0 = (yCss / cr.height) * H;
+        } else {
+          x0 = leftBound;
+          y0 = (dir==='up') ? bottomBound : topBound;
         }
       } else {
         const autoY = (dir==='up') ? bottomBound : topBound;
@@ -2063,7 +2102,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let chart=[], remain=0;
   let recPulse = new Array(LANES).fill(0);
   let recHitT  = new Array(LANES).fill(0);
-  let diff="normal", dir="down", jmode="old";
 
   /* 音樂時鐘 */
   let durSec=120, ended=false;
@@ -2257,6 +2295,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const vw = Math.min(window.innerWidth, document.documentElement.clientWidth||window.innerWidth);
     const vh = window.innerHeight || document.documentElement.clientHeight || 640;
     const LANDSCAPE = isLandscapeNow();
+
+    document.body.classList.toggle('mobile-landscape', IS_MOBILE && LANDSCAPE);
     
     // 依目前 lanes 實際畫布寬高比
     const aspect = W / H;
@@ -2317,6 +2357,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     }
     layout(); draw({skip:true}); ui();
     positionHpFloat();
+    placeHpBar();
   }
 
   /* 將控制中心把手定位在「旋轉後舞台」的相對頂部中央（長邊中央） */
@@ -2342,15 +2383,22 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const wrap = $("#stageWrap");
     if(!wrap) return;
     const baseW = wrap.offsetWidth || W;
-    const width = Math.max(180, Math.min(280, Math.floor(baseW * 0.55)));
+    let width = Math.max(180, Math.min(280, Math.floor(baseW * 0.55)));
+    if(dir==='up'){ width = Math.max(200, Math.min(320, Math.floor(baseW * 0.7))); }
     const margin = Math.max(14, Math.round(baseW * 0.04));
     f.style.width = width + 'px';
     f.style.right = margin + 'px';
     f.style.left = 'auto';
     const handle = $("#dockTopHandle");
     const handleGap = (handle && handle.classList.contains('show')) ? ((handle.offsetHeight||0) + 18) : 0;
-    const top = Math.max(margin + handleGap, 16);
-    f.style.top = top + 'px';
+    const offset = Math.max(margin + handleGap, 16);
+    if(dir==='up'){
+      f.style.top = 'auto';
+      f.style.bottom = offset + 'px';
+    } else {
+      f.style.bottom = 'auto';
+      f.style.top = offset + 'px';
+    }
   }
 
   /* 輸入處理 */
@@ -2604,6 +2652,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
