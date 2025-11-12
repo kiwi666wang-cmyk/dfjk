@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet"/>
 <style>
 /* ===== 基礎 ===== */
+:root{ --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); }
 html,body{ margin:0; touch-action:manipulation; overscroll-behavior:none; background:#0a1226; }
 body{ color:#fff; font-family:sans-serif; text-align:center; transition:background .3s ease; }
 body.ex-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #000 100%); }
@@ -108,6 +109,17 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 #landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; display:block; }
 #landDock.open{ transform:translate(-50%,0); pointer-events:auto; }
 #landDock .sheet{ max-height:min(88vh, 560px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+body.mobile-portrait #landDock,
+body.mobile-landscape #landDock{
+  left:auto;
+  right:calc(var(--safe-right) + 12px);
+  top:calc(var(--safe-top) + 12px);
+  transform:translate3d(0, calc(-100% - 16px), 0);
+}
+body.mobile-portrait #landDock.open,
+body.mobile-landscape #landDock.open{ transform:translate3d(0,0,0); }
+body.mobile-portrait #landDock .sheet,
+body.mobile-landscape #landDock .sheet{ margin:0; }
 body.mobile-landscape #landDock{ width:min(90vw, 520px); }
 body.mobile-landscape #landDock .sheet{ max-height:min(88vh, 460px); }
 body.mobile-landscape #landDock .grid{ grid-template-columns:1fr; gap:6px 0; }
@@ -123,12 +135,12 @@ body.mobile-landscape #landDock .actions button{ flex:1 1 auto; }
 #landDock .actions button{ flex:1 1 180px; margin:0; }
 
 /* 控制中心開關把手（定位由 JS 依舞台位置動態設定；僅手機橫版顯示） */
-#dockTopHandle{
-  position:absolute; z-index:185; border-radius:999px;
-  width:200px; height:28px; background:rgba(255,255,255,.08); backdrop-filter:blur(2px);
-  display:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25);
-  left:50%; top:16px; transform:translate(-50%,0);
-}
+#dockTopHandle{␊
+  position:fixed; z-index:185; border-radius:999px;
+  width:200px; height:28px; background:rgba(255,255,255,.08); backdrop-filter:blur(2px);␊
+  display:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25);␊
+  right:calc(var(--safe-right) + 18px); top:calc(var(--safe-top) + 16px);
+}␊
 #dockTopHandle.show{ display:block; }
 #dockTopHandle::after{
   content:''; display:block; width:64px; height:6px; border-radius:999px;
@@ -2021,14 +2033,14 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const bins=36, mn=-300, mx=300, step=(mx-mn)/bins, hist=new Array(bins).fill(0);
     for(const v of dts){ const i=Math.floor((v-mn)/step); if(i>=0&&i<bins) hist[i]++; }
     const LANDSCAPE = isLandscapeNow();
-    const marginX = Math.max(12, W * (IS_MOBILE ? 0.04 : 0.035));
-    const marginY = Math.max(18, H * (IS_MOBILE ? 0.045 : 0.035));
-    const padX = 8;
-    const padTop = 12;
-    const padBottom = 32;
-    let w = Math.min(260, Math.max(180, W - marginX * 2));
-    if(IS_MOBILE) w = Math.min(w, Math.round(W * 0.62));
-    let h = Math.round(Math.max(72, Math.min(110, H * 0.16)));
+    const marginX = Math.max(14, W * (IS_MOBILE ? 0.055 : 0.04));
+    const marginY = Math.max(20, H * (IS_MOBILE ? 0.06 : 0.04));
+    const padX = 6;
+    const padTop = 10;
+    const padBottom = 26;
+    let w = Math.min(220, Math.max(150, W - marginX * 2));
+    if(IS_MOBILE) w = Math.min(w, Math.round(W * 0.5));
+    let h = Math.round(Math.max(60, Math.min(90, H * 0.12)));
     const bw=w/bins;
 
     let x0 = marginX;
@@ -2303,6 +2315,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const LANDSCAPE = isLandscapeNow();
 
     document.body.classList.toggle('mobile-landscape', IS_MOBILE && LANDSCAPE);
+    document.body.classList.toggle('mobile-portrait', IS_MOBILE && !LANDSCAPE);
     
     // 依目前 lanes 實際畫布寬高比
     const aspect = W / H;
@@ -2366,7 +2379,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     placeHpBar();
   }
 
-  /* 將控制中心把手定位在「旋轉後舞台」的相對頂部中央（長邊中央） */
+  /* 將控制中心把手定位在手機橫向時的畫面右上（模仿 iPhone 手勢） */
   function positionDockHandle(){
     const LANDSCAPE = isLandscapeNow();
     const handle = $("#dockTopHandle");
@@ -2658,6 +2671,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
