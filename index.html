@@ -107,11 +107,13 @@ select,input[type=range]{ padding:6px 10px; border-radius:6px; border:1px solid 
 /* ===== 控制中心（任何版面都可用；用 transform 隱藏/顯示） ===== */
 #landDock{ position:fixed; left:50%; top:0; transform:translate(-50%,-100%); transition:transform .24s ease; width:min(92vw, 560px); z-index:180; pointer-events:none; display:block; }
 #landDock.open{ transform:translate(-50%,0); pointer-events:auto; }
-body.mobile-landscape #landDock{
-  top:50%; left:auto; right:0;
-  transform:translate(100%,-50%);
-}
-body.mobile-landscape #landDock.open{ transform:translate(0,-50%); }
+#landDock .sheet{ max-height:min(88vh, 560px); overflow-y:auto; -webkit-overflow-scrolling:touch; }
+body.mobile-landscape #landDock{ width:min(90vw, 520px); }
+body.mobile-landscape #landDock .sheet{ max-height:min(88vh, 460px); }
+body.mobile-landscape #landDock .grid{ grid-template-columns:1fr; gap:6px 0; }
+body.mobile-landscape #landDock .kv{ font-size:13px; }
+body.mobile-landscape #landDock .actions{ flex-direction:column; align-items:stretch; }
+body.mobile-landscape #landDock .actions button{ flex:1 1 auto; }
 #landDock .sheet{ margin:10px auto; background:rgba(20,26,44,.62); backdrop-filter:blur(10px); border:1px solid rgba(120,213,255,.20); border-radius:14px; padding:10px 12px; box-shadow:0 10px 30px rgba(0,0,0,.35); }
 #landDock .handleBar{ width:64px; height:6px; border-radius:999px; background:rgba(255,255,255,.65); margin:10px auto 12px; }
 #landDock .grid{ display:grid; grid-template-columns: 1fr 1fr; gap:8px 12px; text-align:left; }
@@ -1775,6 +1777,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
   let LANE_DIRS = [];
   function recomputeLaneDirs(){
+    if(LANES===4){
+      LANE_DIRS = ['left','down','up','right'];
+      return;
+    }
     LANE_DIRS = [];
     for(let i=0;i<LANES;i++){
       if(i===0){ LANE_DIRS.push('left'); continue; }
@@ -2333,7 +2339,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       let targetH = Math.round(targetW * (H / W));
       let marginTop = 20;
 
-      if (MOBILE_FULL && LANES>4){
+      if (MOBILE_FULL){
         const topPad = (()=>{
           if(!topbar) return 24;
           const tr = topbar.getBoundingClientRect();
@@ -2652,6 +2658,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
