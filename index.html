@@ -283,18 +283,18 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <div style="width:84px"></div>
     </div>
     <div id="hpBottomSlot"></div>
-    <div id="stageWrap">
-      <div id="stage">
-        <canvas id="gameCanvas" width="420" height="640"></canvas>
-        <canvas id="uiCanvas"   width="420" height="640"></canvas>
-        <div id="edgeFade"></div>
-        <div class="hitbar"><div></div><div></div><div></div><div></div></div>
-        <div id="countdownText">Ready</div>
-      </div>
-      <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
-      <div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
+    <div id="stageWrap">␊
+      <div id="stage">␊
+        <canvas id="gameCanvas" width="420" height="640"></canvas>␊
+        <canvas id="uiCanvas"   width="420" height="640"></canvas>␊
+        <div id="edgeFade"></div>␊
+        <div class="hitbar"><div></div><div></div><div></div><div></div></div>␊
+        <div id="countdownText">Ready</div>␊
+      </div>␊
+      <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>␊
     </div>
-  </div>
+    <div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
+  </div>␊
 
 <!-- ===== 控制中心（桌機與手機皆可） ===== -->
 <div id="dockScrim"></div>
@@ -2484,6 +2484,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   /* 倒數 */
   let counting=false;
   function countdown(startCb,opt={}){
+    running=false;
     const show=!!opt.show, pv=(typeof opt.t==='number')?opt.t:0;
     cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block'; el.dataset.locked='1';
     const ready=getDynamic('countdownReady'), go=getDynamic('countdownGo');
@@ -2512,6 +2513,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     chart=[]; remain=0; dts.length=0; recPulse=new Array(LANES).fill(0); recHitT=new Array(LANES).fill(0);
     comboFlash=""; hits.length=0; parts.length=0; spd=baseSpd*mul; currentSong=selectedSongFile.replace(/\.mp3$/i,''); hud();
     HP=HP_MAX; hpShow(HP_ON); hpUpdate();
+    paused=false; running=false;
     phase='countdown';
     showOnly('gameScreen');
     fitDPR(); desktopScale(); applyStageLayout();
@@ -2671,6 +2673,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
