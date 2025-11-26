@@ -2320,11 +2320,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     // 依目前 lanes 實際畫布寬高比
     const aspect = W / H;
 
-    if (!IS_MOBILE){
+     if (!IS_MOBILE){
       wrap.classList.remove('landscape');
-      const desiredW = Math.round(baseLaneW*LANES*uiScale);
-      const targetW  = Math.min(desiredW, Math.floor(vw*0.98));
-      const targetH  = Math.round(targetW * (H / W));  // 確保容器高度與 canvas 比例一致
+      const desiredW = Math.round(baseLaneW * LANES * uiScale);
+      const desiredH = Math.round(desiredW * (H / W));
+      const maxW = Math.floor(vw * 0.98);
+      const maxH = Math.max(360, Math.floor(vh * 0.92));
+      const scale = Math.min(1, maxW / desiredW, maxH / desiredH);
+      const targetW  = Math.round(desiredW * scale);
+      const targetH  = Math.round(desiredH * scale);
       wrap.style.width  = targetW + 'px';
       wrap.style.height = targetH + 'px';
       wrap.style.margin = '20px auto';
@@ -2673,6 +2677,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
