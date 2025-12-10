@@ -1760,7 +1760,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const LANDSCAPE = isLandscapeNow();
     const BASE_PAD = HITKEY * uiScale / 2;
     const ARROW_SAFE_PAD = NOTE_SZ * uiScale * 1.2 + 18; // 確保判定箭頭不會超出畫布邊界
-    const SAFE_PAD = Math.max(BASE_PAD, ARROW_SAFE_PAD);
+    const MOBILE_EXTRA_PAD = (IS_MOBILE && !LANDSCAPE)
+      ? Math.max(ARROW_SAFE_PAD * 1.45, rectH * 0.14) // 直向手機時稍微往上移，避免判定區被裁切
+      : 0;
+    const SAFE_PAD = Math.max(BASE_PAD, ARROW_SAFE_PAD, MOBILE_EXTRA_PAD);
 
     if (IS_MOBILE && LANDSCAPE){
       const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.16 * rectH)); // 橫版齊底
@@ -2681,6 +2684,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
