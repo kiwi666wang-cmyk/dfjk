@@ -1758,11 +1758,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     rectH = r.height; rectW = r.width;
     scaleY = rectH / H;
     const LANDSCAPE = isLandscapeNow();
+    const BASE_PAD = HITKEY * uiScale / 2;
+    const ARROW_SAFE_PAD = NOTE_SZ * uiScale * 1.2 + 18; // 確保判定箭頭不會超出畫布邊界
+    const SAFE_PAD = Math.max(BASE_PAD, ARROW_SAFE_PAD);
+
     if (IS_MOBILE && LANDSCAPE){
       const BOTTOM_PAD_CSS = Math.max(72, Math.round(0.16 * rectH)); // 橫版齊底
       judgeCss = (dir==='up') ? BOTTOM_PAD_CSS : (rectH - BOTTOM_PAD_CSS);
     } else {
-      judgeCss = (dir==='up') ? (HITKEY*uiScale/2) : (rectH - HITKEY*uiScale/2);
+      judgeCss = (dir==='up') ? SAFE_PAD : (rectH - SAFE_PAD);
     }
     judgeY = judgeCss / scaleY;
   }
@@ -2677,6 +2681,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
