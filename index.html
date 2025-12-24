@@ -10,7 +10,7 @@
 :root{ --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); }
 html,body{ margin:0; touch-action:manipulation; overscroll-behavior:none; background:#0a1226; }
 body{ color:#fff; font-family:sans-serif; text-align:center; transition:background .3s ease; }
-body.ex-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #000 100%); }
+body.fever-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #000 100%); }
 
 /* ===== 語言切換 ===== */
 #languageSwitcher{
@@ -97,6 +97,13 @@ body.dir-up #hpText{ font-size:13px; }
 
 /* 倒數 */
 #countdownText{ position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-family:'Fredoka One',sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000; z-index:9; pointer-events:none; display:none; }
+#feverTimer{
+  position:absolute; top:14px; left:50%; transform:translateX(-50%);
+  padding:6px 12px; border-radius:999px;
+  font-family:'Fredoka One',sans-serif; font-size:16px; letter-spacing:0.5px;
+  color:#fff; background:rgba(255,80,40,.2); border:1px solid rgba(255,120,80,.5);
+  text-shadow:0 2px 6px rgba(0,0,0,.6); z-index:9; display:none;
+}
 @keyframes popScale{ 0%{transform:translate(-50%,-50%) scale(.85)} 50%{transform:translate(-50%,-50%) scale(1.12)} 100%{transform:translate(-50%,-50%) scale(1)} }
 
 /* 其他 */
@@ -290,6 +297,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
         <div id="edgeFade"></div>
         <div class="hitbar"><div></div><div></div><div></div><div></div></div>
         <div id="countdownText">Ready</div>
+        <div id="feverTimer">FEVER 40s</div>
       </div>
       <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
     </div>
@@ -1803,12 +1811,25 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let feverEndsAt = 0;
   let feverIntensity = 0;
   let feverTarget = 0;
+  const feverTimerEl = $("#feverTimer");
+  function updateFeverTimer(now){
+    if(!feverTimerEl) return;
+    if(feverActive){
+      const remain = Math.max(0, feverEndsAt - now);
+      const secs = Math.max(0, Math.ceil(remain));
+      feverTimerEl.textContent = `FEVER ${secs}s`;
+      feverTimerEl.style.display = "block";
+    }else{
+      feverTimerEl.style.display = "none";
+    }
+  }
   function startFever(){
     if(feverActive) return;
     feverActive = true;
     feverEndsAt = (performance.now()/1000) + FEVER_DURATION;
     feverTarget = 1;
     document.body.classList.add('fever-mode');
+    updateFeverTimer(performance.now()/1000);
   }
   function endFever(){
     if(!feverActive && feverTarget===0) return;
@@ -1816,6 +1837,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     feverEndsAt = 0;
     feverTarget = 0;
     document.body.classList.remove('fever-mode');
+    updateFeverTimer(performance.now()/1000);
   }
   function resetFever(){
     feverActive = false;
@@ -1823,6 +1845,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     feverTarget = 0;
     feverIntensity = 0;
     document.body.classList.remove('fever-mode');
+    updateFeverTimer(performance.now()/1000);
   }
   function updateFever(now, dt){
     if(feverActive && now >= feverEndsAt){
@@ -1831,6 +1854,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const k = 1 - Math.exp(-dt*3.6);
     feverIntensity += (feverTarget - feverIntensity) * k;
     if(Math.abs(feverIntensity) < 0.001 && feverTarget===0) feverIntensity = 0;
+    updateFeverTimer(now);
   }
   function scoreAdd(delta){
     const mult = feverActive ? 5 : 1;
@@ -2778,6 +2802,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
