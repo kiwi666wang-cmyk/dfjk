@@ -336,11 +336,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <div style="width:84px"></div>
     </div>
     <div id="hpBottomSlot"></div>
-    <div id="stageWrap">␊
-      <div id="stage">␊
-        <canvas id="gameCanvas" width="420" height="640"></canvas>␊
-        <canvas id="uiCanvas"   width="420" height="640"></canvas>␊
-        <div id="edgeFade"></div>␊
+    <div id="stageWrap">
+      <div id="stage">
+        <canvas id="gameCanvas" width="420" height="640"></canvas>
+        <canvas id="uiCanvas"   width="420" height="640"></canvas>
+        <div id="edgeFade"></div>
         <div class="hitbar"><div></div><div></div><div></div><div></div></div>
         <div id="countdownText">Ready</div>
         <div id="gameTimer">
@@ -2779,7 +2779,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function cancelCountdown(){ if(!counting && !cRAF) return; counting=false; try{ cancelAnimationFrame(cRAF);}catch{} cRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; if(el) delete el.dataset.locked; }
 
   /* 遊戲流程 */
-  function startGame(){␊
+  function startGame(){
     if(!selectedSongFile){ toMusic(); alert(getDynamic('alertSelectSong')); return; }
     diff=$("#difficultySelect").value; dir=$("#noteDirection").value; jmode=$("#judgeMode").value;
     document.body.classList.toggle('ex-mode', diff==='ex');
@@ -2954,8 +2954,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
-
-
 
 
 
