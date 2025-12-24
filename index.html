@@ -75,30 +75,18 @@ canvas{ display:block; width:100%; height:auto; max-width:100%; background:#0c13
 .top-mid{ flex:1 1 auto; display:flex; justify-content:center; }
 #ctrlButton{ padding:6px 10px; font-size:14px; border:none; border-radius:8px; background:#78d5ff; cursor:pointer; }
 
-#hpBar{ position:relative; height:18px; background:rgba(255,255,255,.18); border-radius:999px; display:none; min-width:160px; }
-#hpFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
-#hpText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
-#hpBottomSlot{
-  position:absolute; left:0; right:0; bottom:14px;
-  display:none; justify-content:center; pointer-events:none;
-  z-index:8;
+#hpBar{
+  position:absolute; left:0; top:0; height:100%;
+  width:22px; display:none; pointer-events:none; z-index:7;
+  background:rgba(255,255,255,.12);
+  clip-path:polygon(0 0, 100% 0, 82% 100%, 0 100%);
+  box-shadow:0 0 12px rgba(0,0,0,.35);
 }
-body.dir-up #hpBottomSlot{ display:flex; }
-body.dir-up #hpBar{
-  min-width:220px; width:clamp(220px,60vw,320px);
-  height:20px;
+#hpFill{
+  position:absolute; left:0; bottom:0; width:100%; height:100%;
+  background:linear-gradient(180deg, rgba(255,120,120,.95), rgba(255,45,45,.95));
+  clip-path:polygon(0 0, 100% 0, 82% 100%, 0 100%);
 }
-body.dir-up #hpText{ font-size:13px; }
-  
-/* 橫版 HP 浮動（固定靠右上） */
-#hpFloat{
-  position:absolute; z-index:186; display:none;
-  height:18px; min-width:160px; background:rgba(255,255,255,.18);
-  border-radius:999px; box-shadow:0 6px 20px rgba(0,0,0,.35);
-  right:16px; top:52px; pointer-events:none;
-}
-#hpFloatFill{ position:absolute; inset:0 auto 0 0; width:100%; background:#ff3b3b; border-radius:999px; }
-#hpFloatText{ position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); font-weight:800; color:#000; font-size:12px; }
 
 /* 背景屬性 HUD：移除（避免與控制中心重複） */
 .hud{ display:none; }
@@ -121,12 +109,18 @@ body.dir-up #hpText{ font-size:13px; }
   font-size:14px; font-weight:700; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.6);
 }
 #gameTimer{ top:12px; bottom:auto; }
-#feverTimer{
-  position:absolute; top:14px; left:50%; transform:translateX(-50%);
-  padding:6px 12px; border-radius:999px;
-  font-family:'Fredoka One',sans-serif; font-size:16px; letter-spacing:0.5px;
-  color:#fff; background:rgba(255,80,40,.2); border:1px solid rgba(255,120,80,.5);
-  text-shadow:0 2px 6px rgba(0,0,0,.6); z-index:9; display:none;
+#feverSideCountdown{
+  position:absolute; inset:0; z-index:7; display:none;
+  pointer-events:none; align-items:center; justify-content:space-between;
+  padding:0 clamp(10px, 3vw, 22px);
+}
+#feverSideCountdown .side-digit{
+  width:22%;
+  font-family:'Fredoka One',sans-serif;
+  font-size:clamp(64px, 12vw, 160px);
+  color:#fff; text-shadow:0 8px 18px rgba(0,0,0,.55);
+  letter-spacing:2px;
+  text-align:center;
 }
 @keyframes feverPromptGlow{
   0%{ text-shadow:0 0 8px rgba(120,213,255,.45), 0 0 20px rgba(255,0,160,.3); }
@@ -328,34 +322,31 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 <div id="gameScreen" style="display:none;position:relative;">
     <div class="topbar">
       <button id="ctrlButton" data-i18n="ctrlButton">⚙️ 控制中心</button>
-      <div class="top-mid">
-        <div id="hpBar"><div id="hpFill"></div><div id="hpText">100/100</div></div>
-      </div>
+      <div class="top-mid"></div>
       <!-- 右側留白，維持置中對稱 -->
       <div style="width:84px"></div>
     </div>
-    <div id="hpBottomSlot"></div>
     <div id="stageWrap">
       <div id="stage">
         <canvas id="gameCanvas" width="420" height="640"></canvas>
         <canvas id="uiCanvas"   width="420" height="640"></canvas>
         <div id="edgeFade"></div>
+        <div id="hpBar"><div id="hpFill"></div></div>
+        <div id="feverSideCountdown">
+          <div id="feverSideLeft" class="side-digit">1</div>
+          <div id="feverSideRight" class="side-digit">0</div>
+        </div>
         <div class="hitbar"><div></div><div></div><div></div><div></div></div>
         <div id="countdownText">Ready</div>
         <div id="gameTimer">
           <div id="gameTimerFill"></div>
           <div id="gameTimerText">0:00</div>
         </div>
-        <div id="feverTimer">FEVER 40s</div>
         <div id="feverPrompt">
           <div id="feverPromptText" data-i18n="feverPromptText">啟動 Fever</div>
           <div id="feverPromptKey" data-i18n="feverPromptKey">Space</div>
         </div>
       </div>
-    </div>
-    <div id="hpFloat">
-      <div id="hpFloatFill"></div>
-      <div id="hpFloatText">100/100</div>
     </div>
     <div id="dockTopHandle" role="button" aria-label="控制中心"></div>
 </div>
@@ -1910,12 +1901,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let feverEndsAt = 0;
   let feverIntensity = 0;
   let feverTarget = 0;
-  const feverTimerEl = $("#feverTimer");
+  const feverSideWrap = $("#feverSideCountdown");
+  const feverSideLeft = $("#feverSideLeft");
+  const feverSideRight = $("#feverSideRight");
   const feverPromptEl = $("#feverPrompt");
   const gameTimerEl = $("#gameTimer");
   const gameTimerFill = $("#gameTimerFill");
   const gameTimerText = $("#gameTimerText");
   let feverReady = false;
+  let feverEnding = false;
   function showFeverPrompt(){
     if(feverPromptEl) feverPromptEl.style.display = "flex";
   }
@@ -1936,16 +1930,16 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       hideFeverPrompt();
     }
   }
-  function updateFeverTimer(now){
-    if(!feverTimerEl) return;
-    if(feverActive){
-      const remain = Math.max(0, feverEndsAt - now);
-      const secs = Math.max(0, Math.ceil(remain));
-      feverTimerEl.textContent = `FEVER ${secs}s`;
-      feverTimerEl.style.display = "block";
-    }else{
-      feverTimerEl.style.display = "none";
+  function updateFeverSideCountdown(secs){
+    if(!feverSideWrap || !feverSideLeft || !feverSideRight) return;
+    if(!feverActive || secs > 10){
+      feverSideWrap.style.display = "none";
+      return;
     }
+    const safeSecs = Math.max(0, Math.min(10, secs));
+    feverSideLeft.textContent = Math.floor(safeSecs / 10).toString();
+    feverSideRight.textContent = (safeSecs % 10).toString();
+    feverSideWrap.style.display = "flex";
   }
   function startFever(){
     if(feverActive) return;
@@ -1955,7 +1949,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     document.body.classList.add('fever-mode');
     feverReady = false;
     hideFeverPrompt();
-    updateFeverTimer(performance.now()/1000);
+    feverEnding = false;
+    updateFeverSideCountdown(99);
   }
   function endFever(){
     if(!feverActive && feverTarget===0) return;
@@ -1963,7 +1958,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     feverEndsAt = 0;
     feverTarget = 0;
     document.body.classList.remove('fever-mode');
-    updateFeverTimer(performance.now()/1000);
+    updateFeverSideCountdown(99);
   }
   function resetFever(){
     feverActive = false;
@@ -1973,16 +1968,24 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     document.body.classList.remove('fever-mode');
     feverReady = false;
     hideFeverPrompt();
-    updateFeverTimer(performance.now()/1000);
+    updateFeverSideCountdown(99);
   }
   function updateFever(now, dt){
-    if(feverActive && now >= feverEndsAt){
-      endFever();
+    if(feverActive){
+      const remain = feverEndsAt - now;
+      const secs = Math.max(0, Math.ceil(remain));
+      updateFeverSideCountdown(secs);
+      if(!feverEnding && remain <= 0){
+        feverEnding = true;
+        updateFeverSideCountdown(0);
+        requestAnimationFrame(()=>{ endFever(); feverEnding = false; });
+      }
+    }else{
+      updateFeverSideCountdown(99);
     }
     const k = 1 - Math.exp(-dt*3.6);
     feverIntensity += (feverTarget - feverIntensity) * k;
     if(Math.abs(feverIntensity) < 0.001 && feverTarget===0) feverIntensity = 0;
-    updateFeverTimer(now);
   }
   function scoreAdd(delta){
     const mult = feverActive ? 5 : 1;
@@ -2111,40 +2114,15 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function yAt(thit,tnow){ return (dir==='down') ? (judgeY - (thit-tnow)*spd) : (judgeY + (thit-tnow)*spd); }
 
   /* ===== 血條 ===== */
-  function placeHpBar(){
-    const bar = $("#hpBar");
-    const topSlot = $("#gameScreen .top-mid");
-    const bottomSlot = $("#hpBottomSlot");
-    if(!bar || !topSlot || !bottomSlot) return;
-    const useBottom = (dir === 'up');
-    document.body.classList.toggle('dir-up', useBottom);
-    if(useBottom){
-      if(bottomSlot !== bar.parentElement) bottomSlot.appendChild(bar);
-    } else {
-      if(topSlot !== bar.parentElement) topSlot.appendChild(bar);
-    }
-  }
   const HP_MAX=100; let HP_ON=(readStorage("dfjk.hpOn")==="1"); let HP=HP_MAX;
   function hpShow(b){
-    placeHpBar();
-    const LANDSCAPE = isLandscapeNow();
-    if(LANDSCAPE){
-      const f = $("#hpFloat");
-      f.style.display = b ? "block" : "none";
-      $("#hpBar").style.display = "none";
-      positionHpFloat();
-    }else{
-      $("#hpBar").style.display=b?"block":"none";
-      $("#hpFloat").style.display="none";
-    }
+    const bar = $("#hpBar");
+    if(bar) bar.style.display = b ? "block" : "none";
   }
   function hpUpdate(){
-    const fill=$("#hpFill"), txt=$("#hpText");
-    const w=Math.max(0,Math.min(100, HP/HP_MAX*100));
-    fill.style.width=w.toFixed(1)+"%"; txt.textContent=`${HP}/${HP_MAX}`;
-    const f=$("#hpFloat"), ff=$("#hpFloatFill"), ft=$("#hpFloatText");
-    ff.style.width=w.toFixed(1)+"%"; ft.textContent=`${HP}/${HP_MAX}`;
-    positionHpFloat();
+    const fill=$("#hpFill");
+    const h=Math.max(0,Math.min(100, HP/HP_MAX*100));
+    if(fill) fill.style.height=h.toFixed(1)+"%";
   }
   function hpSet(v){ HP=Math.max(0,Math.min(HP_MAX,Math.round(v))); hpUpdate(); if(HP<=0 && running){ endWith(getDynamic('hpDepleted')); } }
   function hpAdd(d){ if(!HP_ON) return; hpSet(HP+d); }
@@ -2621,8 +2599,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       if(topbar) topbar.style.display='flex';
       if(dockHandleEl){ dockHandleEl.classList.remove('show'); dockHandleEl.style.display='none'; }
       $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
-      $("#hpFloat").style.display='none';
-    } else if (LANDSCAPE){
+      } else if (LANDSCAPE){
       wrap.classList.add('landscape');
       const scale = Math.min(vw / H, vh / W);
       const w = Math.max(320, Math.floor(scale * W));
@@ -2665,8 +2642,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       $("#hpFloat").style.display='none';
     }
     layout(); draw({skip:true}); ui();
-    positionHpFloat();
-    placeHpBar();
   }
 
   /* 將控制中心把手定位在手機橫向時的畫面右上（模仿 iPhone 手勢） */
@@ -2681,35 +2656,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     }
     handle.style.display='block';
     handle.classList.add('show');
-    positionHpFloat();
   }
-
-  /* 將浮動 HP 條定位到旋轉舞台的相對右上 */
-  function positionHpFloat(){
-    const LANDSCAPE = isLandscapeNow();
-    const f = $("#hpFloat");
-    if(!(IS_MOBILE && LANDSCAPE && f.style.display==='block')) return;
-    const wrap = $("#stageWrap");
-    if(!wrap) return;
-    const baseW = wrap.offsetWidth || W;
-    let width = Math.max(180, Math.min(280, Math.floor(baseW * 0.55)));
-    if(dir==='up'){ width = Math.max(200, Math.min(320, Math.floor(baseW * 0.7))); }
-    const margin = Math.max(14, Math.round(baseW * 0.04));
-    f.style.width = width + 'px';
-    f.style.right = margin + 'px';
-    f.style.left = 'auto';
-    const handle = $("#dockTopHandle");
-    const handleGap = (handle && handle.classList.contains('show')) ? ((handle.offsetHeight||0) + 18) : 0;
-    const offset = Math.max(margin + handleGap, 16);
-    if(dir==='up'){
-      f.style.top = 'auto';
-      f.style.bottom = offset + 'px';
-    } else {
-      f.style.bottom = 'auto';
-      f.style.top = offset + 'px';
-    }
-  }
-
   /* 輸入處理 */
   const VIB = IS_MOBILE && ("vibrate" in navigator);
   function laneKeyFromChar(k){
@@ -2977,6 +2924,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
