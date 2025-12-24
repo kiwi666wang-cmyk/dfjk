@@ -120,8 +120,7 @@ body.dir-up #hpText{ font-size:13px; }
   position:relative; z-index:1; line-height:28px;
   font-size:14px; font-weight:700; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.6);
 }
-body.dir-up #gameTimer{ top:12px; bottom:auto; }
-body:not(.dir-up) #gameTimer{ bottom:12px; top:auto; }
+#gameTimer{ top:12px; bottom:auto; }
 #feverTimer{
   position:absolute; top:14px; left:50%; transform:translateX(-50%);
   padding:6px 12px; border-radius:999px;
@@ -2282,6 +2281,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const padX = 6;
     const padTop = 10;
     const padBottom = 26;
+    let topClearance = 0;
     let w = Math.min(220, Math.max(150, W - marginX * 2));
     if(IS_MOBILE) w = Math.min(w, Math.round(W * 0.5));
     let h = Math.round(Math.max(60, Math.min(90, H * 0.12)));
@@ -2291,10 +2291,21 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     let y0 = marginY;
     const leftBound = marginX;
     let rightBound = W - w - marginX;
-    const topBound = marginY + padTop;
+    let topBound = marginY + padTop;
     let bottomBound = H - h - (marginY + padBottom);
     if(rightBound < leftBound) rightBound = leftBound;
     if(bottomBound < topBound) bottomBound = topBound;
+
+    if(gameTimerEl){
+      const cr = c.getBoundingClientRect();
+      const timerRect = gameTimerEl.getBoundingClientRect();
+      if(cr.height > 0 && timerRect.height > 0){
+        topClearance = Math.max(0, (timerRect.bottom - cr.top) / cr.height * H);
+      }
+      if(topClearance > 0){
+        topBound = Math.max(topBound, topClearance + 6);
+      }
+    }
 
     if(IS_MOBILE){
       const autoY = (dir==='up') ? bottomBound : topBound;
@@ -2308,10 +2319,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
         x0 = leftBound;
       }
     } else {
-      if(!LANDSCAPE){
+    if(!LANDSCAPE){
         const cr = c.getBoundingClientRect();
         const tb = document.querySelector('.topbar');
         const tr = tb ? tb.getBoundingClientRect() : null;
+        const timerRect = gameTimerEl ? gameTimerEl.getBoundingClientRect() : null;
         if(cr && tr){
           const hCss = h / H * cr.height;
           const marginCss = marginY / H * cr.height;
@@ -2319,7 +2331,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
           if(dir==='up'){
             yCss = cr.height - hCss - marginCss;
           } else {
-            const yCandidate = Math.max(marginCss, (tr.bottom - cr.top) + 8);
+            const timerCss = timerRect ? (timerRect.bottom - cr.top) + 8 : marginCss;
+            const yCandidate = Math.max(marginCss, (tr.bottom - cr.top) + 8, timerCss);
             yCss = Math.min(cr.height - hCss - marginCss, yCandidate);
           }
           x0 = leftBound;
@@ -2954,6 +2967,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
