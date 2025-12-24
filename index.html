@@ -105,6 +105,23 @@ body.dir-up #hpText{ font-size:13px; }
 
 /* 倒數 */
 #countdownText{ position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); font-family:'Fredoka One',sans-serif; font-size:72px; color:#fff; text-shadow:2px 2px 8px #000; z-index:9; pointer-events:none; display:none; }
+#gameTimer{
+  position:absolute; left:50%; transform:translateX(-50%);
+  width:clamp(220px, 70%, 360px); height:28px;
+  border-radius:8px; overflow:hidden; pointer-events:none;
+  background:rgba(0,0,0,.45); border:1px solid rgba(255,255,255,.28);
+  z-index:12; display:none;
+}
+#gameTimerFill{
+  position:absolute; inset:0 auto 0 0; width:0%;
+  background:linear-gradient(90deg, rgba(60,210,110,.95), rgba(140,255,170,.95));
+}
+#gameTimerText{
+  position:relative; z-index:1; line-height:28px;
+  font-size:14px; font-weight:700; color:#fff; text-shadow:0 2px 6px rgba(0,0,0,.6);
+}
+body.dir-up #gameTimer{ top:12px; bottom:auto; }
+body:not(.dir-up) #gameTimer{ bottom:12px; top:auto; }
 #feverTimer{
   position:absolute; top:14px; left:50%; transform:translateX(-50%);
   padding:6px 12px; border-radius:999px;
@@ -326,6 +343,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
         <div id="edgeFade"></div>␊
         <div class="hitbar"><div></div><div></div><div></div><div></div></div>
         <div id="countdownText">Ready</div>
+        <div id="gameTimer">
+          <div id="gameTimerFill"></div>
+          <div id="gameTimerText">0:00</div>
+        </div>
         <div id="feverTimer">FEVER 40s</div>
         <div id="feverPrompt">
           <div id="feverPromptText" data-i18n="feverPromptText">啟動 Fever</div>
@@ -1882,6 +1903,9 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let feverTarget = 0;
   const feverTimerEl = $("#feverTimer");
   const feverPromptEl = $("#feverPrompt");
+  const gameTimerEl = $("#gameTimer");
+  const gameTimerFill = $("#gameTimerFill");
+  const gameTimerText = $("#gameTimerText");
   let feverReady = false;
   function showFeverPrompt(){
     if(feverPromptEl) feverPromptEl.style.display = "flex";
@@ -2348,6 +2372,21 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function startAt(sec){ try{ const to=Math.max(0,Math.min((durSec||120)-.001,sec||0)); bgm.currentTime=to; }catch{} bgm.play().catch(()=>{}); ended=false; bgm.onended=()=>{ ended=true; }; softBase=bgm.currentTime||0; softStart=performance.now()/1000; }
   function hardClock(){ const t=(bgm && !isNaN(bgm.currentTime)) ? bgm.currentTime : (performance.now()/1000 - softStart) + softBase; return Math.max(0,Math.min(durSec,t)); }
   function judgeClock(){ return hardClock() + (OFFSET/1000); }
+  function formatCountdownTime(sec){
+    const total = Math.max(0, Math.ceil(sec));
+    const min = Math.floor(total / 60);
+    const s = String(total % 60).padStart(2, '0');
+    return `${min}:${s}`;
+  }
+  function updateGameTimer(nowSec){
+    if(!gameTimerEl || !gameTimerFill || !gameTimerText) return;
+    const duration = (isFinite(durSec) && durSec > 0) ? durSec : 120;
+    const clamped = Math.max(0, Math.min(duration, nowSec || 0));
+    const remain = Math.max(0, duration - clamped);
+    const pct = duration > 0 ? (clamped / duration) * 100 : 0;
+    gameTimerFill.style.width = `${pct}%`;
+    gameTimerText.textContent = formatCountdownTime(remain);
+  }
 
   /* 畫面切換 */
   function showOnly(id){
@@ -2721,6 +2760,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     running=false;
     const show=!!opt.show;
     const pv=(typeof opt.previewT==='number') ? opt.previewT : ((typeof opt.t==='number') ? opt.t : 0);
+    const timerT = (typeof opt.t==='number') ? opt.t : 0;
     cancelCountdown(); counting=true; const el=$("#countdownText"); el.style.display='block'; el.dataset.locked='1';
     const ready=getDynamic('countdownReady'), go=getDynamic('countdownGo');
     const lab=[ready,'3','2','1',go], dur=[600,800,800,800,600], t0=performance.now();
@@ -2728,6 +2768,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       if(!counting) return; const e=now-t0; let acc=0, idx=lab.length-1;
       for(let i=0;i<lab.length;i++){ acc+=dur[i]; if(e<acc){ idx=i; break; } }
       el.textContent=(idx<lab.length?lab[idx]:go); el.style.animation='none'; void el.offsetWidth; el.style.animation='popScale .55s ease-out';
+      updateGameTimer(timerT);
       if(show){ drawPreview(pv); } else { draw({skip:true}); } ui();
       const total=dur.reduce((a,b)=>a+b,0);
       if(e>=total){ el.style.display='none'; counting=false; delete el.dataset.locked; startCb(); return; }
@@ -2738,7 +2779,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function cancelCountdown(){ if(!counting && !cRAF) return; counting=false; try{ cancelAnimationFrame(cRAF);}catch{} cRAF=null; const el=$("#countdownText"); el.style.animation='none'; el.style.display='none'; if(el) delete el.dataset.locked; }
 
   /* 遊戲流程 */
-  function startGame(){
+  function startGame(){␊
     if(!selectedSongFile){ toMusic(); alert(getDynamic('alertSelectSong')); return; }
     diff=$("#difficultySelect").value; dir=$("#noteDirection").value; jmode=$("#judgeMode").value;
     document.body.classList.toggle('ex-mode', diff==='ex');
@@ -2757,6 +2798,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const url='music/'+encodeURIComponent(selectedSongFile);
     stopAudio(); bgm.src=url; try{ bgm.load(); }catch{}
     durSec = isFinite(bgm.duration) ? bgm.duration : 120;
+    if(gameTimerEl) gameTimerEl.style.display = 'block';
+    updateGameTimer(0);
     genChart(durSec||120);
     countdown(()=>{ phase='playing'; running=true; startAt(0); loopId=requestAnimationFrame(loop); }, {show:false});
   }
@@ -2797,6 +2840,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const t=judgeClock();
     updateFever(performance.now()/1000, 1/60);
     upd(t,1/60); draw(); ui();
+    updateGameTimer(hardClock());
     if(ended || remain<=0){ endWith(); return; }
     loopId=requestAnimationFrame(loop);
   }
@@ -2910,6 +2954,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
