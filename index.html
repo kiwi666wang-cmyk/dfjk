@@ -319,11 +319,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <div style="width:84px"></div>
     </div>
     <div id="hpBottomSlot"></div>
-    <div id="stageWrap">
-      <div id="stage">
-        <canvas id="gameCanvas" width="420" height="640"></canvas>
-        <canvas id="uiCanvas"   width="420" height="640"></canvas>
-        <div id="edgeFade"></div>
+    <div id="stageWrap">␊
+      <div id="stage">␊
+        <canvas id="gameCanvas" width="420" height="640"></canvas>␊
+        <canvas id="uiCanvas"   width="420" height="640"></canvas>␊
+        <div id="edgeFade"></div>␊
         <div class="hitbar"><div></div><div></div><div></div><div></div></div>
         <div id="countdownText">Ready</div>
         <div id="feverTimer">FEVER 40s</div>
@@ -332,6 +332,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
           <div id="feverPromptKey" data-i18n="feverPromptKey">Space</div>
         </div>
       </div>
+    </div>
+</div>
 
 <!-- ===== 控制中心（桌機與手機皆可） ===== -->
 <div id="dockScrim"></div>
@@ -2366,7 +2368,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     phase='menu'; // 在選單語境下瀏覽選項
     showOnly('optionsScreen');
   }
-  function toMusic(){ showOnly('musicScreen'); }
+  function toMusic(){
+    fillSongs();
+    showOnly('musicScreen');
+  }
 
   /* 曲庫 */
   const S=[
@@ -2888,6 +2893,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
