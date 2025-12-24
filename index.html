@@ -135,12 +135,12 @@ body.mobile-landscape #landDock .actions button{ flex:1 1 auto; }
 #landDock .actions button{ flex:1 1 180px; margin:0; }
 
 /* 控制中心開關把手（定位由 JS 依舞台位置動態設定；僅手機橫版顯示） */
-#dockTopHandle{␊
+#dockTopHandle{
   position:fixed; z-index:185; border-radius:999px;
-  width:200px; height:28px; background:rgba(255,255,255,.08); backdrop-filter:blur(2px);␊
-  display:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25);␊
+  width:200px; height:28px; background:rgba(255,255,255,.08); backdrop-filter:blur(2px);
+  display:none; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,.25);
   right:calc(var(--safe-right) + 18px); top:calc(var(--safe-top) + 16px);
-}␊
+}
 #dockTopHandle.show{ display:block; }
 #dockTopHandle::after{
   content:''; display:block; width:64px; height:6px; border-radius:999px;
@@ -283,18 +283,18 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       <div style="width:84px"></div>
     </div>
     <div id="hpBottomSlot"></div>
-    <div id="stageWrap">␊
-      <div id="stage">␊
-        <canvas id="gameCanvas" width="420" height="640"></canvas>␊
-        <canvas id="uiCanvas"   width="420" height="640"></canvas>␊
-        <div id="edgeFade"></div>␊
-        <div class="hitbar"><div></div><div></div><div></div><div></div></div>␊
-        <div id="countdownText">Ready</div>␊
-      </div>␊
-      <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>␊
+    <div id="stageWrap">
+      <div id="stage">
+        <canvas id="gameCanvas" width="420" height="640"></canvas>
+        <canvas id="uiCanvas"   width="420" height="640"></canvas>
+        <div id="edgeFade"></div>
+        <div class="hitbar"><div></div><div></div><div></div><div></div></div>
+        <div id="countdownText">Ready</div>
+      </div>
+      <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
     </div>
     <div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
-  </div>␊
+  </div>
 
 <!-- ===== 控制中心（桌機與手機皆可） ===== -->
 <div id="dockScrim"></div>
@@ -2684,17 +2684,6 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
 
 
 
