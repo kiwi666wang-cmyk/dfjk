@@ -1759,11 +1759,23 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   const $  = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
   const banner = (m)=>{ const b=$("#warnBanner"); b.textContent=m; b.style.display="block"; setTimeout(()=>b.style.display="none",1600); };
+  const readStorage = (key, fallback=null) => {
+    try {
+      const value = localStorage.getItem(key);
+      return value === null ? fallback : value;
+    } catch {
+      return fallback;
+    }
+  };
+  const writeStorage = (key, value) => {
+    try { localStorage.setItem(key, value); } catch {}
+  };
 
   /* ===== 尺寸常數／動態狀態 ===== */
   const H = 640;
   const baseLaneW = 105;
-  let LANES = [4,6,8].includes(+localStorage.getItem("dfjk.lanes")) ? +localStorage.getItem("dfjk.lanes") : 4;
+  const storedLanes = +readStorage("dfjk.lanes");
+  let LANES = [4,6,8].includes(storedLanes) ? storedLanes : 4;
   let W = baseLaneW * LANES;
 
   const c  = $("#gameCanvas");
@@ -1773,8 +1785,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
   /* 行動裝置開關 */
   const IS_MOBILE = matchMedia("(pointer: coarse)").matches;
-  let MOBILE_FULL = localStorage.getItem('dfjk.mobileFull') === '1';
-  let LANDSCAPE_FORCE   = localStorage.getItem('dfjk.landscape')   === '1'; // 勾選時強制橫版
+  let MOBILE_FULL = readStorage('dfjk.mobileFull') === '1';
+  let LANDSCAPE_FORCE   = readStorage('dfjk.landscape')   === '1'; // 勾選時強制橫版
 
   /* DPR */
   function fitDPR(){
@@ -1827,7 +1839,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function laneX(i){ const lw = W/LANES; return i*lw + lw/2; }
 
   /* ===== 顏色 / RGB ===== */
-  let RGB = localStorage.getItem("dfjk.rgbCycle")==="1";
+  let RGB = readStorage("dfjk.rgbCycle")==="1";
   function h2x(h,s,l){ s/=100; l/=100; const k=n=>(n+h/30)%12; const a=s*Math.min(l,1-l); const f=n=>l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1))); const to=x=>("0"+Math.round(x*255).toString(16)).slice(-2); return `#${to(f(0))}${to(f(8))}${to(f(4))}`; }
   function light(hex,a){ const p=parseInt(hex.slice(1),16); let r=(p>>16)&255,g=(p>>8)&255,b=p&255; r=Math.min(255,Math.round(r+(255-r)*a)); g=Math.min(255,Math.round(g+(255-g)*a)); b=Math.min(255,Math.round(b+(255-b)*a)); return `rgb(${r},${g},${b})`; }
   function toRgba(color, alpha){
@@ -2011,10 +2023,10 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     ctx.restore(); }
 
   /* ===== 音訊 / SFX ===== */
-  let OFFSET = +(localStorage.getItem("dfjk.offsetMs")||0);
+  let OFFSET = +(readStorage("dfjk.offsetMs", 0)||0);
   const bgm=$("#bgm"); let AC=null, Gm=null, Gsfx=null; let Gcal=null;
-  let VOL_M=(+(localStorage.getItem("dfjk.volume")||80))/100;
-  let VOL_S=(+(localStorage.getItem("dfjk.sfxVol")||70))/100;
+  let VOL_M=(+(readStorage("dfjk.volume", 80)||80))/100;
+  let VOL_S=(+(readStorage("dfjk.sfxVol", 70)||70))/100;
   async function ensureAC(){ if(!AC){ const Ctx=window.AudioContext||window.webkitAudioContext; AC=new Ctx({latencyHint:"interactive"}); }
     if(!Gm){ Gm=AC.createGain(); Gm.connect(AC.destination); }
     if(!Gsfx){ Gsfx=AC.createGain(); Gsfx.gain.value=VOL_S; Gsfx.connect(Gm); } }
@@ -2074,7 +2086,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       if(topSlot !== bar.parentElement) topSlot.appendChild(bar);
     }
   }
-  const HP_MAX=100; let HP_ON=(localStorage.getItem("dfjk.hpOn")==="1"); let HP=HP_MAX;
+  const HP_MAX=100; let HP_ON=(readStorage("dfjk.hpOn")==="1"); let HP=HP_MAX;
   function hpShow(b){
     placeHpBar();
     const LANDSCAPE = isLandscapeNow();
@@ -2435,7 +2447,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     const dockOffset = $("#dockOffset");
     if(dockOffset) dockOffset.textContent = text;
   }
-  function setOffset(v){ v=Math.max(-600,Math.min(600,(v|0))); OFFSET=v; localStorage.setItem("dfjk.offsetMs",String(v)); hudOffset(v); }
+  function setOffset(v){ v=Math.max(-600,Math.min(600,(v|0))); OFFSET=v; writeStorage("dfjk.offsetMs",String(v)); hudOffset(v); }
 
   /* 控制中心 */
   let dockOpenState=false, pausedByDock=false, dockEventsBound=false;
@@ -2510,7 +2522,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     }
   }
 
-  function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; localStorage.setItem("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
+  function setLanes(n){ n = [4,6,8].includes(+n) ? +n : 4; if(n===LANES) return; LANES = n; writeStorage("dfjk.lanes", String(LANES)); W = baseLaneW * LANES; fitDPR(); desktopScale(); applyStageLayout(); recPulse = new Array(LANES).fill(0); recHitT  = new Array(LANES).fill(0); recomputeLaneDirs(); draw({skip:true}); ui(); hud(); }
 
   /* 版面套用（直版 6/8 鍵不超框，且不壓縮畫面/字體/箭頭） */
   function applyStageLayout(){
@@ -2827,14 +2839,14 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
     /* 音量 */
     const mS=$("#volumeSlider"), mL=$("#volumeLabel"), sS=$("#sfxSlider"), sL=$("#sfxLabel");
-    const mv=+(localStorage.getItem("dfjk.volume")||80), sv=+(localStorage.getItem("dfjk.sfxVol")||70);
+    const mv=+(readStorage("dfjk.volume", 80)||80), sv=+(readStorage("dfjk.sfxVol", 70)||70);
     mS.value=String(mv); sS.value=String(sv); VOL_M=mv/100; VOL_S=sv/100; applyVol();
     mL.textContent=`${mv}%`; sL.textContent=`${sv}%`;
-    addEv(mS,"input", ()=>{ const v=+mS.value; VOL_M=v/100; mL.textContent=`${v}%`; localStorage.setItem("dfjk.volume",String(v)); applyVol(); });
-    addEv(sS,"input", ()=>{ const v=+sS.value; VOL_S=v/100; sL.textContent=`${v}%`; localStorage.setItem("dfjk.sfxVol",String(v)); applyVol(); });
+    addEv(mS,"input", ()=>{ const v=+mS.value; VOL_M=v/100; mL.textContent=`${v}%`; writeStorage("dfjk.volume",String(v)); applyVol(); });
+    addEv(sS,"input", ()=>{ const v=+sS.value; VOL_S=v/100; sL.textContent=`${v}%`; writeStorage("dfjk.sfxVol",String(v)); applyVol(); });
 
     /* 偏移 slider + 快速校正 */
-    const oS=$("#offsetSlider"), svOff=+(localStorage.getItem("dfjk.offsetMs")||0);
+    const oS=$("#offsetSlider"), svOff=+(readStorage("dfjk.offsetMs", 0)||0);
     oS.value=String(svOff); setOffset(svOff);
     addEv(oS,"input", ()=> setOffset(+oS.value) );
     addEv($("#offsetCalibBtn"),"click", openCalib);
@@ -2844,11 +2856,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 
     /* RGB 切換 */
     const rgb=$("#rgbCycleToggle"); rgb.checked=RGB;
-    addEv(rgb,"change", ()=>{ RGB=rgb.checked; localStorage.setItem("dfjk.rgbCycle", RGB?'1':'0'); });
+    addEv(rgb,"change", ()=>{ RGB=rgb.checked; writeStorage("dfjk.rgbCycle", RGB?'1':'0'); });;
 
     /* 血條模式 */
     const hpC=$("#hpToggle"); hpC.checked=HP_ON;
-    addEv(hpC,"change", ()=>{ HP_ON=hpC.checked; localStorage.setItem("dfjk.hpOn", HP_ON?'1':'0'); hpShow(HP_ON); });
+    addEv(hpC,"change", ()=>{ HP_ON=hpC.checked; writeStorage("dfjk.hpOn", HP_ON?'1':'0'); hpShow(HP_ON); });
 
     /* 鍵數選擇 */
     const keySel=$("#keyModeSelect");
@@ -2858,8 +2870,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     /* 手機全高與橫板（橫板未勾選時自動依螢幕方向） */
     const full=$("#mobileFullHeight"), land=$("#mobileLandscape");
     full.checked=MOBILE_FULL; land.checked=LANDSCAPE_FORCE;
-    addEv(full,'change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); full.checked=MOBILE_FULL; return; } MOBILE_FULL=full.checked; localStorage.setItem('dfjk.mobileFull', MOBILE_FULL?'1':'0'); applyStageLayout(); });
-    addEv(land,'change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); land.checked=LANDSCAPE_FORCE; return; } LANDSCAPE_FORCE=land.checked; localStorage.setItem('dfjk.landscape', LANDSCAPE_FORCE?'1':'0'); applyStageLayout(); bindDock(); });
+    addEv(full,'change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); full.checked=MOBILE_FULL; return; } MOBILE_FULL=full.checked; writeStorage('dfjk.mobileFull', MOBILE_FULL?'1':'0'); applyStageLayout(); });
+    addEv(land,'change',()=>{ if(!IS_MOBILE){ banner('此選項只在行動裝置生效'); land.checked=LANDSCAPE_FORCE; return; } LANDSCAPE_FORCE=land.checked; writeStorage('dfjk.landscape', LANDSCAPE_FORCE?'1':'0'); applyStageLayout(); bindDock(); });
 
     bindDock();
 
@@ -2893,6 +2905,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
