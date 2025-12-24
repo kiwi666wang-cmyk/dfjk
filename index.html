@@ -10,8 +10,16 @@
 :root{ --safe-top:env(safe-area-inset-top,0px); --safe-right:env(safe-area-inset-right,0px); }
 html,body{ margin:0; touch-action:manipulation; overscroll-behavior:none; background:#0a1226; }
 body{ color:#fff; font-family:sans-serif; text-align:center; transition:background .3s ease; }
-body.fever-mode{ background:linear-gradient(to bottom, #ff3300 0%, #990000 50%, #000 100%); }
-
+body.fever-mode{
+  background:linear-gradient(135deg, #ff0080 0%, #00e5ff 30%, #7cff00 55%, #ffea00 75%, #ff4b00 100%);
+  background-size:420% 420%;
+  animation:feverBg 8s ease infinite;
+}
+@keyframes feverBg{
+  0%{background-position:0% 50%;}
+  50%{background-position:100% 50%;}
+  100%{background-position:0% 50%;}
+}
 /* ===== 語言切換 ===== */
 #languageSwitcher{
   position:fixed; top:16px; right:16px; z-index:240;
@@ -103,6 +111,27 @@ body.dir-up #hpText{ font-size:13px; }
   font-family:'Fredoka One',sans-serif; font-size:16px; letter-spacing:0.5px;
   color:#fff; background:rgba(255,80,40,.2); border:1px solid rgba(255,120,80,.5);
   text-shadow:0 2px 6px rgba(0,0,0,.6); z-index:9; display:none;
+}
+@keyframes feverPromptGlow{
+  0%{ text-shadow:0 0 8px rgba(120,213,255,.45), 0 0 20px rgba(255,0,160,.3); }
+  50%{ text-shadow:0 0 14px rgba(255,255,255,.6), 0 0 28px rgba(120,213,255,.5); }
+  100%{ text-shadow:0 0 8px rgba(120,213,255,.45), 0 0 20px rgba(255,0,160,.3); }
+}
+#feverPrompt{
+  position:absolute; left:50%; top:28%; transform:translate(-50%,-50%);
+  display:none; flex-direction:column; align-items:center; gap:10px;
+  font-family:'Fredoka One',sans-serif; z-index:9; pointer-events:none;
+  animation:feverPromptGlow 2.4s ease-in-out infinite;
+}
+#feverPromptText{
+  font-size:36px; letter-spacing:1px;
+}
+#feverPromptKey{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width:120px; padding:6px 16px; border-radius:12px;
+  background:rgba(12,19,34,.7); border:1px solid rgba(120,213,255,.6);
+  box-shadow:0 6px 16px rgba(0,0,0,.4), inset 0 0 12px rgba(255,255,255,.2);
+  font-size:18px; letter-spacing:2px; text-transform:uppercase;
 }
 @keyframes popScale{ 0%{transform:translate(-50%,-50%) scale(.85)} 50%{transform:translate(-50%,-50%) scale(1.12)} 100%{transform:translate(-50%,-50%) scale(1)} }
 
@@ -298,11 +327,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
         <div class="hitbar"><div></div><div></div><div></div><div></div></div>
         <div id="countdownText">Ready</div>
         <div id="feverTimer">FEVER 40s</div>
+        <div id="feverPrompt">
+          <div id="feverPromptText" data-i18n="feverPromptText">啟動 Fever</div>
+          <div id="feverPromptKey" data-i18n="feverPromptKey">Space</div>
+        </div>
       </div>
-      <div id="hpFloat"><div id="hpFloatFill"></div><div id="hpFloatText">100/100</div></div>
-    </div>
-    <div id="dockTopHandle" title="點我展開控制中心" data-i18n="dockHandleTitle"></div>
-  </div>
 
 <!-- ===== 控制中心（桌機與手機皆可） ===== -->
 <div id="dockScrim"></div>
@@ -467,6 +496,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       offsetLabel: '全域偏移 (ms)：',
       offsetCalibBtn: '快速校正',
       rgbLabel: 'RGB 循環箭頭色：',
+      feverPromptText: '啟動 Fever',
+      feverPromptKey: '空白鍵',
       hpLabel: '血條模式：',
       mobileFullLabel: '手機全高（>4鍵推薦）：',
       mobileLandscapeLabel: '手機橫板模式（β，未勾選則自動依螢幕方向）：',
@@ -702,6 +733,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       offsetLabel: 'Global Offset (ms):',
       offsetCalibBtn: 'Quick Calibrate',
       rgbLabel: 'RGB cycling arrow colors:',
+      feverPromptText: 'Activate Fever',
+      feverPromptKey: 'Space',
       hpLabel: 'HP mode:',
       mobileFullLabel: 'Mobile full height (>4 keys recommended):',
       mobileLandscapeLabel: 'Mobile landscape mode (beta, auto by orientation when off):',
@@ -1792,13 +1825,30 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   function laneX(i){ const lw = W/LANES; return i*lw + lw/2; }
 
   /* ===== 顏色 / RGB ===== */
-  const BASE_COL = ['#b266ff','#66ccff','#66ff66','#ff6666','#ffc857','#ff9bd3','#78d5ff','#ffd966'];
   let RGB = localStorage.getItem("dfjk.rgbCycle")==="1";
   function h2x(h,s,l){ s/=100; l/=100; const k=n=>(n+h/30)%12; const a=s*Math.min(l,1-l); const f=n=>l - a*Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n),1))); const to=x=>("0"+Math.round(x*255).toString(16)).slice(-2); return `#${to(f(0))}${to(f(8))}${to(f(4))}`; }
   function light(hex,a){ const p=parseInt(hex.slice(1),16); let r=(p>>16)&255,g=(p>>8)&255,b=p&255; r=Math.min(255,Math.round(r+(255-r)*a)); g=Math.min(255,Math.round(g+(255-g)*a)); b=Math.min(255,Math.round(b+(255-b)*a)); return `rgb(${r},${g},${b})`; }
+  function toRgba(color, alpha){
+    if(color.startsWith('#')){
+      const p=parseInt(color.slice(1),16); const r=(p>>16)&255,g=(p>>8)&255,b=p&255;
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+    if(color.startsWith('rgb(')){
+      return color.replace('rgb(', 'rgba(').replace(')', `,${alpha})`);
+    }
+    return color;
+  }
   function laneCol(i,t){ if(RGB){ const hue=((t*60)+i*(360/LANES))%360; return h2x(hue,85,55); } return BASE_COL[i % BASE_COL.length]; }
   function laneRgbEdge(i,t){ const hue=((t*80)+i*(360/LANES))%360; return h2x(hue,90,60); }
-  function arrowFillGradient(size, alpha=0.95){
+  function arrowFillGradient(size, baseColor, alpha=0.95){
+    const g=ctx.createLinearGradient(0,-size,0,size);
+    const top=toRgba(light(baseColor,0.35), alpha);
+    const bottom=toRgba(baseColor, alpha);
+    g.addColorStop(0, top);
+    g.addColorStop(1, bottom);
+    return g;
+  }
+  function arrowFeverGradient(size, alpha=0.95){
     const g=ctx.createLinearGradient(0,-size,0,size);
     g.addColorStop(0,`rgba(255,45,45,${alpha})`);
     g.addColorStop(1,`rgba(0,0,0,${alpha})`);
@@ -1812,6 +1862,28 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
   let feverIntensity = 0;
   let feverTarget = 0;
   const feverTimerEl = $("#feverTimer");
+  const feverPromptEl = $("#feverPrompt");
+  let feverReady = false;
+  function showFeverPrompt(){
+    if(feverPromptEl) feverPromptEl.style.display = "flex";
+  }
+  function hideFeverPrompt(){
+    if(feverPromptEl) feverPromptEl.style.display = "none";
+  }
+  function updateFeverPromptState(){
+    if(feverActive){
+      feverReady = false;
+      hideFeverPrompt();
+      return;
+    }
+    if(combo >= 100){
+      feverReady = true;
+      showFeverPrompt();
+    }else{
+      feverReady = false;
+      hideFeverPrompt();
+    }
+  }
   function updateFeverTimer(now){
     if(!feverTimerEl) return;
     if(feverActive){
@@ -1829,6 +1901,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     feverEndsAt = (performance.now()/1000) + FEVER_DURATION;
     feverTarget = 1;
     document.body.classList.add('fever-mode');
+    feverReady = false;
+    hideFeverPrompt();
     updateFeverTimer(performance.now()/1000);
   }
   function endFever(){
@@ -1845,6 +1919,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     feverTarget = 0;
     feverIntensity = 0;
     document.body.classList.remove('fever-mode');
+    feverReady = false;
+    hideFeverPrompt();
     updateFeverTimer(performance.now()/1000);
   }
   function updateFever(now, dt){
@@ -1886,7 +1962,11 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     ctx.save(); ctx.translate(x,y); ctx.rotate(ang+rot); ctx.scale(scale,scale);
     arrowPath(ctx,size);
     const fillAlpha = isRec ? 0.72 : 0.96;
-    ctx.fillStyle = arrowFillGradient(size, fillAlpha);
+    if(feverActive){
+      ctx.fillStyle = arrowFeverGradient(size, fillAlpha);
+    }else{
+      ctx.fillStyle = arrowFillGradient(size, base, fillAlpha);
+    }
     ctx.fill();
     ctx.lineWidth = isRec? 2 : 2.2;
     ctx.strokeStyle = laneRgbEdge(lane, t);
@@ -2074,6 +2154,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       if(late>over){
         n.hit=true; remain--;
         lastJudge='MISS'; combo=0; missCount++; stats.miss++; endFever(); scoreAdd(SC.miss); hpAdd(hpDelta('MISS'));
+        updateFeverPromptState();
         hud(); exCheck();
       }
     }
@@ -2582,12 +2663,17 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       else if(Math.abs(dt)<=WIN.good){ r='GOOD'; scoreAdd(SC.good); stats.good++; combo++; }
       else if(Math.abs(dt)<=WIN.bad){ r='BAD'; scoreAdd(SC.bad); stats.bad++; combo++; }
       else { r='SHIT'; endFever(); scoreAdd(SC.shit); stats.shit++; combo=Math.max(0,combo-1); }
-      if(!feverActive && combo===100){ startFever(); }
+      updateFeverPromptState();
       lastJudge=r; recDt(dt); hud(); const key=r.replace('!',''); if(['SICK','GOOD','BAD','SHIT'].includes(key)) hpAdd(hpDelta(key)); if(combo>0 && combo%10===0) comboFlashNow(); addHit(l); impact(l); if(VIB){ try{ navigator.vibrate(10);}catch{} }
     }else{ if(jmode==='old'){ lastJudge='WRONG'; wrongCount++; endFever(); hpAdd(-2); } else lastJudge='-'; hud(); recPulse[l]=Math.max(recPulse[l],1.0); addHit(l); impact(l); }
   }
   addEv(window,"keydown", e=>{
     if(e.repeat) return; const k=e.key.toLowerCase();
+    if((k === ' ' || e.code === 'Space') && running && !paused && feverReady){
+      startFever();
+      e.preventDefault();
+      return;
+    }
     if(k==='h'){ toggleHeat(true); e.preventDefault(); return; }
     if(k==='r'){ heatMode=(heatMode+1)%3; const pos=heatMode===0?getDynamic('heatAuto'):(heatMode===1?getDynamic('heatTop'):getDynamic('heatBottom')); banner(getDynamic('heatPosition',{position:pos})); ui(); e.preventDefault(); return; }
     const l=laneKeyFromChar(k);
@@ -2639,7 +2725,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     if(diff==='beginner') mul=0.8; else if(diff==='easy') mul=0.9;
     score=0; combo=0; lastJudge='-'; missCount=0; stats={sick:0,good:0,bad:0,shit:0,miss:0}; wrongCount=0;
     chart=[]; remain=0; dts.length=0; recPulse=new Array(LANES).fill(0); recHitT=new Array(LANES).fill(0);
-    comboFlash=""; hits.length=0; parts.length=0; spd=baseSpd*mul; currentSong=selectedSongFile.replace(/\.mp3$/i,''); hud();
+    comboFlash=""; hits.length=0; parts.length=0; spd=baseSpd*mul; currentSong=selectedSongFile.replace(/\.mp3$/i,''); hud(); updateFeverPromptState();
     HP=HP_MAX; hpShow(HP_ON); hpUpdate();
     paused=false; running=false;
     phase='countdown';
@@ -2802,6 +2888,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
