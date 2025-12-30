@@ -2670,7 +2670,8 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       if(topbar) topbar.style.display='flex';
       if(dockHandleEl){ dockHandleEl.classList.remove('show'); dockHandleEl.style.display='none'; }
       $("#landDock").classList.remove('open'); $("#dockScrim").classList.remove('show');
-      $("#hpFloat").style.display='none';
+      const hpFloat = $("#hpFloat");
+      if (hpFloat) hpFloat.style.display = 'none';
     }
     layout(); draw({skip:true}); ui();
   }
@@ -2969,6 +2970,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
