@@ -2092,19 +2092,26 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     }
   }
   function cancelCalibAudio(){ try{ if(AC && Gcal){ Gcal.gain.cancelScheduledValues(AC.currentTime); Gcal.gain.setValueAtTime(0, AC.currentTime); try{ Gcal.disconnect(); }catch{} Gcal = null; } }catch{} for(const id of timers) try{ clearTimeout(id); }catch{} timers.length = 0; }
-  async function tapSfx(){ try{ await ensureAC(); const t0=AC.currentTime+0.001; const mix=AC.createGain(); mix.gain.setValueAtTime(0.92, t0); mix.connect(Gsfx||Gm);
-    const body=AC.createOscillator(); body.type='triangle'; body.frequency.setValueAtTime(260, t0); body.frequency.exponentialRampToValueAtTime(150, t0+0.06);
-    const bodyG=AC.createGain(); bodyG.gain.setValueAtTime(0.0001, t0); bodyG.gain.exponentialRampToValueAtTime(0.35, t0+0.004); bodyG.gain.exponentialRampToValueAtTime(0.0001, t0+0.08);
-    body.connect(bodyG); bodyG.connect(mix);
-    const click=AC.createOscillator(); click.type='square'; click.frequency.setValueAtTime(3200, t0);
-    const clickG=AC.createGain(); clickG.gain.setValueAtTime(0.0001, t0); clickG.gain.exponentialRampToValueAtTime(0.5, t0+0.0015); clickG.gain.exponentialRampToValueAtTime(0.0001, t0+0.028);
-    click.connect(clickG); clickG.connect(mix);
-    const nLen=Math.floor(AC.sampleRate*0.08); const nb=AC.createBuffer(1, nLen, AC.sampleRate); const data=nb.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1; const n=AC.createBufferSource(); n.buffer=nb;
-    const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.setValueAtTime(1800, t0);
-    const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(4200, t0); bp.Q.setValueAtTime(1.2, t0);
-    const ng=AC.createGain(); ng.gain.setValueAtTime(0.0001, t0); ng.gain.exponentialRampToValueAtTime(0.6, t0+0.0025); ng.gain.exponentialRampToValueAtTime(0.0001, t0+0.06);
+  async function tapSfx(){ try{ await ensureAC(); const t0=AC.currentTime+0.001; const mix=AC.createGain(); mix.gain.setValueAtTime(0.9, t0); mix.connect(Gsfx||Gm);
+    const clang1=AC.createOscillator(); clang1.type='sine'; clang1.frequency.setValueAtTime(620, t0); clang1.frequency.exponentialRampToValueAtTime(420, t0+0.08);
+    const clang2=AC.createOscillator(); clang2.type='triangle'; clang2.frequency.setValueAtTime(980, t0); clang2.frequency.exponentialRampToValueAtTime(690, t0+0.07);
+    const clang3=AC.createOscillator(); clang3.type='sine'; clang3.frequency.setValueAtTime(1540, t0); clang3.frequency.exponentialRampToValueAtTime(1100, t0+0.06);
+    const clangG1=AC.createGain(); clangG1.gain.setValueAtTime(0.0001, t0); clangG1.gain.exponentialRampToValueAtTime(0.35, t0+0.003); clangG1.gain.exponentialRampToValueAtTime(0.0001, t0+0.16);
+    const clangG2=AC.createGain(); clangG2.gain.setValueAtTime(0.0001, t0); clangG2.gain.exponentialRampToValueAtTime(0.28, t0+0.003); clangG2.gain.exponentialRampToValueAtTime(0.0001, t0+0.14);
+    const clangG3=AC.createGain(); clangG3.gain.setValueAtTime(0.0001, t0); clangG3.gain.exponentialRampToValueAtTime(0.22, t0+0.0025); clangG3.gain.exponentialRampToValueAtTime(0.0001, t0+0.12);
+    clang1.connect(clangG1); clangG1.connect(mix);
+    clang2.connect(clangG2); clangG2.connect(mix);
+    clang3.connect(clangG3); clangG3.connect(mix);
+    const ping=AC.createOscillator(); ping.type='square'; ping.frequency.setValueAtTime(4200, t0);
+    const pingG=AC.createGain(); pingG.gain.setValueAtTime(0.0001, t0); pingG.gain.exponentialRampToValueAtTime(0.55, t0+0.0012); pingG.gain.exponentialRampToValueAtTime(0.0001, t0+0.022);
+    ping.connect(pingG); pingG.connect(mix);
+    const nLen=Math.floor(AC.sampleRate*0.07); const nb=AC.createBuffer(1, nLen, AC.sampleRate); const data=nb.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1; const n=AC.createBufferSource(); n.buffer=nb;
+    const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.setValueAtTime(2400, t0);
+    const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(5200, t0); bp.Q.setValueAtTime(1.6, t0);
+    const ng=AC.createGain(); ng.gain.setValueAtTime(0.0001, t0); ng.gain.exponentialRampToValueAtTime(0.65, t0+0.002); ng.gain.exponentialRampToValueAtTime(0.0001, t0+0.05);
     n.connect(hp); hp.connect(bp); bp.connect(ng); ng.connect(mix);
-    body.start(t0); body.stop(t0+0.1); n.start(t0); n.stop(t0+0.08); click.start(t0); click.stop(t0+0.04);
+    clang1.start(t0); clang1.stop(t0+0.18); clang2.start(t0); clang2.stop(t0+0.16); clang3.start(t0); clang3.stop(t0+0.14);
+    n.start(t0); n.stop(t0+0.07); ping.start(t0); ping.stop(t0+0.03);
   }catch{} }
 
   /* ===== 判定 / 分數 ===== */
@@ -2954,6 +2961,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
