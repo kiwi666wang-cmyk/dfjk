@@ -2092,14 +2092,16 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
     }
   }
   function cancelCalibAudio(){ try{ if(AC && Gcal){ Gcal.gain.cancelScheduledValues(AC.currentTime); Gcal.gain.setValueAtTime(0, AC.currentTime); try{ Gcal.disconnect(); }catch{} Gcal = null; } }catch{} for(const id of timers) try{ clearTimeout(id); }catch{} timers.length = 0; }
-  async function tapSfx(){ try{ await ensureAC(); const t0=AC.currentTime+0.001, dur=0.10; const mix=AC.createGain(); mix.connect(Gsfx||Gm);
-    const o1=AC.createOscillator(); o1.type='triangle'; o1.frequency.setValueAtTime(2700,t0); o1.frequency.exponentialRampToValueAtTime(1900,t0+dur);
-    const g1=AC.createGain(); g1.gain.setValueAtTime(0.0001,t0); g1.gain.exponentialRampToValueAtTime(0.55,t0+0.004); g1.gain.exponentialRampToValueAtTime(0.0001,t0+dur); o1.connect(g1); g1.connect(mix);
-    const o2=AC.createOscillator(); o2.type='square'; o2.frequency.setValueAtTime(5400,t0); o2.frequency.exponentialRampToValueAtTime(2800,t0+0.08);
-    const g2=AC.createGain(); g2.gain.setValueAtTime(0.17,t0); g2.gain.exponentialRampToValueAtTime(0.0001,t0+0.08); o2.connect(g2); g2.connect(mix);
-    const nb=AC.createBuffer(1,256,AC.sampleRate); const data=nb.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1; const n=AC.createBufferSource(); n.buffer=nb;
-    const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=9800; bp.Q.value=6; const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=2000; hp.Q.value=0.7; const ng=AC.createGain(); ng.gain.setValueAtTime(0.16,t0); ng.gain.exponentialRampToValueAtTime(0.0001,t0+0.06);
-    n.connect(bp); bp.connect(hp); hp.connect(ng); ng.connect(mix); o1.start(t0); o1.stop(t0+dur+0.03); o2.start(t0); o2.stop(t0+0.09); n.start(t0); n.stop(t0+0.06);
+  async function tapSfx(){ try{ await ensureAC(); const t0=AC.currentTime+0.001; const mix=AC.createGain(); mix.gain.setValueAtTime(0.95, t0); mix.connect(Gsfx||Gm);
+    const body=AC.createOscillator(); body.type='triangle'; body.frequency.setValueAtTime(210, t0); body.frequency.exponentialRampToValueAtTime(140, t0+0.08);
+    const bodyG=AC.createGain(); bodyG.gain.setValueAtTime(0.0001, t0); bodyG.gain.exponentialRampToValueAtTime(0.7, t0+0.005); bodyG.gain.exponentialRampToValueAtTime(0.0001, t0+0.12);
+    body.connect(bodyG); bodyG.connect(mix);
+    const nLen=Math.floor(AC.sampleRate*0.12); const nb=AC.createBuffer(1, nLen, AC.sampleRate); const data=nb.getChannelData(0); for(let i=0;i<data.length;i++) data[i]=Math.random()*2-1; const n=AC.createBufferSource(); n.buffer=nb;
+    const hp=AC.createBiquadFilter(); hp.type='highpass'; hp.frequency.setValueAtTime(1200, t0);
+    const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.setValueAtTime(3200, t0); bp.Q.setValueAtTime(0.9, t0);
+    const ng=AC.createGain(); ng.gain.setValueAtTime(0.0001, t0); ng.gain.exponentialRampToValueAtTime(0.45, t0+0.004); ng.gain.exponentialRampToValueAtTime(0.0001, t0+0.09);
+    n.connect(hp); hp.connect(bp); bp.connect(ng); ng.connect(mix);
+    body.start(t0); body.stop(t0+0.14); n.start(t0); n.stop(t0+0.11);
   }catch{} }
 
   /* ===== 判定 / 分數 ===== */
@@ -2949,6 +2951,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
