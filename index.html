@@ -2749,8 +2749,16 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
       return;
     }
   });
+  const SUPPORTS_POINTER = ("PointerEvent" in window);
   addEv(c,"pointerdown", e=>{ if(!running||paused) return; e.preventDefault(); const l=lanePtrFromClient(e.clientX, e.clientY); onPress(l); }, {passive:false});
-  addEv(c,"touchstart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
+  addEv(c,"touchstart", e=>{
+    if(phase==='playing'||phase==='countdown') e.preventDefault();
+    if(SUPPORTS_POINTER || !running || paused) return;
+    const t = e.changedTouches?.[0] || e.touches?.[0];
+    if(!t) return;
+    const l = lanePtrFromClient(t.clientX, t.clientY);
+    onPress(l);
+  }, {passive:false});
   addEv(c,"touchmove",  e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
   addEv(window,"dblclick",     e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
   addEv(window,"gesturestart", e=>{ if(phase==='playing'||phase==='countdown') e.preventDefault(); }, {passive:false});
@@ -2961,6 +2969,7 @@ button{ margin:10px; padding:10px 20px; font-size:18px; background:#78d5ff; bord
 </script>
 </body>
 </html>
+
 
 
 
